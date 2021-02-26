@@ -39,6 +39,7 @@ ${EMCPP} \
     -fexceptions \
     -sDISABLE_EXCEPTION_CATCHING=0 \
     -sUSE_PTHREADS=0 \
+    -sEXPORTED_FUNCTIONS='[ duckdb_open, duckdb_connect, duckdb_disconnect, duckdb_close, duckdb_query, duckdb_value_int32, duckdb_value_varchar, duckdb_destroy_result ]' \
     -DNDEBUG \
     -DDUCKDB_NO_THREADS=1 \
     -I ${PROJECT_ROOT}/src/include \
