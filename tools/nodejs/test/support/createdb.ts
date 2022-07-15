@@ -1,6 +1,4 @@
-#!/usr/bin/env node
-
-function createdb(callback) {
+function createdb(callback?: Function) {
     var existsSync = require('fs').existsSync || require('path').existsSync;
     var path = require('path');
 
