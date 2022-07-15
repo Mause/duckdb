@@ -14,9 +14,11 @@ Napi::Object Connection::Init(Napi::Env env, Napi::Object exports) {
 
 	Napi::Function t =
 	    DefineClass(env, "Connection",
-	                {InstanceMethod("prepare", &Connection::Prepare), InstanceMethod("exec", &Connection::Exec),
-	                 InstanceMethod("register_bulk", &Connection::Register),
-	                 InstanceMethod("unregister", &Connection::Unregister)});
+	                {
+						InstanceMethod("prepare", &Connection::Prepare),
+						InstanceMethod("exec", &Connection::Exec),
+						InstanceMethod("register_bulk", &Connection::Register),
+						InstanceMethod("unregister", &Connection::Unregister)});
 
 	constructor = Napi::Persistent(t);
 	constructor.SuppressDestruct();
