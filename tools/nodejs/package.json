@@ -23,6 +23,7 @@
   },
   "directories": {
     "lib": "lib",
+    "dist": "dist",
     "test": "test"
   },
   "devDependencies": {
