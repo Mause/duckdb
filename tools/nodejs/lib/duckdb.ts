@@ -5,6 +5,14 @@ const _Database = duckdb.Database;
 const _Connection = duckdb.Connection;
 const _Statement = duckdb.Statement;
 
+export const ERROR = duckdb.ERROR as number;
+export const OPEN_READONLY = duckdb.OPEN_READONLY as number;
+export const OPEN_READWRITE = duckdb.OPEN_READWRITE as number;
+export const OPEN_CREATE = duckdb.OPEN_CREATE as number;
+export const OPEN_FULLMUTEX = duckdb.OPEN_FULLMUTEX as number;
+export const OPEN_SHAREDCACHE = duckdb.OPEN_SHAREDCACHE as number;
+export const OPEN_PRIVATECACHE = duckdb.OPEN_PRIVATECACHE as number;
+
 // Build an argument resolver
 function buildResolver(arg: ArgType<unknown>) {
   let validity = arg.validity || null;
