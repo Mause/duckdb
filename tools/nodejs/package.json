@@ -18,7 +18,7 @@
     "build": "tsc",
     "install": "node-pre-gyp install --fallback-to-build",
     "pretest": "ts-node test/support/createdb.ts",
-    "test": "mocha -R spec --timeout 480000",
+    "test": "mocha -r ts-node/register -R spec --timeout 480000",
     "pack": "node-pre-gyp package"
   },
   "directories": {
