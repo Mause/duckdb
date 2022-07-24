@@ -15,7 +15,7 @@ export class Database {
   wait(): void;
   serialize(callback?: () => void): void;
   parallelize(callback?: () => void): void;
-  connect(): void;
+  connect(db: Database): Connection;
   interrupt(): void;
 }
 export class Connection {
