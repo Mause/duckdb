@@ -156,9 +156,11 @@ export class Connection extends _Connection {
     sql: string,
     params: any,
     callback?: (this: RunResult, err: Error | null) => void
-  ) {
-    var statement = new Statement(this, sql);
-    return statement.run(...arguments);
+  ): this;
+  run(...params: any[]) {
+    var statement = new Statement(this, params[0] as string);
+    statement.run(arguments[0], arguments[1], arguments[2]);
+    return this;
   }
 
   all(
@@ -170,9 +172,11 @@ export class Connection extends _Connection {
     params: any,
     callback?: (this: Statement, err: Error | null, rows: any[]) => void
   ): this;
-  all(sql: string, ...params: any[]) {
-    var statement = new Statement(this, sql);
-    return statement.all(...arguments);
+  all(sql: string, ...params: any[]): this;
+  all(...args: any[]): this {
+    var statement = new Statement(this, args[0] as string);
+    statement.all(...args);
+    return this;
   }
 
   each(
@@ -186,9 +190,11 @@ export class Connection extends _Connection {
     callback?: (this: Statement, err: Error | null, row: any) => void,
     complete?: (err: Error | null, count: number) => void
   ): this;
-  each(sql: string, ...params: any[]) {
-    var statement = new Statement(this, sql);
-    return statement.each(...arguments);
+  each(sql: string, ...params: any[]): this;
+  each(...args: any[]) {
+    var statement = new Statement(this, args[0] as string);
+    statement.each(...args);
+    return this;
   }
 
   // this follows the wasm udfs somewhat but is simpler because we can pass data much more cleanly
@@ -198,7 +204,10 @@ export class Connection extends _Connection {
   }
 }
 
-export interface RunResult extends Statement {}
+export interface RunResult extends Statement {
+  lastID: number;
+  changes: number;
+}
 
 export class Database extends _Database {
   _default_connection?: Connection;
@@ -207,30 +216,51 @@ export class Database extends _Database {
     if (this._default_connection == undefined) {
       this._default_connection = new Connection(this);
     }
-    console.log({default_connection: this._default_connection})
     return this._default_connection!;
   }
 
-  prepare(...args: any[]) {
-    return this.default_connection.prepare(...args);
+  prepare(
+    sql: string,
+    callback?: (this: Statement, err: Error | null) => void
+  ): Statement;
+  prepare(
+    sql: string,
+    params: any,
+    callback?: (this: Statement, err: Error | null) => void
+  ): Statement;
+  prepare(sql: string, ...params: any[]): Statement;
+  prepare() {
+    // @ts-ignore
+    return this.default_connection.prepare(...arguments);
   }
 
   run(
     sql: string,
     callback?: (this: RunResult, err: Error | null) => void
   ): this;
-  run(sql: string, ...params: any[]): this;
   run(
     sql: string,
     params: any,
     callback?: (this: RunResult, err: Error | null) => void
-  ) {
-    this.default_connection.run(sql, params, callback);
+  ): this;
+  run(sql: string, ...params: any[]): this;
+  run() {
+    // @ts-ignore
+    this.default_connection.run(...arguments);
     return this;
   }
 
-  each(sql: string, callback?: (this: Statement, err: Error | null, row: any) => void, complete?: (err: Error | null, count: number) => void): this;
-  each(sql: string, params: any, callback?: (this: Statement, err: Error | null, row: any) => void, complete?: (err: Error | null, count: number) => void): this;
+  each(
+    sql: string,
+    callback?: (this: Statement, err: Error | null, row: any) => void,
+    complete?: (err: Error | null, count: number) => void
+  ): this;
+  each(
+    sql: string,
+    params: any,
+    callback?: (this: Statement, err: Error | null, row: any) => void,
+    complete?: (err: Error | null, count: number) => void
+  ): this;
   each(sql: string, ...params: any[]) {
     this.default_connection.each(sql, ...arguments);
     return this;
@@ -250,7 +280,7 @@ export class Database extends _Database {
     return this;
   }
 
-  exec(sql: string, callback?: (this: Statement, err: Error | null) => void) {
+  exec(sql: string, callback?: (err: Error | null) => void) {
     this.default_connection.exec(sql, callback);
     return this;
   }
@@ -260,8 +290,8 @@ export class Database extends _Database {
     return this;
   }
 
-  unregister(...args: any[]) {
-    this.default_connection.unregister(...args);
+  unregister(name: string, cb?: () => void) {
+    this.default_connection.unregister(name, cb);
     return this;
   }
 
