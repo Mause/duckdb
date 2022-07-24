@@ -190,7 +190,7 @@ export class Connection extends _Connection {
   }
 }
 
-interface RunResult {}
+export interface RunResult extends Statement {}
 
 export class Database extends _Database {
   _default_connection?: Connection;
