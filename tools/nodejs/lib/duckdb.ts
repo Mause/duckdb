@@ -194,24 +194,24 @@ export class Connection extends _Connection {
   }
 }
 
-function default_connection(o: Database): Connection {
-  if (o.default_connection == undefined) {
-    o.default_connection = new duckdb.Connection(o);
-  }
-  return o.default_connection!;
-}
-
 interface RunResult {}
 
 export class Database extends _Database {
-  default_connection?: Connection;
+  _default_connection?: Connection;
+
+  get default_connection(): Connection {
+    if (this._default_connection == undefined) {
+      this._default_connection = new duckdb.Connection(this);
+    }
+    return this._default_connection!;
+  }
 
   constructor(filename: string) {
     super(filename);
   }
 
   prepare(...args: any[]) {
-    return default_connection(this).prepare(...args);
+    return this.default_connection.prepare(...args);
   }
 
   run(
@@ -224,14 +224,14 @@ export class Database extends _Database {
     params: any,
     callback?: (this: RunResult, err: Error | null) => void
   ) {
-    default_connection(this).run(sql, params, callback);
+    this.default_connection.run(sql, params, callback);
     return this;
   }
 
   each(sql: string, callback?: (this: Statement, err: Error | null, row: any) => void, complete?: (err: Error | null, count: number) => void): this;
   each(sql: string, params: any, callback?: (this: Statement, err: Error | null, row: any) => void, complete?: (err: Error | null, count: number) => void): this;
   each(sql: string, ...params: any[]) {
-    default_connection(this).each(sql, ...arguments);
+    this.default_connection.each(sql, ...arguments);
     return this;
   }
 
@@ -245,22 +245,22 @@ export class Database extends _Database {
     params: any,
     callback?: (this: Statement, err: Error | null, rows: any[]) => void
   ) {
-    default_connection(this).all(sql, params, callback);
+    this.default_connection.all(sql, params, callback);
     return this;
   }
 
   exec(sql: string, callback?: (this: Statement, err: Error | null) => void) {
-    default_connection(this).exec(sql, callback);
+    this.default_connection.exec(sql, callback);
     return this;
   }
 
   register(name: string, return_type: string, fun: Function) {
-    default_connection(this).register(name, return_type, fun);
+    this.default_connection.register(name, return_type, fun);
     return this;
   }
 
   unregister(...args: any[]) {
-    default_connection(this).unregister(...args);
+    this.default_connection.unregister(...args);
     return this;
   }
 
