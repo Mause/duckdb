@@ -14,7 +14,7 @@ export const OPEN_SHAREDCACHE = duckdb.OPEN_SHAREDCACHE as number;
 export const OPEN_PRIVATECACHE = duckdb.OPEN_PRIVATECACHE as number;
 
 // Build an argument resolver
-function buildResolver(arg: ArgType<unknown>) {
+function buildResolver(arg: ArgType) {
   let validity = arg.validity || null;
   switch (arg.physicalType) {
     case "STRUCT": {
@@ -60,7 +60,7 @@ function buildResolver(arg: ArgType<unknown>) {
       }
     }
   }
-};
+}
 
 function registration(fun: Function, desc: Description<unknown>) {
   try {
@@ -124,17 +124,25 @@ function registration(fun: Function, desc: Description<unknown>) {
   }
 }
 
-interface ArgType<T> {
+interface ArgType {
   name: string;
-  data: Int8Array | Int16Array | Int32Array | Float32Array | Float64Array | BigInt64Array | BigUint64Array | Array<string>;
+  data:
+    | Int8Array
+    | Int16Array
+    | Int32Array
+    | Float32Array
+    | Float64Array
+    | BigInt64Array
+    | BigUint64Array
+    | Array<string>;
   validity: Uint8Array;
   physicalType: string;
-  children: ArgType<any>[];
+  children: ArgType[];
 }
 type Resolver = (row: any) => void;
 interface Description<Return> {
-  args: ArgType<unknown>[];
-  ret: ArgType<Return>;
+  args: ArgType[];
+  ret: ArgType;
   rows: number;
 }
 
