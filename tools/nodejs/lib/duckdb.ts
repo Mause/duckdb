@@ -141,6 +141,8 @@ interface Description<Return> {
 export class Connection extends _Connection {
   constructor(db: Database) {
     super(db);
+    console.log(Object.keys(this));
+    console.log(this.constructor.prototype);
   }
 
   run(
