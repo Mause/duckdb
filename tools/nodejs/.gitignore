@@ -7,3 +7,4 @@ package-lock.json
 test/support/big.db*
 test/tmp/*
 src/parquet-amalgamation*
+dist/
