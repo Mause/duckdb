@@ -203,7 +203,7 @@ export class Database extends _Database {
 
   get default_connection(): Connection {
     if (this._default_connection == undefined) {
-      this._default_connection = new duckdb.Connection(this);
+      this._default_connection = new Connection(this);
     }
     console.log({default_connection: this._default_connection})
     return this._default_connection!;
