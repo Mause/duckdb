@@ -139,8 +139,8 @@ interface Description<Return> {
 }
 
 export class Connection extends _Connection {
-  constructor() {
-    super();
+  constructor(db: Database) {
+    super(db);
   }
 
   run(
