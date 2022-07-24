@@ -2,37 +2,33 @@ var assert = require('assert');
 var fs = require('fs');
 var pathExists = require('fs').existsSync || require('path').existsSync;
 
-function isFileDNE(err: any) {
-    return err.code === 'ENOENT' && err.syscall === 'unlink';
-}
-
-export function deleteFile(name: string) {
+exports.deleteFile = function(name) {
     try {
         fs.unlinkSync(name);
     } catch(err) {
-        if (!isFileDNE(err)) {
+        if (err.errno !== process.ENOENT && err.code !== 'ENOENT' && err.syscall !== 'unlink') {
             throw err;
         }
     }
 };
 
-export function ensureExists(name:string, cb: unknown) {
+exports.ensureExists = function(name,cb) {
     if (!pathExists(name)) {
         fs.mkdirSync(name);
     };
 }
 
-assert.fileDoesNotExist = function(name: string) {
+assert.fileDoesNotExist = function(name) {
     try {
         fs.statSync(name);
     } catch(err) {
-        if (!isFileDNE(err)) {
+        if (err.errno !== process.ENOENT && err.code !== 'ENOENT' && err.syscall !== 'unlink') {
             throw err;
         }
     }
 };
 
-assert.fileExists = function(name: string) {
+assert.fileExists = function(name) {
     try {
         fs.statSync(name);
     } catch(err) {
