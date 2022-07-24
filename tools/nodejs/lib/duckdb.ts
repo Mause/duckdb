@@ -139,12 +139,6 @@ interface Description<Return> {
 }
 
 export class Connection extends _Connection {
-  constructor(db: Database) {
-    super(db);
-    console.log(Object.keys(this));
-    console.log(this.constructor.prototype);
-  }
-
   run(
     sql: string,
     callback?: (this: RunResult, err: Error | null) => void
@@ -209,10 +203,6 @@ export class Database extends _Database {
     return this._default_connection!;
   }
 
-  constructor(filename: string) {
-    super(filename);
-  }
-
   prepare(...args: any[]) {
     return this.default_connection.prepare(...args);
   }
@@ -273,10 +263,6 @@ export class Database extends _Database {
 }
 
 class Statement extends _Statement {
-  constructor(connection: Connection, text: string) {
-    super(connection, text);
-  }
-
   get() {
     throw "get() is not implemented because it's evil";
   }
