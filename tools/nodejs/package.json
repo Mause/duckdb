@@ -17,7 +17,7 @@
   "scripts": {
     "build": "tsc",
     "install": "node-pre-gyp install --fallback-to-build",
-    "pretest": "ts-node test/support/createdb.ts",
+    "pretest": "node test/support/createdb.js",
     "test": "mocha -r ts-node/register -R spec --timeout 480000",
     "pack": "node-pre-gyp package"
   },
