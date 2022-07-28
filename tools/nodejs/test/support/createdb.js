@@ -4,7 +4,7 @@ function createdb(callback) {
     var existsSync = require('fs').existsSync || require('path').existsSync;
     var path = require('path');
 
-    var sqlite3 = require('../../lib/duckdb');
+    var sqlite3 = require('../../dist/duckdb');
 
     var count = 1000000;
     var db_path = path.join(__dirname,'big.db');
