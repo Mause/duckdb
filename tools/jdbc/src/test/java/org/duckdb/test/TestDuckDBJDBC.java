@@ -36,6 +36,7 @@ import org.duckdb.DuckDBConnection;
 import org.duckdb.DuckDBDatabase;
 import org.duckdb.DuckDBDriver;
 import org.duckdb.DuckDBTimestamp;
+import org.duckdb.DuckDBPreparedStatement;
 import org.duckdb.DuckDBColumnType;
 import org.duckdb.DuckDBResultSetMetaData;
 import org.duckdb.JsonNode;
@@ -427,8 +428,8 @@ public class TestDuckDBJDBC {
 		assertTrue(((OffsetDateTime) rs.getObject(2)).isEqual(odt2Rounded));
 
 		// Metadata tests
-		assertEquals(Types.TIME_WITH_TIMEZONE,
-				((DuckDBResultSetMetaData) meta).type_to_int(DuckDBColumnType.TIMESTAMP_WITH_TIME_ZONE));
+		assertEquals(Types.TIMESTAMP_WITH_TIMEZONE,
+				DuckDBResultSetMetaData.type_to_int(DuckDBColumnType.TIMESTAMP_WITH_TIME_ZONE));
 		assertTrue(OffsetDateTime.class.toString().equals(meta.getColumnClassName(2)));
 
 		rs.close();
@@ -2259,6 +2260,19 @@ public class TestDuckDBJDBC {
 
 		rowSet.next();
 		assertEquals(rowSet.getInt(1), 1);
+	}
+
+	public static void test_timestamp_binding() throws Exception {
+		DuckDBConnection conn = (DuckDBConnection) DriverManager.getConnection("jdbc:duckdb:");
+
+		try (DuckDBPreparedStatement statement = (DuckDBPreparedStatement) conn.createStatement()) {
+			ResultSet rs = statement.executeQuery("select strptime('2022-06-06 00:00 +0200', '%Y-%m-%d %H:%M %z')");
+
+			rs.next();
+
+			assertEquals(rs.getObject(1), OffsetDateTime.parse("2022-06-05T22:00Z"));
+			assertEquals(statement.getMetaData().getColumnType(1), Types.TIMESTAMP_WITH_TIMEZONE);
+		}
 	}
 
 	public static void test_json() throws Exception {
