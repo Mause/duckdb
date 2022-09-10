@@ -70,7 +70,7 @@ jobs:
         path: |
           libduckdb-windows-amd64.zip
           duckdb_cli-windows-amd64.zip
-          tools/jdbc/duckdb_jdbc.jar
+          build/release/tools/jdbc/duckdb_jdbc.jar
           duckdb_odbc-windows-amd64.zip
 
     - uses: ilammy/msvc-dev-cmd@v1
@@ -122,7 +122,7 @@ jobs:
         path: |
           libduckdb-windows-i386.zip
           duckdb_cli-windows-i386.zip
-          tools/jdbc/duckdb_jdbc.jar
+          build/release/tools/jdbc/duckdb_jdbc.jar
 
 
  mingw:
