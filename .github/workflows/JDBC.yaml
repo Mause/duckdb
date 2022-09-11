@@ -1,3 +1,5 @@
+name: JDBC
+
 on:
   workflow_run:
     workflows: [LinuxRelease, OSX, Windows]
