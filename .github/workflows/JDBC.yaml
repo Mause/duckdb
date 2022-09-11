@@ -1,0 +1,21 @@
+on:
+  workflow_run:
+    workflows: [LinuxRelease, OSX, Windows]
+    types:
+      - completed
+
+jobs:
+  package_snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 'Download artifact'
+        uses: actions/github-script@v5
+        with:
+          script: |
+            const script = require('./JDBC.js')
+            console.log(script({github, context}))
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: duckdb-jdbc-universal
+          path: duckdb_jdbc_all.jar
