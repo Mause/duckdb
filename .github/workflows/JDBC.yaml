@@ -1,0 +1,32 @@
+name: JDBC
+
+on:
+  workflow_run:
+    workflows: [LinuxRelease, OSX, Windows]
+    types:
+      - completed
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  package_snapshot:
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success'
+    steps:
+      - uses: haya14busa/action-workflow_run-status@v1
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - run: python3 -m pip install octokitpy
+      - name: Build universal jar
+        run: python3 .github/workflows/JDBC.py
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: duckdb-jdbc-universal
+          path: duckdb_jdbc_all.jar
