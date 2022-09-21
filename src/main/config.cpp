@@ -387,6 +387,18 @@ bool DBConfig::operator!=(const DBConfig &other) {
 	return !(other.options == options);
 }
 
+std::string ProxyUri::to_string() const {
+	std::string res = "http://";
+	if (!(username.empty() && password.empty())) {
+		res += username + ":" + password + "@";
+	}
+	res += host;
+	if (port != 0) {
+		res += ":" + std::to_string(port);
+	}
+	return res;
+}
+
 OrderType DBConfig::ResolveOrder(OrderType order_type) const {
 	if (order_type != OrderType::ORDER_DEFAULT) {
 		return order_type;
