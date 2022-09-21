@@ -4,6 +4,7 @@
 #include "duckdb/common/string_util.hpp"
 #include "duckdb/main/settings.hpp"
 #include "duckdb/storage/storage_extension.hpp"
+#include "uri.hpp"
 
 #ifndef DUCKDB_NO_THREADS
 #include "duckdb/common/thread.hpp"
@@ -397,6 +398,25 @@ std::string ProxyUri::to_string() const {
 		res += ":" + std::to_string(port);
 	}
 	return res;
+}
+
+shared_ptr<ProxyUri> ProxyUri::FromString(const string &url) {
+	if (url.empty() || url == "NULL") {
+		return nullptr;
+	}
+
+	auto proxy = std::make_shared<uri>(url);
+
+	if (proxy->get_scheme() != "http") {
+		throw InvalidInputException("Invalid proxy url (only http proxies supported): %s", url);
+	}
+
+	return std::make_shared<ProxyUri>(proxy->get_host(), proxy->get_port(), proxy->get_username(),
+	                                  proxy->get_password());
+}
+
+ProxyUri::ProxyUri(const string &host, uint32_t port, const string &username, const string &password)
+    : host(host), port(port), username(username), password(password) {
 }
 
 OrderType DBConfig::ResolveOrder(OrderType order_type) const {
