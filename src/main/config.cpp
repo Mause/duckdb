@@ -388,7 +388,7 @@ bool DBConfig::operator!=(const DBConfig &other) {
 	return !(other.options == options);
 }
 
-std::string ProxyUri::to_string() const {
+std::string ProxyUri::ToString() const {
 	std::string res = "http://";
 	if (!(username.empty() && password.empty())) {
 		res += username + ":" + password + "@";
