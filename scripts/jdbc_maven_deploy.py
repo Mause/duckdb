@@ -19,14 +19,19 @@ import sys
 import tempfile
 import zipfile
 import re
+from os.path import join, dirname
 
+
+cwd = dirname(__file__)
 
 def exec(cmd):
-    print(cmd)
-    res = subprocess.run(cmd.split(' '), capture_output=True)
-    if res.returncode == 0:
-        return res.stdout
-    raise ValueError(res.stdout + res.stderr)
+  print(cmd)
+  return subprocess.run(
+    cmd.split(' '),
+    check=True,
+    stdout=subprocess.PIPE,
+    cwd=join(cwd, 'tools/jdbc')
+  ).stdout
 
 
 if len(sys.argv) < 4 or not os.path.isdir(sys.argv[2]) or not os.path.isdir(sys.argv[3]):
@@ -67,68 +72,8 @@ pom = '%s/duckdb_jdbc-%s.pom' % (staging_dir, release_version)
 sources_jar = '%s/duckdb_jdbc-%s-sources.jar' % (staging_dir, release_version)
 javadoc_jar = '%s/duckdb_jdbc-%s-javadoc.jar' % (staging_dir, release_version)
 
-pom_template = """
-<project>
-  <modelVersion>4.0.0</modelVersion>
-  <groupId>org.duckdb</groupId>
-  <artifactId>duckdb_jdbc</artifactId>
-  <version>${VERSION}</version>
-  <packaging>jar</packaging>
-  <name>DuckDB JDBC Driver</name>
-  <description>A JDBC-Compliant driver for the DuckDB data management system</description>
-  <url>https://www.duckdb.org</url>
-
-  <licenses>
-    <license>
-      <name>MIT License</name>
-      <url>https://raw.githubusercontent.com/duckdb/duckdb/main/LICENSE</url>
-      <distribution>repo</distribution>
-    </license>
-  </licenses>
-
-  <developers>
-      <developer>
-      <name>Mark Raasveldt</name>
-      <email>mark@duckdblabs.com</email>
-      <organization>DuckDB Labs</organization>
-      <organizationUrl>https://www.duckdblabs.com</organizationUrl>
-    </developer>
-    <developer>
-      <name>Hannes Muehleisen</name>
-      <email>hannes@duckdblabs.com</email>
-      <organization>DuckDB Labs</organization>
-      <organizationUrl>https://www.duckdblabs.com</organizationUrl>
-    </developer>
-  </developers>
-
-  <scm>
-    <connection>scm:git:git://github.com/duckdb/duckdb.git</connection>
-    <developerConnection>scm:git:ssh://github.com:duckdb/duckdb.git</developerConnection>
-    <url>http://github.com/duckdb/duckdb/tree/main</url>
-  </scm>
-
-  <build>
-    <plugins>
-      <plugin>
-        <groupId>org.sonatype.plugins</groupId>
-        <artifactId>nexus-staging-maven-plugin</artifactId>
-        <version>1.6.13</version>
-        <extensions>true</extensions>
-        <configuration>
-         <serverId>ossrh</serverId>
-         <nexusUrl>https://oss.sonatype.org/</nexusUrl>
-       </configuration>
-     </plugin>
-   </plugins>
- </build>
-
-</project>
-<!-- Note: this cannot be used to build the JDBC driver, we only use it to deploy -->
-"""
-
 # create a matching POM with this version
-pom_path = pathlib.Path(pom)
-pom_path.write_text(pom_template.replace("${VERSION}", release_version))
+exec(f"mvn versions:set -DnewVersion={release_version}")
 
 # fatten up jar to add other binaries, start with first one
 shutil.copyfile(os.path.join(jdbc_artifact_dir, "java-" + combine_builds[0], "duckdb_jdbc.jar"), binary_jar)
