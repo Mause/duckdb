@@ -12,26 +12,38 @@
 # sub   cv25519 2022-02-07 [E]
 
 import os
-import pathlib
 import shutil
 import subprocess
 import sys
 import tempfile
+from urllib.request import urlretrieve
 import zipfile
 import re
-from os.path import join, dirname
+from os import makedirs
+from os.path import join, dirname, exists
 
 
-cwd = dirname(__file__)
+
+cwd = join(dirname(__file__), '../tools/jdbc')
 
 def exec(cmd):
   print(cmd)
-  return subprocess.run(
+
+  try:
+    stdout = subprocess.run(
     cmd.split(' '),
     check=True,
     stdout=subprocess.PIPE,
-    cwd=join(cwd, 'tools/jdbc')
-  ).stdout
+    text=True,
+    stderr=subprocess.PIPE,
+    cwd=cwd,
+    ).stdout
+    print(stdout)
+    return stdout
+
+  except subprocess.CalledProcessError as e:
+      print(e.output)
+      raise Exception(e.output)
 
 
 if len(sys.argv) < 4 or not os.path.isdir(sys.argv[2]) or not os.path.isdir(sys.argv[3]):
@@ -39,6 +51,10 @@ if len(sys.argv) < 4 or not os.path.isdir(sys.argv[2]) or not os.path.isdir(sys.
     exit(1)
 
 version_regex = re.compile(r'^v((\d+)\.(\d+)\.\d+)$')
+cwd = sys.argv[3]
+breakpoint()
+staging_dir = join(cwd, 'target')
+makedirs(staging_dir, exist_ok=True)
 release_tag = sys.argv[1]
 deploy_url = 'https://oss.sonatype.org/service/local/staging/deploy/maven2/'
 is_release = True
@@ -68,7 +84,6 @@ combine_builds = ['linux-amd64', 'osx-universal', 'windows-amd64', 'linux-aarch6
 staging_dir = tempfile.mkdtemp()
 
 binary_jar = '%s/duckdb_jdbc-%s.jar' % (staging_dir, release_version)
-pom = '%s/duckdb_jdbc-%s.pom' % (staging_dir, release_version)
 sources_jar = '%s/duckdb_jdbc-%s-sources.jar' % (staging_dir, release_version)
 javadoc_jar = '%s/duckdb_jdbc-%s-javadoc.jar' % (staging_dir, release_version)
 
@@ -84,6 +99,13 @@ for build in combine_builds[1:]:
             old_jar.extract(zip_entry, staging_dir)
             exec("jar -uf %s -C %s %s" % (binary_jar, staging_dir, zip_entry))
 
+# download sources to create separate sources and javadoc JARs, this is required by maven central
+source_zip_url = 'https://github.com/duckdb/duckdb/archive/%s.zip' % release_tag 
+source_zip_file = tempfile.mkstemp()[1]
+source_zip_dir = tempfile.mkdtemp()
+urlretrieve(source_zip_url, source_zip_file)
+zipfile.ZipFile(source_zip_file, 'r').extractall(source_zip_dir)
+jdbc_root_path = glob.glob('%s/*/tools/jdbc' % source_zip_dir)[0]
 javadoc_stage_dir = tempfile.mkdtemp()
 
 exec("javadoc -Xdoclint:-reference -d %s -sourcepath %s/src/main/java org.duckdb" % (javadoc_stage_dir, jdbc_root_path))
@@ -91,13 +113,10 @@ exec("jar -cvf %s -C %s ." % (javadoc_jar, javadoc_stage_dir))
 exec("jar -cvf %s -C %s/src/main/java org" % (sources_jar, jdbc_root_path))
 
 # make sure all files exist before continuing
-if (
-    not os.path.exists(javadoc_jar)
-    or not os.path.exists(sources_jar)
-    or not os.path.exists(pom)
-    or not os.path.exists(binary_jar)
-):
-    raise ValueError('could not create all required files')
+for path in (javadoc_jar, sources_jar, binary_jar):
+  if not os.path.exists(path):
+      raise ValueError(f'could not create all required files: {path}')
+breakpoint()
 
 # run basic tests, it should now work on whatever platform this is
 exec("java -cp %s org.duckdb.test.TestDuckDBJDBC" % binary_jar)
@@ -128,9 +147,9 @@ for jar in [binary_jar, sources_jar, javadoc_jar]:
 
 print("JARs created, uploading (this can take a while!)")
 deploy_cmd_prefix = 'mvn gpg:sign-and-deploy-file -Durl=%s -DrepositoryId=ossrh' % deploy_url
-exec("%s -DpomFile=%s -Dfile=%s" % (deploy_cmd_prefix, pom, binary_jar))
-exec("%s -Dclassifier=sources -DpomFile=%s -Dfile=%s" % (deploy_cmd_prefix, pom, sources_jar))
-exec("%s -Dclassifier=javadoc -DpomFile=%s -Dfile=%s" % (deploy_cmd_prefix, pom, javadoc_jar))
+exec("%s -Dfile=%s" % (deploy_cmd_prefix, binary_jar))
+exec("%s -Dclassifier=sources -Dfile=%s" % (deploy_cmd_prefix, sources_jar))
+exec("%s -Dclassifier=javadoc -Dfile=%s" % (deploy_cmd_prefix, javadoc_jar))
 
 
 if not is_release:
@@ -142,8 +161,8 @@ print("Close/Release steps")
 os.environ["MAVEN_OPTS"] = '--add-opens=java.base/java.util=ALL-UNNAMED'
 
 # this list has horrid output, lets try to parse. What we want starts with orgduckdb- and then a number
-repo_id = re.search(r'(orgduckdb-\d+)', exec("mvn -f %s nexus-staging:rc-list" % (pom)).decode('utf8')).groups()[0]
-exec("mvn -f %s nexus-staging:rc-close -DstagingRepositoryId=%s" % (pom, repo_id))
-exec("mvn -f %s nexus-staging:rc-release -DstagingRepositoryId=%s" % (pom, repo_id))
+repo_id = re.search(r'(orgduckdb-\d+)', exec("mvn nexus-staging:rc-list")).groups()[0]
+exec("mvn nexus-staging:rc-close -DstagingRepositoryId=%s" % (repo_id))
+exec("mvn nexus-staging:rc-release -DstagingRepositoryId=%s" % (repo_id))
 
 print("Done?")
