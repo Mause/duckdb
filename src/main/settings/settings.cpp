@@ -784,6 +784,9 @@ Value IntegerDivisionSetting::GetSetting(ClientContext &context) {
 	return Value(config.integer_division);
 }
 
+//===--------------------------------------------------------------------===//
+// HTTP Proxy
+//===--------------------------------------------------------------------===//
 static shared_ptr<ProxyUri> SetHttpProxy(DBConfig &config, const string &url) {
 	config.options.http_proxy = ProxyUri::FromString(url);
 
