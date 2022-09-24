@@ -315,7 +315,7 @@ unittestarrow:
 
 allunit: release # uses release build because otherwise allunit takes forever
 	build/release/test/unittest "*"
-	python3 scripts/test_http_proxy_setting.py build/release_expanded
+	python3 scripts/test_http_proxy_setting.py --binary-root build/release_expanded
 
 docs:
 	mkdir -p ./build/docs && \
