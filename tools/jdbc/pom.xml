@@ -82,17 +82,17 @@
             </plugin>
             <plugin>
                 <artifactId>maven-gpg-plugin</artifactId>
-		<version>3.0.1</version>
-		<executions>
-		    <execution>
-			<id>sign-artifacts</id>
-			<phase>verify</phase>
-			<goals>
-			    <goal>sign</goal>
-			</goals>
-		    </execution>
-		</executions>
-		<configuration>
+                <version>3.0.1</version>
+                <executions>
+                    <execution>
+                        <id>sign-artifacts</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>sign</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
                     <serverId>ossrh</serverId>
                     <nexusUrl>https://oss.sonatype.org/</nexusUrl>
                 </configuration>
@@ -137,14 +137,14 @@
     </reporting>
 
     <distributionManagement>
-	<repository>
-	    <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
-	    <id>ossrh</id>
-	</repository>
-   <snapshotRepository>
-     <id>github</id>
-     <name>GitHub Mause Apache Maven Packages</name>
-     <url>https://maven.pkg.github.com/Mause/duckdb</url>
-   </snapshotRepository>
+        <repository>
+            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+            <id>ossrh</id>
+        </repository>
+        <snapshotRepository>
+            <id>github</id>
+            <name>GitHub Mause Apache Maven Packages</name>
+            <url>https://maven.pkg.github.com/Mause/duckdb</url>
+        </snapshotRepository>
     </distributionManagement>
 </project>
