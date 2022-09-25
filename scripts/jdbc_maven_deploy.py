@@ -16,34 +16,36 @@ import shutil
 import subprocess
 import sys
 import tempfile
-from urllib.request import urlretrieve
 import zipfile
-import re
 from os import makedirs
-from os.path import join, dirname, exists
+from os.path import join
+import re
 
 
+version_regex = re.compile(r'^v(\d+\.\d+\.\d+)$')
+sys.argv.append('main')
+sys.argv.append('artifacts')
+sys.argv.append('tools/jdbc')
 
-cwd = join(dirname(__file__), '../tools/jdbc')
 
 def exec(cmd):
-  print(cmd)
+    print(cmd)
 
-  try:
-    stdout = subprocess.run(
-    cmd.split(' '),
-    check=True,
-    stdout=subprocess.PIPE,
-    text=True,
-    stderr=subprocess.PIPE,
-    cwd=cwd,
-    ).stdout
-    print(stdout)
-    return stdout
+    try:
+        stdout = subprocess.run(
+            cmd.split(' '),
+            check=True,
+            stdout=subprocess.PIPE,
+            text=True,
+            stderr=subprocess.PIPE,
+            cwd=cwd,
+        ).stdout
+        print(stdout)
+        return stdout
 
-  except subprocess.CalledProcessError as e:
-      print(e.output)
-      raise Exception(e.output)
+    except subprocess.CalledProcessError as e:
+        print(e.output)
+        raise Exception(e.output)
 
 
 if len(sys.argv) < 4 or not os.path.isdir(sys.argv[2]) or not os.path.isdir(sys.argv[3]):
@@ -99,13 +101,6 @@ for build in combine_builds[1:]:
             old_jar.extract(zip_entry, staging_dir)
             exec("jar -uf %s -C %s %s" % (binary_jar, staging_dir, zip_entry))
 
-# download sources to create separate sources and javadoc JARs, this is required by maven central
-source_zip_url = 'https://github.com/duckdb/duckdb/archive/%s.zip' % release_tag 
-source_zip_file = tempfile.mkstemp()[1]
-source_zip_dir = tempfile.mkdtemp()
-urlretrieve(source_zip_url, source_zip_file)
-zipfile.ZipFile(source_zip_file, 'r').extractall(source_zip_dir)
-jdbc_root_path = glob.glob('%s/*/tools/jdbc' % source_zip_dir)[0]
 javadoc_stage_dir = tempfile.mkdtemp()
 
 exec("javadoc -Xdoclint:-reference -d %s -sourcepath %s/src/main/java org.duckdb" % (javadoc_stage_dir, jdbc_root_path))
@@ -114,8 +109,8 @@ exec("jar -cvf %s -C %s/src/main/java org" % (sources_jar, jdbc_root_path))
 
 # make sure all files exist before continuing
 for path in (javadoc_jar, sources_jar, binary_jar):
-  if not os.path.exists(path):
-      raise ValueError(f'could not create all required files: {path}')
+    if not os.path.exists(path):
+        raise ValueError(f'could not create all required files: {path}')
 breakpoint()
 
 # run basic tests, it should now work on whatever platform this is
