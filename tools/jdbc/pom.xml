@@ -19,6 +19,8 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <duckdbRoot>${project.basedir}/../..</duckdbRoot>
+        <targetPath>${duckdbRoot}/build/debug</targetPath>
     </properties>
 
     <build>
@@ -92,10 +94,36 @@
                         </goals>
                     </execution>
                 </executions>
-                <configuration>
-                    <serverId>ossrh</serverId>
-                    <nexusUrl>https://oss.sonatype.org/</nexusUrl>
-                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>com.googlecode.cmake-maven-project</groupId>
+                <artifactId>cmake-maven-plugin</artifactId>
+                <version>3.23.2-b1</version>
+                <executions>
+                    <execution>
+                        <id>cmake-generate</id>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                        <configuration>
+                            <sourcePath>${duckdbRoot}</sourcePath>
+                            <targetPath>${targetPath}</targetPath>
+                            <options>
+                                <option>-DJDBC_DRIVER=1</option>
+                            </options>
+                            <generator>Ninja</generator>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>cmake-compile</id>
+                        <goals>
+                            <goal>compile</goal>
+                        </goals>
+                        <configuration>
+                            <projectDirectory>${targetPath}</projectDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
