@@ -10,19 +10,29 @@ endif()
 include(UseJava)
 project(DuckDBJDummy NONE)
 
-file(GLOB JAVA_SRC_FILES src/main/java/org/duckdb/*.java)
-file(GLOB JAVA_TEST_FILES src/test/java/org/duckdb/test/*.java)
+if(WIN32)
+  set(MVN_COMMAND cmd /c mvnw.cmd)
+else()
+  set(MVN_COMMAND sh mvnw)
+endif()
 
-set(CMAKE_JAVA_COMPILE_FLAGS -source 1.7 -target 1.7 -encoding utf-8)
+set(OUT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/target/headers)
 
-add_jar(duckdb_jdbc ${JAVA_SRC_FILES} ${JAVA_TEST_FILES}
-        META-INF/services/java.sql.Driver GENERATE_NATIVE_HEADERS duckdb-native)
+add_custom_command(
+  OUTPUT ${OUT_DIR}/org_duckdb_DuckDBNative.h
+  USES_TERMINAL
+  COMMAND ${MVN_COMMAND} compile
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 
-include_directories(../../extension/parquet/include)
+add_custom_target(duckdb_jdbc DEPENDS ${OUT_DIR}/org_duckdb_DuckDBNative.h)
+
+include_directories(${JNI_INCLUDE_DIRS} ${OUT_DIR}
+                    ../../extension/parquet/include)
 
 add_library(duckdb_java SHARED src/jni/duckdb_java.cpp)
+add_dependencies(duckdb_java duckdb_jdbc)
 target_compile_options(duckdb_java PRIVATE -fexceptions)
-target_link_libraries(duckdb_java duckdb-native duckdb_static parquet_extension)
+target_link_libraries(duckdb_java duckdb_static parquet_extension)
 if(OS_NAME STREQUAL "linux")
   target_link_libraries(duckdb_java -static-libgcc -static-libstdc++
   )# static link to libstdc++ to target more linux distro
@@ -37,10 +47,40 @@ string(JOIN "_" LIB_SUFFIX ".so" ${OS_NAME} ${OS_ARCH})
 set_target_properties(duckdb_java PROPERTIES SUFFIX ${LIB_SUFFIX})
 set_target_properties(duckdb_java PROPERTIES PREFIX "lib")
 
-add_custom_command(
-  OUTPUT dummy_jdbc_target
+set(JDBC_VERSION
+    "${DUCKDB_MAJOR_VERSION}.${DUCKDB_MINOR_VERSION}.${DUCKDB_PATCH_VERSION}-SNAPSHOT"
+)
+
+add_custom_target(
+  dummy_jdbc_target
   DEPENDS duckdb_java duckdb_jdbc
-  COMMAND ${Java_JAR_EXECUTABLE} uf duckdb_jdbc.jar -C
-          $<TARGET_FILE_DIR:duckdb_java> $<TARGET_FILE_NAME:duckdb_java>)
+  USES_TERMINAL
+  COMMAND
+    ${CMAKE_COMMAND} -E copy
+    $<TARGET_FILE_DIR:duckdb_java>/$<TARGET_FILE_NAME:duckdb_java>
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/main/resources
+  COMMAND ${MVN_COMMAND} versions:set -DnewVersion="${JDBC_VERSION}"
+  COMMAND ${MVN_COMMAND} package jar:test-jar
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+
+add_custom_command(
+  TARGET dummy_jdbc_target
+  POST_BUILD
+  COMMAND
+    ${CMAKE_COMMAND} -E copy
+    ${CMAKE_CURRENT_SOURCE_DIR}/target/duckdb_jdbc-${JDBC_VERSION}.jar
+    ${CMAKE_CURRENT_BINARY_DIR}/duckdb_jdbc.jar
+  COMMAND
+    ${CMAKE_COMMAND} -E copy
+    ${CMAKE_CURRENT_SOURCE_DIR}/target/duckdb_jdbc-${JDBC_VERSION}-javadoc.jar
+    ${CMAKE_CURRENT_BINARY_DIR}/duckdb_jdbc-javadoc.jar
+  COMMAND
+    ${CMAKE_COMMAND} -E copy
+    ${CMAKE_CURRENT_SOURCE_DIR}/target/duckdb_jdbc-${JDBC_VERSION}-sources.jar
+    ${CMAKE_CURRENT_BINARY_DIR}/duckdb_jdbc-sources.jar
+  COMMAND
+    ${CMAKE_COMMAND} -E copy
+    ${CMAKE_CURRENT_SOURCE_DIR}/target/duckdb_jdbc-${JDBC_VERSION}-tests.jar
+    ${CMAKE_CURRENT_BINARY_DIR}/duckdb_jdbc-tests.jar)
 
 add_custom_target(jdbc ALL DEPENDS dummy_jdbc_target)
