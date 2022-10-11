@@ -384,7 +384,7 @@ jobs:
     - name: Start fake proxy
       shell: bash
       run: |
-        & python3 scripts/test_http_proxy_setting.py
+         python3 scripts/test_http_proxy_setting.py &
 
     - name: Test
       shell: bash
