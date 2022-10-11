@@ -315,7 +315,6 @@ unittestarrow:
 
 allunit: release # uses release build because otherwise allunit takes forever
 	build/release/test/unittest "*"
-	DUCKDB_BINARY_ROOT=build/release_expanded python3 scripts/test_http_proxy_setting.py
 
 docs:
 	mkdir -p ./build/docs && \

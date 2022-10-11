@@ -1,0 +1,35 @@
+# name: test/sql/settings/setting_http_proxy_live.test
+# description: Test HTTP_PROXY setting
+# group: [settings]
+
+require httpfs
+
+require-env S3_TEST_SERVER_AVAILABLE 1
+
+require-env HTTP_PROXY_AVAILABLE 1
+
+statement ok
+set http_proxy='http://localhost:8888'; SET s3_secret_access_key='minio_duckdb_user_password';SET s3_access_key_id='minio_duckdb_user';SET s3_region='eu-west-1'; SET s3_endpoint='duckdb-minio.com:9000'; SET s3_url_style='path'; SET s3_use_ssl=false; load httpfs;
+
+query I
+select * from 's3://bucket/fake.csv'
+---
+column0,column1
+hello,world
+hello,world
+
+query I
+select * from 'http://bucket.s3.amazonaws.com/fake.csv'
+---
+column0,column1
+hello,world
+hello,world
+
+statement ok
+set http_proxy='http://localhost:8888';set s3_use_ssl=false;force install fake_extension
+
+query I
+select extension_name from duckdb_extensions() where extension_name = 'fake_extension'
+---
+extension_name
+fake_extension
