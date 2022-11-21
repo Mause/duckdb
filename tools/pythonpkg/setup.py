@@ -354,7 +354,5 @@ setup(
     python_requires='>=3.7.0',
     tests_require=['google-cloud-storage', 'mypy', 'pytest'],
     ext_modules = [libduckdb],
-    maintainer = "Hannes Muehleisen",
-    maintainer_email = "hannes@cwi.nl",
     cmdclass={"build_ext": build_ext},
 )
