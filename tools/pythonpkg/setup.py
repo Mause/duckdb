@@ -344,9 +344,6 @@ spark_packages = [
 packages.extend(spark_packages)
 
 setup(
-    name=lib_name,
-    description='DuckDB embedded database',
-    keywords='DuckDB Database SQL OLAP',
     url="https://www.duckdb.org",
     long_description='See here for an introduction: https://duckdb.org/docs/api/python/overview',
     license='MIT',
