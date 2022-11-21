@@ -353,13 +353,8 @@ setup(
     include_package_data=True,
     python_requires='>=3.7.0',
     tests_require=['google-cloud-storage', 'mypy', 'pytest'],
-    classifiers=[
-        'Topic :: Database :: Database Engines/Servers',
-        'Intended Audience :: Developers',
-        'License :: OSI Approved :: MIT License',
-    ],
-    ext_modules=[libduckdb],
-    maintainer="Hannes Muehleisen",
-    maintainer_email="hannes@cwi.nl",
+    ext_modules = [libduckdb],
+    maintainer = "Hannes Muehleisen",
+    maintainer_email = "hannes@cwi.nl",
     cmdclass={"build_ext": build_ext},
 )
