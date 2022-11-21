@@ -342,9 +342,7 @@ spark_packages = [
 packages.extend(spark_packages)
 
 setup(
-    url="https://www.duckdb.org",
-    long_description='See here for an introduction: https://duckdb.org/docs/api/python/overview',
-    data_files=data_files,
+    data_files = data_files,
     include_package_data=True,
     # NOTE: might need to be find_packages() ?
     packages=packages,
