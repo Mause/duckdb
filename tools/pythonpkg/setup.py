@@ -287,11 +287,9 @@ else:
         language='c++',
     )
 
-# Only include pytest-runner in setup_requires if we're invoking tests
-if {'pytest', 'test', 'ptr'}.intersection(sys.argv):
-    setup_requires = ['pytest-runner']
-else:
-    setup_requires = []
+setuptools_scm_conf = {"root": "../..", "relative_to": __file__}
+if os.getenv('SETUPTOOLS_SCM_NO_LOCAL', 'no') != 'no':
+    setuptools_scm_conf['local_scheme'] = 'no-local-version'
 
 
 # data files need to be formatted as [(directory, [files...]), (directory2, [files...])]
@@ -346,13 +344,12 @@ packages.extend(spark_packages)
 setup(
     url="https://www.duckdb.org",
     long_description='See here for an introduction: https://duckdb.org/docs/api/python/overview',
-    license='MIT',
     data_files=data_files,
+    include_package_data=True,
     # NOTE: might need to be find_packages() ?
     packages=packages,
-    include_package_data=True,
-    python_requires='>=3.7.0',
     tests_require=['google-cloud-storage', 'mypy', 'pytest'],
+    python_requires='>=3.7.0',
     ext_modules = [libduckdb],
     cmdclass={"build_ext": build_ext},
 )
