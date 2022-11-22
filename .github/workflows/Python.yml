@@ -84,7 +84,7 @@ jobs:
       run: |
         export DISTUTILS_C_COMPILER_LAUNCHER=ccache
         # TODO: Use ccache inside container, see https://github.com/pypa/cibuildwheel/issues/1030
-        cibuildwheel --output-dir wheelhouse duckdb_tarball
+        cibuildwheel --output-dir wheelhouse
 
    manylinux-extensions-x64:
     # Builds extensions for linux_md64_gcc4
