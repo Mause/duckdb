@@ -72,15 +72,6 @@ jobs:
     - name: Build source dist
       shell: bash
       working-directory: tools/pythonpkg
-      run: pyproject-build . --sdist
-
-    - name: Build tarball
-      working-directory: tools/pythonpkg
-      run: mkdir duckdb_tarball && tar xvf dist/duckdb-*.tar.gz --strip-components=1 -C duckdb_tarball
-
-    - name: Build wheel
-      shell: bash
-      working-directory: tools/pythonpkg
       run: |
         pyproject-build . --sdist
         mkdir duckdb_tarball && tar xvf dist/duckdb-*.tar.gz --strip-components=1 -C duckdb_tarball
