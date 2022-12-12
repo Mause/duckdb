@@ -47,8 +47,10 @@ struct ConnectTask : public Task {
 
 		std::vector<napi_value> args;
 		if (!success) {
+			deferred.Reject(Napi::String::New(env, "Invalid database object"));
 			args.push_back(Utils::CreateError(env, "Invalid database object"));
 		} else {
+			deferred.Resolve(object.Value());
 			args.push_back(env.Null());
 		}
 
