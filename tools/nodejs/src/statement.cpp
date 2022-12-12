@@ -45,9 +45,11 @@ struct PrepareTask : public Task {
 		auto cb = callback.Value();
 		if (statement.statement->HasError()) {
 			cb.MakeCallback(statement.Value(), {Utils::CreateError(env, statement.statement->error.Message())});
-			return;
+			deferred->Reject(Napi::String::New(env, statement.statement->error.Message()));
+		} else {
+			cb.MakeCallback(statement.Value(), {env.Null(), statement.Value()});
+			deferred->Resolve(statement.Value());
 		}
-		cb.MakeCallback(statement.Value(), {env.Null(), statement.Value()});
 	}
 };
 
