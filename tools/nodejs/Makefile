@@ -4,7 +4,7 @@ src/duckdb/src/include/duckdb.hpp:
 	./configure
 
 ./node_modules:
-	npm install --build-from-source
+	npm install --ignore-scripts
 
 build: src/duckdb/src/include/duckdb.hpp ./node_modules
 	./node_modules/.bin/node-pre-gyp build -j max --loglevel=silent
