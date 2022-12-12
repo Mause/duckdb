@@ -488,8 +488,8 @@ Database.prototype.prepare = function () {
  * @param callback
  * @return {void}
  */
-Database.prototype.run = function () {
-    default_connection(this).run.apply(this.default_connection, arguments);
+Database.prototype.run = async function () {
+    await default_connection(this).run.apply(this.default_connection, arguments);
     return this;
 }
 

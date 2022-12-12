@@ -43,20 +43,13 @@ struct ConnectTask : public Task {
 	}
 	void Callback() override {
 		auto &connection = Get<Connection>();
-		Napi::Env env = connection.Env();
+		Napi::HandleScope scope(connection.Env());
 
-		std::vector<napi_value> args;
-		if (!success) {
-			deferred.Reject(Napi::String::New(env, "Invalid database object"));
-			args.push_back(Utils::CreateError(env, "Invalid database object"));
+		if (success) {
+			Resolve(connection.Value(), object.Value());
 		} else {
-			deferred.Resolve(object.Value());
-			args.push_back(env.Null());
+			Reject(connection.Value(), "Invalid database object");
 		}
-
-		Napi::HandleScope scope(env);
-
-		callback.Value().MakeCallback(connection.Value(), args);
 	}
 
 	bool success = false;
@@ -294,8 +287,7 @@ Napi::Value Connection::RegisterUdf(const Napi::CallbackInfo &info) {
 	}
 
 	if (udfs.find(name) != udfs.end()) {
-		Napi::TypeError::New(env, "UDF with this name already exists").ThrowAsJavaScriptException();
-		return env.Null();
+		return reject(env, "UDF with this name already exists");
 	}
 
 	auto udf = duckdb_node_udf_function_t::New(env, udf_callback, "duckdb_node_udf" + name, 0, 1, nullptr,
@@ -385,11 +377,10 @@ struct ExecTask : public Task {
 	void Callback() override {
 		auto env = object.Env();
 		Napi::HandleScope scope(env);
-		callback.Value().MakeCallback(object.Value(), {success ? env.Null() : Napi::String::New(env, error.Message())});
 		if (success) {
-			deferred.Resolve(object.Value());
+			Resolve(object.Value(), object.Value());
 		} else {
-			deferred.Reject(Utils::CreateError(env, error.Message()));
+			Reject(object.Value(), error.Message());
 		}
 	};
 

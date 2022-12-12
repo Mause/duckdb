@@ -42,13 +42,10 @@ struct PrepareTask : public Task {
 		auto env = statement.Env();
 		Napi::HandleScope scope(env);
 
-		auto cb = callback.Value();
 		if (statement.statement->HasError()) {
-			cb.MakeCallback(statement.Value(), {Utils::CreateError(env, statement.statement->error.Message())});
-			deferred->Reject(Napi::String::New(env, statement.statement->error.Message()));
+			Reject(statement.Value(), statement.statement->error.Message());
 		} else {
-			cb.MakeCallback(statement.Value(), {env.Null(), statement.Value()});
-			deferred->Resolve(statement.Value());
+			Resolve(statement.Value(), statement.Value());
 		}
 	}
 };
@@ -238,30 +235,31 @@ struct RunPreparedTask : public Task {
 		    statement.statement->Execute(params->params, run_type != RunType::ALL && run_type != RunType::ARROW_ALL);
 	}
 
+	void CallBack(Napi::Value error, Napi::Value result) {
+		if (!callback.Value().IsUndefined()) {
+			callback.Value().MakeCallback(Get<Statement>().Value(), {error, result});
+		}
+	}
+
 	void Callback() override {
 		auto &statement = Get<Statement>();
 		Napi::Env env = statement.Env();
 		Napi::HandleScope scope(env);
 
-		auto cb = callback.Value();
 		// if there was an error we need to say so
 		if (!statement.statement) {
-			cb.MakeCallback(statement.Value(), {Utils::CreateError(env, "statement was finalized")});
-			return;
+			return Reject(statement.Value(), "statement was finalized");
 		}
 		if (statement.statement->HasError()) {
-			cb.MakeCallback(statement.Value(), {Utils::CreateError(env, statement.statement->GetError())});
-			return;
+			return Reject(statement.Value(), statement.statement->GetError());
 		}
 		if (result->HasError()) {
-			cb.MakeCallback(statement.Value(), {Utils::CreateError(env, result->GetError())});
-			return;
+			return Reject(statement.Value(), result->GetError());
 		}
 
 		switch (run_type) {
 		case RunType::RUN:
-			cb.MakeCallback(statement.Value(), {env.Null()});
-			break;
+			return Resolve(statement.Value(), env.Null());
 		case RunType::EACH: {
 			duckdb::idx_t count = 0;
 			while (true) {
@@ -275,17 +273,17 @@ struct RunPreparedTask : public Task {
 				auto chunk_converted = convert_chunk(env, result->names, *chunk).ToObject();
 				if (!chunk_converted.IsArray()) {
 					// error was set before
-					return;
+					return Reject("error was set before");
 				}
 				for (duckdb::idx_t row_idx = 0; row_idx < chunk->size(); row_idx++) {
-					cb.MakeCallback(statement.Value(), {env.Null(), chunk_converted.Get(row_idx)});
+					CallBack(env.Null(), chunk_converted.Get(row_idx));
 					count++;
 				}
 			}
 			if (!params->complete.IsUndefined() && params->complete.IsFunction()) {
 				params->complete.MakeCallback(statement.Value(), {env.Null(), Napi::Number::New(env, count)});
 			}
-			break;
+			return Resolve(statement.Value(), env.Null());
 		}
 		case RunType::ALL: {
 			auto materialized_result = (duckdb::MaterializedQueryResult *)result.get();
@@ -308,7 +306,7 @@ struct RunPreparedTask : public Task {
 				}
 			}
 
-			cb.MakeCallback(statement.Value(), {env.Null(), result_arr});
+			return Resolve(statement.Value(), result_arr);
 		} break;
 		case RunType::ARROW_ALL: {
 			auto materialized_result = (duckdb::MaterializedQueryResult *)result.get();
@@ -364,9 +362,11 @@ struct RunPreparedTask : public Task {
 			// Confirm all rows are set
 			D_ASSERT(out_idx == materialized_result->RowCount() + 1);
 
-			cb.MakeCallback(statement.Value(), {env.Null(), result_arr});
+			return Resolve(statement.Value(), result_arr);
 		} break;
 		}
+
+		D_ASSERT(0);
 	}
 	std::unique_ptr<duckdb::QueryResult> result;
 	duckdb::unique_ptr<StatementParam> params;
@@ -434,27 +434,23 @@ duckdb::unique_ptr<StatementParam> Statement::HandleArgs(const Napi::CallbackInf
 }
 
 Napi::Value Statement::All(const Napi::CallbackInfo &info) {
-	connection_ref->database_ref->Schedule(info.Env(),
-	                                       duckdb::make_unique<RunPreparedTask>(*this, HandleArgs(info), RunType::ALL));
-	return info.This();
+	return connection_ref->database_ref->Schedule(
+	    info.Env(), duckdb::make_unique<RunPreparedTask>(*this, HandleArgs(info), RunType::ALL));
 }
 
 Napi::Value Statement::ArrowIPCAll(const Napi::CallbackInfo &info) {
-	connection_ref->database_ref->Schedule(
+	return connection_ref->database_ref->Schedule(
 	    info.Env(), duckdb::make_unique<RunPreparedTask>(*this, HandleArgs(info), RunType::ARROW_ALL));
-	return info.This();
 }
 
 Napi::Value Statement::Run(const Napi::CallbackInfo &info) {
-	connection_ref->database_ref->Schedule(info.Env(),
-	                                       duckdb::make_unique<RunPreparedTask>(*this, HandleArgs(info), RunType::RUN));
-	return info.This();
+	return connection_ref->database_ref->Schedule(
+	    info.Env(), duckdb::make_unique<RunPreparedTask>(*this, HandleArgs(info), RunType::RUN));
 }
 
 Napi::Value Statement::Each(const Napi::CallbackInfo &info) {
-	connection_ref->database_ref->Schedule(
+	return connection_ref->database_ref->Schedule(
 	    info.Env(), duckdb::make_unique<RunPreparedTask>(*this, HandleArgs(info), RunType::EACH));
-	return info.This();
 }
 
 Napi::Value Statement::Stream(const Napi::CallbackInfo &info) {
@@ -482,8 +478,7 @@ Napi::Value Statement::Finish(const Napi::CallbackInfo &info) {
 		callback = info[0].As<Napi::Function>();
 	}
 
-	connection_ref->database_ref->Schedule(env, duckdb::make_unique<FinishTask>(*this, callback));
-	return env.Null();
+	return connection_ref->database_ref->Schedule(env, duckdb::make_unique<FinishTask>(*this, callback));
 }
 
 Napi::FunctionReference QueryResult::constructor;
@@ -513,7 +508,7 @@ QueryResult::~QueryResult() {
 }
 
 struct GetChunkTask : public Task {
-	GetChunkTask(QueryResult &query_result, Napi::Promise::Deferred deferred) : Task(query_result), deferred(deferred) {
+	GetChunkTask(QueryResult &query_result) : Task(query_result) {
 	}
 
 	void DoWork() override {
@@ -527,25 +522,22 @@ struct GetChunkTask : public Task {
 		Napi::HandleScope scope(env);
 
 		if (chunk == nullptr || chunk->size() == 0) {
-			deferred.Resolve(env.Null());
-			return;
+			return Resolve(env.Null());
 		}
 
 		auto chunk_converted = convert_chunk(env, query_result.result->names, *chunk).ToObject();
 		if (!chunk_converted.IsArray()) {
-			deferred.Reject(Utils::CreateError(env, "internal error: chunk is not array"));
+			Reject("internal error: chunk is not array");
 		} else {
-			deferred.Resolve(chunk_converted);
+			Resolve(chunk_converted);
 		}
 	}
 
-	Napi::Promise::Deferred deferred;
 	std::unique_ptr<duckdb::DataChunk> chunk;
 };
 
 struct GetNextArrowIpcTask : public Task {
-	GetNextArrowIpcTask(QueryResult &query_result, Napi::Promise::Deferred deferred)
-	    : Task(query_result), deferred(deferred) {
+	GetNextArrowIpcTask(QueryResult &query_result) : Task(query_result) {
 	}
 
 	void DoWork() override {
@@ -559,8 +551,7 @@ struct GetNextArrowIpcTask : public Task {
 		Napi::HandleScope scope(env);
 
 		if (chunk == nullptr || chunk->size() == 0) {
-			deferred.Resolve(env.Null());
-			return;
+			return Resolve(env.Null());
 		}
 
 		// Arrow IPC streams should be a single column of a single blob
@@ -578,27 +569,19 @@ struct GetNextArrowIpcTask : public Task {
 		auto array_buffer =
 		    Napi::ArrayBuffer::New(env, (void *)blob.GetDataUnsafe(), blob.GetSize(), deleter, data_chunk_ptr);
 
-		deferred.Resolve(array_buffer);
+		Resolve(array_buffer);
 	}
 
-	Napi::Promise::Deferred deferred;
 	std::unique_ptr<duckdb::DataChunk> chunk;
 };
 
 Napi::Value QueryResult::NextChunk(const Napi::CallbackInfo &info) {
-	auto env = info.Env();
-	auto deferred = Napi::Promise::Deferred::New(env);
-	database_ref->Schedule(env, duckdb::make_unique<GetChunkTask>(*this, deferred));
-
-	return deferred.Promise();
+	return database_ref->Schedule(info.Env(), duckdb::make_unique<GetChunkTask>(*this));
 }
 
 // Should only be called on an arrow ipc query
 Napi::Value QueryResult::NextIpcBuffer(const Napi::CallbackInfo &info) {
-	auto env = info.Env();
-	auto deferred = Napi::Promise::Deferred::New(env);
-	database_ref->Schedule(env, duckdb::make_unique<GetNextArrowIpcTask>(*this, deferred));
-	return deferred.Promise();
+	return database_ref->Schedule(info.Env(), duckdb::make_unique<GetNextArrowIpcTask>(*this));
 }
 
 } // namespace node_duckdb
