@@ -9,13 +9,15 @@
 namespace node_duckdb {
 
 struct Task {
-	Task(Napi::Reference<Napi::Object> &object, Napi::Function cb) : object(object) {
+	Task(Napi::Reference<Napi::Object> &object, Napi::Function cb)
+	    : object(object), deferred(Napi::Promise::Deferred::New(object.Env())) {
 		if (!cb.IsUndefined() && cb.IsFunction()) {
 			callback = Persistent(cb); // TODO not sure what this does
 		}
 		object.Ref();
 	}
-	explicit Task(Napi::Reference<Napi::Object> &object) : object(object) {
+	explicit Task(Napi::Reference<Napi::Object> &object)
+	    : object(object), deferred(Napi::Promise::Deferred::New(object.Env())) {
 		object.Ref();
 	}
 
@@ -39,6 +41,7 @@ struct Task {
 		auto env = object.Env();
 		Napi::HandleScope scope(env);
 		callback.Value().MakeCallback(object.Value(), {env.Null()});
+		deferred.Resolve(object.Value());
 	};
 
 	virtual ~Task() {
@@ -50,8 +53,13 @@ struct Task {
 		return (T &)object;
 	}
 
+	Napi::Promise Promise() {
+		return deferred.Promise();
+	}
+
 	Napi::FunctionReference callback;
 	Napi::Reference<Napi::Object> &object;
+	Napi::Promise::Deferred deferred;
 };
 
 class Connection;
@@ -69,7 +77,7 @@ public:
 	void Process(Napi::Env env);
 	void TaskComplete(Napi::Env env);
 
-	void Schedule(Napi::Env env, std::unique_ptr<Task> task);
+	Napi::Promise Schedule(Napi::Env env, std::unique_ptr<Task> task);
 
 	static bool HasInstance(Napi::Value val) {
 		Napi::Env env = val.Env();
@@ -141,6 +149,7 @@ public:
 	Database *database_ref;
 	std::unordered_map<std::string, duckdb_node_udf_function_t> udfs;
 	std::unordered_map<std::string, Napi::Reference<Napi::Array>> array_references;
+	Napi::Value reject(Napi::Env &env, const std::string &message) const;
 };
 
 struct StatementParam;

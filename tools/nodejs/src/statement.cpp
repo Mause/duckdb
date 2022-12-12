@@ -372,8 +372,8 @@ struct RunPreparedTask : public Task {
 };
 
 struct RunQueryTask : public Task {
-	RunQueryTask(Statement &statement, duckdb::unique_ptr<StatementParam> params, Napi::Promise::Deferred deferred)
-	    : Task(statement), deferred(deferred), params(std::move(params)) {
+	RunQueryTask(Statement &statement, duckdb::unique_ptr<StatementParam> params)
+	    : Task(statement), params(std::move(params)) {
 	}
 
 	void DoWork() override {
@@ -405,7 +405,6 @@ struct RunQueryTask : public Task {
 		}
 	}
 
-	Napi::Promise::Deferred deferred;
 	std::unique_ptr<duckdb::QueryResult> result;
 	duckdb::unique_ptr<StatementParam> params;
 };
@@ -457,10 +456,8 @@ Napi::Value Statement::Each(const Napi::CallbackInfo &info) {
 }
 
 Napi::Value Statement::Stream(const Napi::CallbackInfo &info) {
-	auto deferred = Napi::Promise::Deferred::New(info.Env());
-	connection_ref->database_ref->Schedule(info.Env(),
-	                                       duckdb::make_unique<RunQueryTask>(*this, HandleArgs(info), deferred));
-	return deferred.Promise();
+	return connection_ref->database_ref->Schedule(info.Env(),
+	                                              duckdb::make_unique<RunQueryTask>(*this, HandleArgs(info)));
 }
 
 struct FinishTask : public Task {

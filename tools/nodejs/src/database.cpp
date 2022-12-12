@@ -127,12 +127,14 @@ Database::~Database() {
 	Napi::MemoryManagement::AdjustExternalMemory(env, -bytes_allocated);
 }
 
-void Database::Schedule(Napi::Env env, std::unique_ptr<Task> task) {
+Napi::Promise Database::Schedule(Napi::Env env, std::unique_ptr<Task> task) {
+	auto promise = task->Promise();
 	{
 		std::lock_guard<std::mutex> lock(task_mutex);
 		task_queue.push(std::move(task));
 	}
 	Process(env);
+	return promise;
 }
 
 static void TaskExecuteCallback(napi_env e, void *data) {
