@@ -283,7 +283,7 @@ struct RunPreparedTask : public Task {
 			if (!params->complete.IsUndefined() && params->complete.IsFunction()) {
 				params->complete.MakeCallback(statement.Value(), {env.Null(), Napi::Number::New(env, count)});
 			}
-			return Resolve(statement.Value(), env.Null());
+			return Resolve(env.Null());
 		}
 		case RunType::ALL: {
 			auto materialized_result = (duckdb::MaterializedQueryResult *)result.get();
