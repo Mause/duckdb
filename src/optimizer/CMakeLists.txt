@@ -17,7 +17,6 @@ add_library_unity(
   filter_pushdown.cpp
   filter_pullup.cpp
   in_clause_rewriter.cpp
-  join_order_optimizer.cpp
   optimizer.cpp
   expression_rewriter.cpp
   regex_range_filter.cpp

@@ -329,24 +329,24 @@ struct ICUDatePart : public ICUDateFunc {
 			for (idx_t i = 0; i < count; ++i) {
 				const auto idx = rdata.sel->get_index(i);
 				if (arg_valid.RowIsValid(idx)) {
-					res_valid.SetValid(idx);
+					res_valid.SetValid(i);
 					auto micros = SetTime(calendar, tdata[idx]);
 					const auto is_finite = Timestamp::IsFinite(tdata[idx]);
 					for (size_t col = 0; col < child_entries.size(); ++col) {
 						auto &child_entry = child_entries[col];
 						if (is_finite) {
-							FlatVector::Validity(*child_entry).SetValid(idx);
+							FlatVector::Validity(*child_entry).SetValid(i);
 							auto pdata = FlatVector::GetData<int64_t>(*child_entry);
 							auto adapter = info.adapters[col];
-							pdata[idx] = adapter(calendar, micros);
+							pdata[i] = adapter(calendar, micros);
 						} else {
-							FlatVector::Validity(*child_entry).SetInvalid(idx);
+							FlatVector::Validity(*child_entry).SetInvalid(i);
 						}
 					}
 				} else {
-					res_valid.SetInvalid(idx);
+					res_valid.SetInvalid(i);
 					for (auto &child_entry : child_entries) {
-						FlatVector::Validity(*child_entry).SetInvalid(idx);
+						FlatVector::Validity(*child_entry).SetInvalid(i);
 					}
 				}
 			}
@@ -387,7 +387,7 @@ struct ICUDatePart : public ICUDateFunc {
 		child_list_t<LogicalType> struct_children;
 		adapters_t adapters;
 
-		Value parts_list = ExpressionExecutor::EvaluateScalar(*arguments[0]);
+		Value parts_list = ExpressionExecutor::EvaluateScalar(context, *arguments[0]);
 		if (parts_list.type().id() == LogicalTypeId::LIST) {
 			auto &list_children = ListValue::GetChildren(parts_list);
 			if (list_children.empty()) {
@@ -410,10 +410,19 @@ struct ICUDatePart : public ICUDateFunc {
 			throw BinderException("%s can only take constant lists of part names", bound_function.name);
 		}
 
-		arguments.erase(arguments.begin());
-		bound_function.arguments.erase(bound_function.arguments.begin());
+		Function::EraseArgument(bound_function, arguments, 0);
 		bound_function.return_type = LogicalType::STRUCT(move(struct_children));
 		return make_unique<data_t>(context, adapters);
+	}
+
+	static void SerializeFunction(FieldWriter &writer, const FunctionData *bind_data_p,
+	                              const ScalarFunction &function) {
+		throw NotImplementedException("FIXME: serialize icu-datepart");
+	}
+
+	static unique_ptr<FunctionData> DeserializeFunction(ClientContext &context, FieldReader &reader,
+	                                                    ScalarFunction &bound_function) {
+		throw NotImplementedException("FIXME: serialize icu-datepart");
 	}
 
 	template <typename INPUT_TYPE, typename RESULT_TYPE>
@@ -440,7 +449,10 @@ struct ICUDatePart : public ICUDateFunc {
 	static ScalarFunction GetStructFunction(const LogicalType &temporal_type) {
 		auto part_type = LogicalType::LIST(LogicalType::VARCHAR);
 		auto result_type = LogicalType::STRUCT({});
-		return ScalarFunction({part_type, temporal_type}, result_type, StructFunction<INPUT_TYPE>, BindStruct);
+		ScalarFunction result({part_type, temporal_type}, result_type, StructFunction<INPUT_TYPE>, BindStruct);
+		result.serialize = SerializeFunction;
+		result.deserialize = DeserializeFunction;
+		return result;
 	}
 
 	static void AddDatePartFunctions(const string &name, ClientContext &context) {

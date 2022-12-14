@@ -1,20 +1,22 @@
 #include "duckdb/planner/subquery/flatten_dependent_join.hpp"
 
+#include "duckdb/catalog/catalog_entry/aggregate_function_catalog_entry.hpp"
+#include "duckdb/common/operator/add.hpp"
+#include "duckdb/function/aggregate/distributive_functions.hpp"
 #include "duckdb/planner/binder.hpp"
+#include "duckdb/planner/expression/bound_aggregate_expression.hpp"
 #include "duckdb/planner/expression/list.hpp"
 #include "duckdb/planner/logical_operator_visitor.hpp"
 #include "duckdb/planner/operator/list.hpp"
 #include "duckdb/planner/subquery/has_correlated_expressions.hpp"
 #include "duckdb/planner/subquery/rewrite_correlated_expressions.hpp"
-#include "duckdb/planner/expression/bound_aggregate_expression.hpp"
-#include "duckdb/catalog/catalog_entry/aggregate_function_catalog_entry.hpp"
-#include "duckdb/function/aggregate/distributive_functions.hpp"
 
 namespace duckdb {
 
 FlattenDependentJoins::FlattenDependentJoins(Binder &binder, const vector<CorrelatedColumnInfo> &correlated,
                                              bool perform_delim, bool any_join)
-    : binder(binder), correlated_columns(correlated), perform_delim(perform_delim), any_join(any_join) {
+    : binder(binder), delim_offset(DConstants::INVALID_INDEX), correlated_columns(correlated),
+      perform_delim(perform_delim), any_join(any_join) {
 	for (idx_t i = 0; i < correlated_columns.size(); i++) {
 		auto &col = correlated_columns[i];
 		correlated_map[col.binding] = i;
@@ -22,10 +24,10 @@ FlattenDependentJoins::FlattenDependentJoins(Binder &binder, const vector<Correl
 	}
 }
 
-bool FlattenDependentJoins::DetectCorrelatedExpressions(LogicalOperator *op) {
+bool FlattenDependentJoins::DetectCorrelatedExpressions(LogicalOperator *op, bool lateral) {
 	D_ASSERT(op);
 	// check if this entry has correlated expressions
-	HasCorrelatedExpressions visitor(correlated_columns);
+	HasCorrelatedExpressions visitor(correlated_columns, lateral);
 	visitor.VisitOperator(*op);
 	bool has_correlation = visitor.has_correlated_expressions;
 	// now visit the children of this entry and check if they have correlated expressions
@@ -33,7 +35,7 @@ bool FlattenDependentJoins::DetectCorrelatedExpressions(LogicalOperator *op) {
 		// we OR the property with its children such that has_correlation is true if either
 		// (1) this node has a correlated expression or
 		// (2) one of its children has a correlated expression
-		if (DetectCorrelatedExpressions(child.get())) {
+		if (DetectCorrelatedExpressions(child.get(), lateral)) {
 			has_correlation = true;
 		}
 	}
@@ -77,10 +79,13 @@ unique_ptr<LogicalOperator> FlattenDependentJoins::PushDownDependentJoinInternal
 		// we reached a node without correlated expressions
 		// we can eliminate the dependent join now and create a simple cross product
 		// now create the duplicate eliminated scan for this node
+		auto left_columns = plan->GetColumnBindings().size();
 		auto delim_index = binder.GenerateTableIndex();
 		this->base_binding = ColumnBinding(delim_index, 0);
+		this->delim_offset = 0;
+		this->data_offset = left_columns;
 		auto delim_scan = make_unique<LogicalDelimGet>(delim_index, delim_types);
-		return LogicalCrossProduct::Create(move(delim_scan), move(plan));
+		return LogicalCrossProduct::Create(move(plan), move(delim_scan));
 	}
 	switch (plan->type) {
 	case LogicalOperatorType::LOGICAL_UNNEST:
@@ -161,7 +166,7 @@ unique_ptr<LogicalOperator> FlattenDependentJoins::PushDownDependentJoinInternal
 				vector<unique_ptr<Expression>> aggr_children;
 				aggr_children.push_back(move(colref));
 				auto first_fun = make_unique<BoundAggregateExpression>(move(first_aggregate), move(aggr_children),
-				                                                       nullptr, nullptr, false);
+				                                                       nullptr, nullptr, AggregateType::NON_DISTINCT);
 				aggr.expressions.push_back(move(first_fun));
 			}
 		} else {
@@ -394,7 +399,10 @@ unique_ptr<LogicalOperator> FlattenDependentJoins::PushDownDependentJoinInternal
 		unique_ptr<Expression> condition;
 		auto row_num_ref =
 		    make_unique<BoundColumnRefExpression>(rownum_alias, LogicalType::BIGINT, ColumnBinding(window_index, 0));
-		auto upper_bound = make_unique<BoundConstantExpression>(Value::BIGINT(limit.offset_val + limit.limit_val));
+
+		int64_t upper_bound_limit = NumericLimits<int64_t>::Maximum();
+		TryAddOperator::Operation(limit.offset_val, limit.limit_val, upper_bound_limit);
+		auto upper_bound = make_unique<BoundConstantExpression>(Value::BIGINT(upper_bound_limit));
 		condition = make_unique<BoundComparisonExpression>(ExpressionType::COMPARE_LESSTHANOREQUALTO,
 		                                                   row_num_ref->Copy(), move(upper_bound));
 		// we only need to add "row_number >= offset + 1" if offset is bigger than 0
@@ -441,17 +449,36 @@ unique_ptr<LogicalOperator> FlattenDependentJoins::PushDownDependentJoinInternal
 	case LogicalOperatorType::LOGICAL_UNION: {
 		auto &setop = (LogicalSetOperation &)*plan;
 		// set operator, push into both children
+#ifdef DEBUG
+		plan->children[0]->ResolveOperatorTypes();
+		plan->children[1]->ResolveOperatorTypes();
+		D_ASSERT(plan->children[0]->types == plan->children[1]->types);
+#endif
 		plan->children[0] = PushDownDependentJoin(move(plan->children[0]));
 		plan->children[1] = PushDownDependentJoin(move(plan->children[1]));
+#ifdef DEBUG
+		D_ASSERT(plan->children[0]->GetColumnBindings().size() == plan->children[1]->GetColumnBindings().size());
+		plan->children[0]->ResolveOperatorTypes();
+		plan->children[1]->ResolveOperatorTypes();
+		D_ASSERT(plan->children[0]->types == plan->children[1]->types);
+#endif
 		// we have to refer to the setop index now
 		base_binding.table_index = setop.table_index;
 		base_binding.column_index = setop.column_count;
 		setop.column_count += correlated_columns.size();
 		return plan;
 	}
-	case LogicalOperatorType::LOGICAL_DISTINCT:
-		plan->children[0] = PushDownDependentJoin(move(plan->children[0]));
+	case LogicalOperatorType::LOGICAL_DISTINCT: {
+		auto &distinct = (LogicalDistinct &)*plan;
+		// push down into child
+		distinct.children[0] = PushDownDependentJoin(move(distinct.children[0]));
+		// add all correlated columns to the distinct targets
+		for (idx_t i = 0; i < correlated_columns.size(); i++) {
+			distinct.distinct_targets.push_back(make_unique<BoundColumnRefExpression>(
+			    correlated_columns[i].type, ColumnBinding(base_binding.table_index, base_binding.column_index + i)));
+		}
 		return plan;
+	}
 	case LogicalOperatorType::LOGICAL_EXPRESSION_GET: {
 		// expression get
 		// first we flatten the dependent join in the child
@@ -478,6 +505,14 @@ unique_ptr<LogicalOperator> FlattenDependentJoins::PushDownDependentJoinInternal
 	case LogicalOperatorType::LOGICAL_ORDER_BY:
 		plan->children[0] = PushDownDependentJoin(move(plan->children[0]));
 		return plan;
+	case LogicalOperatorType::LOGICAL_GET:
+		throw BinderException("Table-in table-out functions not (yet) supported in correlated subqueries");
+	case LogicalOperatorType::LOGICAL_RECURSIVE_CTE: {
+		throw BinderException("Recursive CTEs not supported in correlated subquery");
+	}
+	case LogicalOperatorType::LOGICAL_DELIM_JOIN: {
+		throw BinderException("Nested lateral joins or lateral joins in correlated subqueries are not (yet) supported");
+	}
 	default:
 		throw InternalException("Logical operator type \"%s\" for dependent join", LogicalOperatorToString(plan->type));
 	}

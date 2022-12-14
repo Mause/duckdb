@@ -84,7 +84,7 @@ option(FORCE_COLORED_OUTPUT
 if(${FORCE_COLORED_OUTPUT})
   if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
     add_compile_options(-fdiagnostics-color=always)
-  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+  elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang$")
     add_compile_options(-fcolor-diagnostics)
   endif()
 endif()
@@ -94,6 +94,26 @@ option("Enable address sanitizer." TRUE)
 set(M32_FLAG "")
 if(FORCE_32_BIT)
   set(M32_FLAG " -m32 ")
+endif()
+
+set(OS_NAME "unknown")
+set(OS_ARCH "amd64")
+
+string(REGEX MATCH "(arm64|aarch64)" IS_ARM "${CMAKE_SYSTEM_PROCESSOR}")
+if(IS_ARM)
+  set(OS_ARCH "arm64")
+elseif(FORCE_32_BIT)
+  set(OS_ARCH "i386")
+endif()
+
+if(APPLE)
+  set(OS_NAME "osx")
+endif()
+if(WIN32)
+  set(OS_NAME "windows")
+endif()
+if(UNIX AND NOT APPLE)
+  set(OS_NAME "linux") # sorry BSD
 endif()
 
 option(FORCE_WARN_UNUSED "Unused code objects lead to compiler warnings." FALSE)
@@ -141,8 +161,18 @@ elseif(${ENABLE_SANITIZER})
 endif()
 
 
-if(APPLE AND CMAKE_SYSTEM_PROCESSOR MATCHES "arm64")
-  set(DISABLE_VPTR_SANITIZER TRUE)
+if (${DISABLE_VPTR_SANITIZER})
+else()
+  if(APPLE AND CMAKE_SYSTEM_PROCESSOR MATCHES "arm64")
+    if("${CMAKE_CXX_COMPILER_VERSION}" VERSION_GREATER 14.0)
+      message(
+        WARNING
+          "Not disabling vptr sanitizer on M1 Macbook - set DISABLE_VPTR_SANITIZER manually if you run into issues with false positives in the sanitizer"
+      )
+    else()
+    set(DISABLE_VPTR_SANITIZER TRUE)
+    endif()
+  endif()
 endif()
 
 if(${ENABLE_UBSAN})
@@ -186,22 +216,29 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL "SunOS")
   set(SUN TRUE)
 endif()
 
-execute_process(
-        COMMAND git log -1 --format=%h
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-        RESULT_VARIABLE GIT_RESULT
-        OUTPUT_VARIABLE GIT_COMMIT_HASH
-        OUTPUT_STRIP_TRAILING_WHITESPACE)
-execute_process(
-        COMMAND git describe --tags --abbrev=0
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-        OUTPUT_VARIABLE GIT_LAST_TAG
-        OUTPUT_STRIP_TRAILING_WHITESPACE)
-execute_process(
-        COMMAND git describe --tags --long
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-        OUTPUT_VARIABLE GIT_ITERATION
-        OUTPUT_STRIP_TRAILING_WHITESPACE)
+find_package(Git)
+if(Git_FOUND)
+  if (NOT DEFINED GIT_COMMIT_HASH)
+    execute_process(
+            COMMAND ${GIT_EXECUTABLE} log -1 --format=%h
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+            RESULT_VARIABLE GIT_RESULT
+            OUTPUT_VARIABLE GIT_COMMIT_HASH
+            OUTPUT_STRIP_TRAILING_WHITESPACE)
+  endif()
+  execute_process(
+          COMMAND ${GIT_EXECUTABLE} describe --tags --abbrev=0
+          WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+          OUTPUT_VARIABLE GIT_LAST_TAG
+          OUTPUT_STRIP_TRAILING_WHITESPACE)
+  execute_process(
+          COMMAND ${GIT_EXECUTABLE} describe --tags --long
+          WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+          OUTPUT_VARIABLE GIT_ITERATION
+          OUTPUT_STRIP_TRAILING_WHITESPACE)
+else()
+  message("Git NOT FOUND")
+endif()
 
 if(GIT_RESULT EQUAL "0")
   string(REGEX REPLACE "v([0-9]+).[0-9]+.[0-9]+" "\\1" DUCKDB_MAJOR_VERSION "${GIT_LAST_TAG}")
@@ -226,6 +263,8 @@ else()
   set(DUCKDB_VERSION "v${DUCKDB_MAJOR_VERSION}.${DUCKDB_MINOR_VERSION}.${DUCKDB_PATCH_VERSION}-dev${DUCKDB_DEV_ITERATION}")
 endif()
 
+message(STATUS "git hash ${GIT_COMMIT_HASH}, version ${DUCKDB_VERSION}")
+
 option(AMALGAMATION_BUILD
        "Build from the amalgamation files, rather than from the normal sources."
        FALSE)
@@ -237,6 +276,13 @@ option(EXTENSION_STATIC_BUILD
         "Extension build linking statically with DuckDB. Required for building linux loadable extensions."
         FALSE)
 
+
+set(JEMALLOC_DEFAULT_BUILD FALSE)
+if(NOT CLANG_TIDY AND OS_NAME STREQUAL "linux")
+  # build jemalloc by default for linux
+  set(JEMALLOC_DEFAULT_BUILD TRUE)
+endif()
+
 option(BUILD_ICU_EXTENSION "Build the ICU extension." FALSE)
 option(BUILD_PARQUET_EXTENSION "Build the Parquet extension." FALSE)
 option(BUILD_TPCH_EXTENSION "Build the TPC-H extension." FALSE)
@@ -245,21 +291,22 @@ option(BUILD_FTS_EXTENSION "Build the FTS extension." FALSE)
 option(BUILD_HTTPFS_EXTENSION "Build the HTTP File System extension." FALSE)
 option(BUILD_VISUALIZER_EXTENSION "Build the profiler-output visualizer extension." FALSE)
 option(BUILD_JSON_EXTENSION "Build the JSON extension." FALSE)
+option(BUILD_JEMALLOC_EXTENSION "Build the JEMalloc extension." ${JEMALLOC_DEFAULT_BUILD})
 option(BUILD_EXCEL_EXTENSION "Build the excel extension." FALSE)
+option(BUILD_INET_EXTENSION "Build the inet extension." FALSE)
 option(BUILD_BENCHMARKS "Enable building of the benchmark suite." FALSE)
 option(BUILD_SQLSMITH_EXTENSION "Enable building of the SQLSmith extension." FALSE)
 option(BUILD_TPCE "Enable building of the TPC-E tool." FALSE)
 option(DISABLE_BUILTIN_EXTENSIONS "Disable linking extensions." FALSE)
-option(BUILD_SUBSTRAIT_EXTENSION "Enable building of Substrait Extension." FALSE)
 option(JDBC_DRIVER "Build the DuckDB JDBC driver" FALSE)
 option(BUILD_ODBC_DRIVER "Build the DuckDB ODBC driver" FALSE)
 option(BUILD_PYTHON "Build the DuckDB Python extension" FALSE)
 option(USER_SPACE "Build the DuckDB Python in the user space" FALSE)
 option(FORCE_QUERY_LOG "If enabled, all queries will be logged to the specified path" OFF)
-
-option(BUILD_REST "Build the DuckDB REST server" FALSE)
 option(BUILD_SHELL "Build the DuckDB Shell and SQLite API Wrappers" TRUE)
 option(DISABLE_THREADS "Disable support for multi-threading" FALSE)
+option(DISABLE_STR_INLINE "Debug setting: disable inlining of strings" FALSE)
+option(DESTROY_UNPINNED_BLOCKS "Debug setting: destroy unpinned buffer-managed blocks" FALSE)
 option(CLANG_TIDY "Enable build for clang-tidy, this disables all source files excluding the core database. This does not produce a working build." FALSE)
 option(BUILD_UNITTESTS "Build the C++ Unit Tests." TRUE)
 option(
@@ -300,6 +347,10 @@ if(BUILD_PYTHON)
   set(BUILD_EXCEL_EXTENSION TRUE)
 endif()
 
+if (BUILD_BENCHMARKS)
+  set(BUILD_PARQUET_EXTENSION TRUE)
+endif()
+
 if(BUILD_SQLSMITH)
   set(BUILD_SQLSMITH_EXTENSION TRUE)
 endif()
@@ -308,9 +359,17 @@ if(TREAT_WARNINGS_AS_ERRORS)
   message("Treating warnings as errors.")
 endif()
 
-if(!ASSERT_EXCEPTION)
-  set(CMAKE_CXX_FLAGS_DEBUG
-      "${CMAKE_CXX_FLAGS_DEBUG} -DDUCKDB_USE_STANDARD_ASSERT")
+if(ASSERT_EXCEPTION)
+else()
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DDUCKDB_CRASH_ON_ASSERT")
+endif()
+
+if(DISABLE_STR_INLINE)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DDUCKDB_DEBUG_NO_INLINE")
+endif()
+
+if(DESTROY_UNPINNED_BLOCKS)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DDUCKDB_DEBUG_DESTROY_BLOCKS")
 endif()
 
 if(FORCE_ASSERT)
@@ -337,7 +396,7 @@ if(NOT MSVC)
   if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION
                                                    VERSION_GREATER 8.0)
     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${CXX_EXTRA_DEBUG}")
-  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang"
+  elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang$"
          AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 9.0)
     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${CXX_EXTRA_DEBUG}")
   else()
@@ -371,27 +430,16 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
       CACHE STRING "Choose the type of build." FORCE)
 endif()
 
-
-set(OS_NAME "unknown")
-set(OS_ARCH "amd64")
-
-string(REGEX MATCH "(arm64|aarch64)" IS_ARM "${CMAKE_SYSTEM_PROCESSOR}")
-if(IS_ARM)
-  set(OS_ARCH "arm64")
-endif()
-
-if(APPLE)
-  set(OS_NAME "osx")
-endif()
-if(WIN32)
-  set(OS_NAME "windows")
-endif()
-if(UNIX AND NOT APPLE)
-  set(OS_NAME "linux") # sorry BSD
+if(OS_NAME STREQUAL "windows")
+  if(BUILD_JEMALLOC_EXTENSION EQUAL 1)
+    # have to throw an error because this will crash at runtime
+    message(FATAL_ERROR "The jemalloc extension is not supported on Windows")
+  endif()
 endif()
 
 
 include_directories(src/include)
+include_directories(third_party/fsst)
 include_directories(third_party/fmt/include)
 include_directories(third_party/hyperloglog)
 include_directories(third_party/fastpforlib)
@@ -404,6 +452,7 @@ include_directories(third_party/concurrentqueue)
 include_directories(third_party/pcg)
 include_directories(third_party/tdigest)
 include_directories(third_party/mbedtls/include)
+include_directories(third_party/jaro_winkler)
 
 # todo only regenerate ub file if one of the input files changed hack alert
 function(enable_unity_build UB_SUFFIX SOURCE_VARIABLE_NAME)
@@ -475,7 +524,7 @@ endfunction()
 function(disable_target_warnings NAME)
   if(MSVC)
     target_compile_options(${NAME} PRIVATE "/W0")
-  elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang"
+  elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang$"
          OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
     target_compile_options(${NAME} PRIVATE "-w")
   endif()
@@ -507,11 +556,6 @@ function(add_extension_definitions)
     add_definitions(-DBUILD_TPCH_EXTENSION=${BUILD_TPCH_EXTENSION})
   endif()
 
-  if(${BUILD_SUBSTRAIT_EXTENSION})
-    include_directories(${PROJECT_SOURCE_DIR}/extension/substrait/include)
-    add_definitions(-DBUILD_SUBSTRAIT_EXTENSION=${BUILD_SUBSTRAIT_EXTENSION})
-  endif()
-
   if(${BUILD_TPCDS_EXTENSION})
     include_directories(${PROJECT_SOURCE_DIR}/extension/tpcds/include)
     add_definitions(-DBUILD_TPCDS_EXTENSION=${BUILD_TPCDS_EXTENSION})
@@ -538,6 +582,11 @@ function(add_extension_definitions)
     add_definitions(-DBUILD_JSON_EXTENSION=${BUILD_JSON_EXTENSION})
   endif()
 
+  if(${BUILD_JEMALLOC_EXTENSION})
+    include_directories(${PROJECT_SOURCE_DIR}/extension/jemalloc/include)
+    add_definitions(-DBUILD_JEMALLOC_EXTENSION=${BUILD_JEMALLOC_EXTENSION})
+  endif()
+
   if(${BUILD_EXCEL_EXTENSION})
     include_directories(${PROJECT_SOURCE_DIR}/extension/excel/include)
     add_definitions(-DBUILD_EXCEL_EXTENSION=${BUILD_EXCEL_EXTENSION})
@@ -546,6 +595,11 @@ function(add_extension_definitions)
   if(${BUILD_SQLSMITH_EXTENSION})
     include_directories(${PROJECT_SOURCE_DIR}/extension/sqlsmith/include)
     add_definitions(-DBUILD_SQLSMITH_EXTENSION=${BUILD_SQLSMITH_EXTENSION})
+  endif()
+
+  if(${BUILD_INET_EXTENSION})
+    include_directories(${PROJECT_SOURCE_DIR}/extension/inet/include)
+    add_definitions(-DBUILD_INET_EXTENSION=${BUILD_INET_EXTENSION})
   endif()
 endfunction()
 
@@ -560,10 +614,6 @@ function(add_extension_dependencies LIBRARY)
 
   if(${BUILD_TPCH_EXTENSION})
     add_dependencies(${LIBRARY} tpch_extension)
-  endif()
-
-  if(${BUILD_SUBSTRAIT_EXTENSION})
-    add_dependencies(${LIBRARY} substrait_extension)
   endif()
 
   if(${BUILD_TPCDS_EXTENSION})
@@ -586,6 +636,10 @@ function(add_extension_dependencies LIBRARY)
     add_dependencies(${LIBRARY} json_extension)
   endif()
 
+  if(${BUILD_JEMALLOC_EXTENSION})
+    add_dependencies(${LIBRARY} jemalloc_extension)
+  endif()
+
   if(${BUILD_EXCEL_EXTENSION})
     add_dependencies(${LIBRARY} excel_extension)
   endif()
@@ -594,9 +648,18 @@ function(add_extension_dependencies LIBRARY)
     add_dependencies(${LIBRARY} sqlsmith_extension)
   endif()
 
+  if(${BUILD_INET_EXTENSION})
+    add_dependencies(${LIBRARY} inet_extension)
+  endif()
+
 endfunction()
 
 function(link_extension_libraries LIBRARY)
+  # special case for our static-only jemalloc extension
+  if(${BUILD_JEMALLOC_EXTENSION})
+    target_link_libraries(${LIBRARY} jemalloc_extension)
+  endif()
+
   if(${DISABLE_BUILTIN_EXTENSIONS})
     return()
   endif()
@@ -611,10 +674,6 @@ function(link_extension_libraries LIBRARY)
 
   if(${BUILD_TPCH_EXTENSION})
     target_link_libraries(${LIBRARY} tpch_extension)
-  endif()
-
-  if(${BUILD_SUBSTRAIT_EXTENSION})
-    target_link_libraries(${LIBRARY} substrait_extension)
   endif()
 
   if(${BUILD_TPCDS_EXTENSION})
@@ -645,6 +704,10 @@ function(link_extension_libraries LIBRARY)
   if(${BUILD_SQLSMITH_EXTENSION})
     target_link_libraries(${LIBRARY} sqlsmith_extension)
   endif()
+
+  if(${BUILD_INET_EXTENSION})
+    target_link_libraries(${LIBRARY} inet_extension)
+  endif()
 endfunction()
 
 function(link_threads LIBRARY)
@@ -656,7 +719,7 @@ function(link_threads LIBRARY)
   endif()
 endfunction()
 
-function(build_loadable_extension_directory NAME OUTPUT_DIRECTORY)
+function(build_loadable_extension_directory NAME OUTPUT_DIRECTORY PARAMETERS)
   #  skip building extensions on mingw because its weird
   if(WIN32 AND NOT MSVC)
     return()
@@ -669,11 +732,21 @@ function(build_loadable_extension_directory NAME OUTPUT_DIRECTORY)
   list(REMOVE_AT FILES 0)
   # remove output_directory
   list(REMOVE_AT FILES 0)
+  # remove parameters
+  list(REMOVE_AT FILES 0)
+
+  # parse parameters
+  string(FIND "${PARAMETERS}" "-no-warnings" IGNORE_WARNINGS)
+
 
   add_library(${TARGET_NAME} SHARED ${FILES})
+  # this disables the -Dsome_target_EXPORTS define being added by cmake which otherwise trips clang-tidy (yay)
+  set_target_properties(${TARGET_NAME} PROPERTIES DEFINE_SYMBOL "")
   set_target_properties(${TARGET_NAME} PROPERTIES OUTPUT_NAME ${NAME})
   set_target_properties(${TARGET_NAME} PROPERTIES PREFIX "")
-
+  if(${IGNORE_WARNINGS} GREATER_EQUAL 0)
+    disable_target_warnings(${TARGET_NAME})
+  endif()
   # loadable extension binaries can be built two ways:
   # 1. EXTENSION_STATIC_BUILD=1
   #    DuckDB is statically linked into each extension binary. This increases portability because in several situations
@@ -690,17 +763,18 @@ function(build_loadable_extension_directory NAME OUTPUT_DIRECTORY)
       target_link_libraries(${TARGET_NAME} duckdb_static ${DUCKDB_EXTRA_LINK_FLAGS} -Wl,--gc-sections -Wl,--exclude-libs,ALL)
     elseif (WIN32)
       target_link_libraries(${TARGET_NAME} duckdb_static ${DUCKDB_EXTRA_LINK_FLAGS})
-    elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+    elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang$")
       set_target_properties(${TARGET_NAME} PROPERTIES CXX_VISIBILITY_PRESET hidden)
       # Note that on MacOS we need to use the -exported_symbol whitelist feature due to a lack of -exclude-libs flag in mac's ld variant
-      target_link_libraries(${TARGET_NAME} duckdb_static ${DUCKDB_EXTRA_LINK_FLAGS} -Wl,-dead_strip -Wl,-exported_symbol,_${NAME}_init -Wl,-exported_symbol,_${NAME}_version)
+      set(WHITELIST "-Wl,-exported_symbol,_${NAME}_init -Wl,-exported_symbol,_${NAME}_version -Wl,-exported_symbol,_${NAME}_replacement_open_*")
+      target_link_libraries(${TARGET_NAME} duckdb_static ${DUCKDB_EXTRA_LINK_FLAGS} -Wl,-dead_strip ${WHITELIST})
     else()
       error("EXTENSION static build is only intended for Linux and Windows on MVSC")
     endif()
   else()
     if (WIN32)
       target_link_libraries(${TARGET_NAME} duckdb ${DUCKDB_EXTRA_LINK_FLAGS})
-    elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+    elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang$")
       set_target_properties(${TARGET_NAME} PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
     endif()
   endif()
@@ -738,12 +812,13 @@ endif()
 
 endfunction()
 
-function(build_loadable_extension NAME)
+function(build_loadable_extension NAME PARAMETERS)
   # all parameters after name
   set(FILES ${ARGV})
   list(REMOVE_AT FILES 0)
+  list(REMOVE_AT FILES 0)
 
-  build_loadable_extension_directory(${NAME} extension/${NAME} ${FILES})
+  build_loadable_extension_directory(${NAME} "extension/${NAME}" "${PARAMETERS}" ${FILES})
 endfunction()
 
 if(${EXPORT_DLL_SYMBOLS})
@@ -809,8 +884,13 @@ endif()
 endif()
 
 # build out-of-tree extensions on demand
-if(NOT "${EXTERNAL_EXTENSION_DIRECTORY}" STREQUAL "")
-  # the build path seems to get ignored on windows in just the right way. no idea why.
-  get_filename_component(EXTERNAL_EXTENSION_NAME ${EXTERNAL_EXTENSION_DIRECTORY} NAME)
-  add_subdirectory(${EXTERNAL_EXTENSION_DIRECTORY} "extension/${EXTERNAL_EXTENSION_NAME}")
+if(NOT "${EXTERNAL_EXTENSION_DIRECTORIES}" STREQUAL "")
+  separate_arguments(EXTERNAL_EXTENSION_DIRECTORIES)
+
+  foreach(EXTERNAL_EXTENSION_DIRECTORY IN LISTS EXTERNAL_EXTENSION_DIRECTORIES)
+
+    # the build path seems to get ignored on windows in just the right way. no idea why.
+    get_filename_component(EXTERNAL_EXTENSION_NAME ${EXTERNAL_EXTENSION_DIRECTORY} NAME)
+    add_subdirectory(${EXTERNAL_EXTENSION_DIRECTORY} "extension/${EXTERNAL_EXTENSION_NAME}")
+  endforeach()
 endif()

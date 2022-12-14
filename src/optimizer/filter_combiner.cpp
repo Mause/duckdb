@@ -14,7 +14,7 @@
 #include "duckdb/planner/table_filter.hpp"
 #include "duckdb/planner/filter/constant_filter.hpp"
 #include "duckdb/planner/filter/null_filter.hpp"
-
+#include "duckdb/optimizer/optimizer.hpp"
 #include "duckdb/common/operator/cast_operators.hpp"
 #include "duckdb/planner/filter/conjunction_filter.hpp"
 
@@ -23,6 +23,12 @@ namespace duckdb {
 using ExpressionValueInformation = FilterCombiner::ExpressionValueInformation;
 
 ValueComparisonResult CompareValueInformation(ExpressionValueInformation &left, ExpressionValueInformation &right);
+
+FilterCombiner::FilterCombiner(ClientContext &context) : context(context) {
+}
+
+FilterCombiner::FilterCombiner(Optimizer &optimizer) : FilterCombiner(optimizer.context) {
+}
 
 Expression *FilterCombiner::GetNode(Expression *expr) {
 	auto entry = stored_expressions.find(expr);
@@ -55,6 +61,9 @@ idx_t FilterCombiner::GetEquivalenceSet(Expression *expr) {
 
 FilterResult FilterCombiner::AddConstantComparison(vector<ExpressionValueInformation> &info_list,
                                                    ExpressionValueInformation info) {
+	if (info.constant.IsNull()) {
+		return FilterResult::UNSATISFIABLE;
+	}
 	for (idx_t i = 0; i < info_list.size(); i++) {
 		auto comparison = CompareValueInformation(info_list[i], info);
 		switch (comparison) {
@@ -581,7 +590,10 @@ FilterResult FilterCombiner::AddBoundComparisonFilter(Expression *expr) {
 		auto node = GetNode(left_is_scalar ? comparison.right.get() : comparison.left.get());
 		idx_t equivalence_set = GetEquivalenceSet(node);
 		auto scalar = left_is_scalar ? comparison.left.get() : comparison.right.get();
-		auto constant_value = ExpressionExecutor::EvaluateScalar(*scalar);
+		Value constant_value;
+		if (!ExpressionExecutor::TryEvaluateScalar(context, *scalar, constant_value)) {
+			return FilterResult::UNSATISFIABLE;
+		}
 		if (constant_value.IsNull()) {
 			// comparisons with null are always null (i.e. will never result in rows)
 			return FilterResult::UNSATISFIABLE;
@@ -662,7 +674,11 @@ FilterResult FilterCombiner::AddFilter(Expression *expr) {
 	}
 	if (expr->IsFoldable()) {
 		// scalar condition, evaluate it
-		auto result = ExpressionExecutor::EvaluateScalar(*expr).CastAs(LogicalType::BOOLEAN);
+		Value result;
+		if (!ExpressionExecutor::TryEvaluateScalar(context, *expr, result)) {
+			return FilterResult::UNSUPPORTED;
+		}
+		result = result.DefaultCastAs(LogicalType::BOOLEAN);
 		// check if the filter passes
 		if (result.IsNull() || !BooleanValue::Get(result)) {
 			// the filter does not pass the scalar test, create an empty result
@@ -686,7 +702,10 @@ FilterResult FilterCombiner::AddFilter(Expression *expr) {
 
 			if (lower_is_scalar) {
 				auto scalar = comparison.lower.get();
-				auto constant_value = ExpressionExecutor::EvaluateScalar(*scalar);
+				Value constant_value;
+				if (!ExpressionExecutor::TryEvaluateScalar(context, *scalar, constant_value)) {
+					return FilterResult::UNSUPPORTED;
+				}
 
 				// create the ExpressionValueInformation
 				ExpressionValueInformation info;
@@ -719,7 +738,10 @@ FilterResult FilterCombiner::AddFilter(Expression *expr) {
 
 			if (upper_is_scalar) {
 				auto scalar = comparison.upper.get();
-				auto constant_value = ExpressionExecutor::EvaluateScalar(*scalar);
+				Value constant_value;
+				if (!ExpressionExecutor::TryEvaluateScalar(context, *scalar, constant_value)) {
+					return FilterResult::UNSUPPORTED;
+				}
 
 				// create the ExpressionValueInformation
 				ExpressionValueInformation info;

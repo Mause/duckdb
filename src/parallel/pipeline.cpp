@@ -1,19 +1,18 @@
 #include "duckdb/parallel/pipeline.hpp"
 
+#include "duckdb/common/algorithm.hpp"
 #include "duckdb/common/printer.hpp"
+#include "duckdb/common/tree_renderer.hpp"
 #include "duckdb/execution/executor.hpp"
-#include "duckdb/main/client_context.hpp"
-#include "duckdb/parallel/thread_context.hpp"
-#include "duckdb/parallel/task_scheduler.hpp"
-#include "duckdb/main/database.hpp"
-
 #include "duckdb/execution/operator/aggregate/physical_ungrouped_aggregate.hpp"
 #include "duckdb/execution/operator/scan/physical_table_scan.hpp"
-#include "duckdb/parallel/pipeline_executor.hpp"
+#include "duckdb/execution/operator/set/physical_recursive_cte.hpp"
+#include "duckdb/main/client_context.hpp"
+#include "duckdb/main/database.hpp"
 #include "duckdb/parallel/pipeline_event.hpp"
-
-#include "duckdb/common/algorithm.hpp"
-#include "duckdb/common/tree_renderer.hpp"
+#include "duckdb/parallel/pipeline_executor.hpp"
+#include "duckdb/parallel/task_scheduler.hpp"
+#include "duckdb/parallel/thread_context.hpp"
 
 namespace duckdb {
 
@@ -48,7 +47,8 @@ public:
 	}
 };
 
-Pipeline::Pipeline(Executor &executor_p) : executor(executor_p), ready(false), source(nullptr), sink(nullptr) {
+Pipeline::Pipeline(Executor &executor_p)
+    : executor(executor_p), ready(false), initialized(false), source(nullptr), sink(nullptr) {
 }
 
 ClientContext &Pipeline::GetClientContext() {
@@ -57,10 +57,13 @@ ClientContext &Pipeline::GetClientContext() {
 
 bool Pipeline::GetProgress(double &current_percentage, idx_t &source_cardinality) {
 	D_ASSERT(source);
-
+	source_cardinality = source->estimated_cardinality;
+	if (!initialized) {
+		current_percentage = 0;
+		return true;
+	}
 	auto &client = executor.context;
 	current_percentage = source->GetProgress(client, *source_state);
-	source_cardinality = source->estimated_cardinality;
 	return current_percentage >= 0;
 }
 
@@ -101,7 +104,7 @@ bool Pipeline::IsOrderDependent() const {
 	if (sink && sink->IsOrderDependent()) {
 		return true;
 	}
-	if (source->IsOrderDependent()) {
+	if (source && source->IsOrderDependent()) {
 		return true;
 	}
 	for (auto &op : operators) {
@@ -115,6 +118,7 @@ bool Pipeline::IsOrderDependent() const {
 void Pipeline::Schedule(shared_ptr<Event> &event) {
 	D_ASSERT(ready);
 	D_ASSERT(sink);
+	Reset();
 	if (!ScheduleParallel(event)) {
 		// could not parallelize this pipeline: push a sequential task instead
 		ScheduleSequentialTask(event);
@@ -142,22 +146,35 @@ bool Pipeline::LaunchScanTasks(shared_ptr<Event> &event, idx_t max_threads) {
 	return true;
 }
 
-void Pipeline::Reset() {
-	if (sink && !sink->sink_state) {
-		sink->sink_state = sink->GetGlobalSinkState(GetClientContext());
-	}
-
-	for (auto &op : operators) {
-		if (op && !op->op_state) {
-			op->op_state = op->GetGlobalOperatorState(GetClientContext());
+void Pipeline::ResetSink() {
+	if (sink) {
+		lock_guard<mutex> guard(sink->lock);
+		if (!sink->sink_state) {
+			sink->sink_state = sink->GetGlobalSinkState(GetClientContext());
 		}
 	}
-
-	ResetSource();
 }
 
-void Pipeline::ResetSource() {
-	source_state = source->GetGlobalSourceState(GetClientContext());
+void Pipeline::Reset() {
+	ResetSink();
+	for (auto &op : operators) {
+		if (op) {
+			lock_guard<mutex> guard(op->lock);
+			if (!op->op_state) {
+				op->op_state = op->GetGlobalOperatorState(GetClientContext());
+			}
+		}
+	}
+	ResetSource(false);
+	// we no longer reset source here because this function is no longer guaranteed to be called by the main thread
+	// source reset needs to be called by the main thread because resetting a source may call into clients like R
+	initialized = true;
+}
+
+void Pipeline::ResetSource(bool force) {
+	if (force || !source_state) {
+		source_state = source->GetGlobalSourceState(GetClientContext());
+	}
 }
 
 void Pipeline::Ready() {
@@ -166,20 +183,22 @@ void Pipeline::Ready() {
 	}
 	ready = true;
 	std::reverse(operators.begin(), operators.end());
-	Reset();
 }
 
 void Pipeline::Finalize(Event &event) {
+	if (executor.HasError()) {
+		return;
+	}
 	D_ASSERT(ready);
 	try {
 		auto sink_state = sink->Finalize(*this, event, executor.context, *sink->sink_state);
 		sink->sink_state->state = sink_state;
 	} catch (Exception &ex) { // LCOV_EXCL_START
-		executor.PushError(ex.type, ex.what());
+		executor.PushError(PreservedError(ex));
 	} catch (std::exception &ex) {
-		executor.PushError(ExceptionType::UNKNOWN_TYPE, ex.what());
+		executor.PushError(PreservedError(ex));
 	} catch (...) {
-		executor.PushError(ExceptionType::UNKNOWN_TYPE, "Unknown exception in Finalize!");
+		executor.PushError(PreservedError("Unknown exception in Finalize!"));
 	} // LCOV_EXCL_STOP
 }
 
@@ -196,6 +215,12 @@ string Pipeline::ToString() const {
 
 void Pipeline::Print() const {
 	Printer::Print(ToString());
+}
+
+void Pipeline::PrintDependencies() const {
+	for (auto &dep : dependencies) {
+		shared_ptr<Pipeline>(dep)->Print();
+	}
 }
 
 vector<PhysicalOperator *> Pipeline::GetOperators() const {
@@ -216,20 +241,14 @@ void PipelineBuildState::SetPipelineSource(Pipeline &pipeline, PhysicalOperator 
 	pipeline.source = op;
 }
 
-void PipelineBuildState::SetPipelineSink(Pipeline &pipeline, PhysicalOperator *op) {
+void PipelineBuildState::SetPipelineSink(Pipeline &pipeline, PhysicalOperator *op, idx_t sink_pipeline_count) {
 	pipeline.sink = op;
 	// set the base batch index of this pipeline based on how many other pipelines have this node as their sink
-	pipeline.base_batch_index = BATCH_INCREMENT * sink_pipeline_count[op];
-	// increment the number of nodes that have this pipeline as their sink
-	sink_pipeline_count[op]++;
+	pipeline.base_batch_index = BATCH_INCREMENT * sink_pipeline_count;
 }
 
 void PipelineBuildState::AddPipelineOperator(Pipeline &pipeline, PhysicalOperator *op) {
 	pipeline.operators.push_back(op);
-}
-
-void PipelineBuildState::AddPipeline(Executor &executor, shared_ptr<Pipeline> pipeline) {
-	executor.pipelines.push_back(move(pipeline));
 }
 
 PhysicalOperator *PipelineBuildState::GetPipelineSource(Pipeline &pipeline) {
@@ -244,18 +263,9 @@ void PipelineBuildState::SetPipelineOperators(Pipeline &pipeline, vector<Physica
 	pipeline.operators = move(operators);
 }
 
-void PipelineBuildState::AddChildPipeline(Executor &executor, Pipeline &pipeline) {
-	executor.AddChildPipeline(&pipeline);
-}
-
-unordered_map<Pipeline *, vector<shared_ptr<Pipeline>>> &PipelineBuildState::GetUnionPipelines(Executor &executor) {
-	return executor.union_pipelines;
-}
-unordered_map<Pipeline *, vector<shared_ptr<Pipeline>>> &PipelineBuildState::GetChildPipelines(Executor &executor) {
-	return executor.child_pipelines;
-}
-unordered_map<Pipeline *, vector<Pipeline *>> &PipelineBuildState::GetChildDependencies(Executor &executor) {
-	return executor.child_dependencies;
+shared_ptr<Pipeline> PipelineBuildState::CreateChildPipeline(Executor &executor, Pipeline &pipeline,
+                                                             PhysicalOperator *op) {
+	return executor.CreateChildPipeline(&pipeline, op);
 }
 
 vector<PhysicalOperator *> PipelineBuildState::GetPipelineOperators(Pipeline &pipeline) {

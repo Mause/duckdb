@@ -149,11 +149,12 @@ public:
 	DUCKDB_API bool IsEnabled() const;
 	DUCKDB_API bool IsDetailedEnabled() const;
 	DUCKDB_API ProfilerPrintFormat GetPrintFormat() const;
+	DUCKDB_API bool PrintOptimizerOutput() const;
 	DUCKDB_API string GetSaveLocation() const;
 
 	DUCKDB_API static QueryProfiler &Get(ClientContext &context);
 
-	DUCKDB_API void StartQuery(string query, bool is_explain_analyze = false);
+	DUCKDB_API void StartQuery(string query, bool is_explain_analyze = false, bool start_at_optimizer = false);
 	DUCKDB_API void EndQuery();
 
 	DUCKDB_API void StartExplainAnalyze();
@@ -166,8 +167,8 @@ public:
 
 	DUCKDB_API void Initialize(PhysicalOperator *root);
 
-	DUCKDB_API string QueryTreeToString(bool print_optimizer_output = false) const;
-	DUCKDB_API void QueryTreeToStream(std::ostream &str, bool print_optimizer_output = false) const;
+	DUCKDB_API string QueryTreeToString() const;
+	DUCKDB_API void QueryTreeToStream(std::ostream &str) const;
 	DUCKDB_API void Print();
 
 	//! return the printed as a string. Unlike ToString, which is always formatted as a string,
@@ -231,10 +232,12 @@ private:
 //! The QueryProfilerHistory can be used to access the profiler of previous queries
 class QueryProfilerHistory {
 private:
+	static constexpr uint64_t DEFAULT_SIZE = 20;
+
 	//! Previous Query profilers
 	deque<pair<transaction_t, shared_ptr<QueryProfiler>>> prev_profilers;
 	//! Previous Query profilers size
-	uint64_t prev_profilers_size = 20;
+	uint64_t prev_profilers_size = DEFAULT_SIZE;
 
 public:
 	deque<pair<transaction_t, shared_ptr<QueryProfiler>>> &GetPrevProfilers() {
@@ -253,6 +256,9 @@ public:
 public:
 	void SetProfilerHistorySize(uint64_t size) {
 		this->prev_profilers_size = size;
+	}
+	void ResetProfilerHistorySize() {
+		this->prev_profilers_size = DEFAULT_SIZE;
 	}
 };
 } // namespace duckdb

@@ -1,25 +1,27 @@
 #include "column_writer.hpp"
-#include "parquet_writer.hpp"
-#include "parquet_rle_bp_decoder.hpp"
-#include "parquet_rle_bp_encoder.hpp"
 
 #include "duckdb.hpp"
+#include "parquet_rle_bp_decoder.hpp"
+#include "parquet_rle_bp_encoder.hpp"
+#include "parquet_writer.hpp"
 #ifndef DUCKDB_AMALGAMATION
 #include "duckdb/common/common.hpp"
 #include "duckdb/common/exception.hpp"
 #include "duckdb/common/mutex.hpp"
+#include "duckdb/common/operator/comparison_operators.hpp"
 #include "duckdb/common/serializer/buffered_file_writer.hpp"
+#include "duckdb/common/serializer/buffered_serializer.hpp"
+#include "duckdb/common/string_map_set.hpp"
 #include "duckdb/common/types/chunk_collection.hpp"
 #include "duckdb/common/types/date.hpp"
 #include "duckdb/common/types/hugeint.hpp"
+#include "duckdb/common/types/string_heap.hpp"
 #include "duckdb/common/types/time.hpp"
 #include "duckdb/common/types/timestamp.hpp"
-#include "duckdb/common/serializer/buffered_serializer.hpp"
-#include "duckdb/common/operator/comparison_operators.hpp"
 #endif
 
-#include "snappy.h"
 #include "miniz_wrapper.hpp"
+#include "snappy.h"
 #include "zstd.h"
 
 namespace duckdb {
@@ -341,7 +343,8 @@ public:
 	static constexpr const idx_t STRING_LENGTH_SIZE = sizeof(uint32_t);
 
 public:
-	unique_ptr<ColumnWriterState> InitializeWriteState(duckdb_parquet::format::RowGroup &row_group) override;
+	unique_ptr<ColumnWriterState> InitializeWriteState(duckdb_parquet::format::RowGroup &row_group,
+	                                                   Allocator &allocator) override;
 	void Prepare(ColumnWriterState &state, ColumnWriterState *parent, Vector &vector, idx_t count) override;
 	void BeginWrite(ColumnWriterState &state) override;
 	void Write(ColumnWriterState &state, Vector &vector, idx_t count) override;
@@ -371,6 +374,11 @@ protected:
 	virtual void WriteVector(Serializer &temp_writer, ColumnWriterStatistics *stats, ColumnWriterPageState *page_state,
 	                         Vector &vector, idx_t chunk_start, idx_t chunk_end) = 0;
 
+	virtual bool HasDictionary(BasicColumnWriterState &state_p) {
+		return false;
+	}
+	//! The number of elements in the dictionary
+	virtual idx_t DictionarySize(BasicColumnWriterState &state_p);
 	void WriteDictionary(BasicColumnWriterState &state, unique_ptr<BufferedSerializer> temp_writer, idx_t row_count);
 	virtual void FlushDictionary(BasicColumnWriterState &state, ColumnWriterStatistics *stats);
 
@@ -378,7 +386,8 @@ protected:
 	void RegisterToRowGroup(duckdb_parquet::format::RowGroup &row_group);
 };
 
-unique_ptr<ColumnWriterState> BasicColumnWriter::InitializeWriteState(duckdb_parquet::format::RowGroup &row_group) {
+unique_ptr<ColumnWriterState> BasicColumnWriter::InitializeWriteState(duckdb_parquet::format::RowGroup &row_group,
+                                                                      Allocator &allocator) {
 	auto result = make_unique<BasicColumnWriterState>(row_group, row_group.columns.size());
 	RegisterToRowGroup(row_group);
 	return move(result);
@@ -635,25 +644,44 @@ void BasicColumnWriter::FinalizeWrite(ColumnWriterState &state_p) {
 
 	// flush the last page (if any remains)
 	FlushPage(state);
+
+	auto start_offset = writer.writer->GetTotalWritten();
+	auto page_offset = start_offset;
 	// flush the dictionary
-	FlushDictionary(state, state.stats_state.get());
+	if (HasDictionary(state)) {
+		column_chunk.meta_data.statistics.distinct_count = DictionarySize(state);
+		column_chunk.meta_data.statistics.__isset.distinct_count = true;
+		column_chunk.meta_data.dictionary_page_offset = page_offset;
+		column_chunk.meta_data.__isset.dictionary_page_offset = true;
+		FlushDictionary(state, state.stats_state.get());
+		page_offset += state.write_info[0].compressed_size;
+	}
 
 	// record the start position of the pages for this column
-	column_chunk.meta_data.data_page_offset = writer.writer->GetTotalWritten();
+	column_chunk.meta_data.data_page_offset = page_offset;
 	SetParquetStatistics(state, column_chunk);
 
 	// write the individual pages to disk
+	idx_t total_uncompressed_size = 0;
 	for (auto &write_info : state.write_info) {
 		D_ASSERT(write_info.page_header.uncompressed_page_size > 0);
+		auto header_start_offset = writer.writer->GetTotalWritten();
 		write_info.page_header.write(writer.protocol.get());
+		// total uncompressed size in the column chunk includes the header size (!)
+		total_uncompressed_size += writer.writer->GetTotalWritten() - header_start_offset;
+		total_uncompressed_size += write_info.page_header.uncompressed_page_size;
 		writer.writer->WriteData(write_info.compressed_data, write_info.compressed_size);
 	}
-	column_chunk.meta_data.total_compressed_size =
-	    writer.writer->GetTotalWritten() - column_chunk.meta_data.data_page_offset;
+	column_chunk.meta_data.total_compressed_size = writer.writer->GetTotalWritten() - start_offset;
+	column_chunk.meta_data.total_uncompressed_size = total_uncompressed_size;
 }
 
 void BasicColumnWriter::FlushDictionary(BasicColumnWriterState &state, ColumnWriterStatistics *stats) {
-	// nop: standard pages do not have a dictionary
+	throw InternalException("This page does not have a dictionary");
+}
+
+idx_t BasicColumnWriter::DictionarySize(BasicColumnWriterState &state) {
+	throw InternalException("This page does not have a dictionary");
 }
 
 void BasicColumnWriter::WriteDictionary(BasicColumnWriterState &state, unique_ptr<BufferedSerializer> temp_writer,
@@ -1154,8 +1182,8 @@ public:
 
 class StringColumnWriterState : public BasicColumnWriterState {
 public:
-	StringColumnWriterState(duckdb_parquet::format::RowGroup &row_group, idx_t col_idx)
-	    : BasicColumnWriterState(row_group, col_idx) {
+	StringColumnWriterState(duckdb_parquet::format::RowGroup &row_group, Allocator &allocator, idx_t col_idx)
+	    : BasicColumnWriterState(row_group, col_idx), dictionary_heap(allocator) {
 	}
 	~StringColumnWriterState() override = default;
 
@@ -1164,8 +1192,9 @@ public:
 	idx_t estimated_rle_pages_size = 0;
 	idx_t estimated_plain_size = 0;
 
-	// Dictionary
-	unordered_map<string, uint32_t> dictionary;
+	// Dictionary and accompanying string heap
+	string_map_t<uint32_t> dictionary;
+	StringHeap dictionary_heap;
 	// key_bit_width== 0 signifies the chunk is written in plain encoding
 	uint32_t key_bit_width;
 
@@ -1176,7 +1205,7 @@ public:
 
 class StringWriterPageState : public ColumnWriterPageState {
 public:
-	explicit StringWriterPageState(uint32_t bit_width, const unordered_map<string, uint32_t> &values)
+	explicit StringWriterPageState(uint32_t bit_width, const string_map_t<uint32_t> &values)
 	    : bit_width(bit_width), dictionary(values), encoder(bit_width), written_value(false) {
 		D_ASSERT(IsDictionaryEncoded() || (bit_width == 0 && dictionary.empty()));
 	}
@@ -1186,7 +1215,7 @@ public:
 	}
 	// if 0, we're writing a plain page
 	uint32_t bit_width;
-	const unordered_map<string, uint32_t> &dictionary;
+	const string_map_t<uint32_t> &dictionary;
 	RleBpEncoder encoder;
 	bool written_value;
 };
@@ -1204,8 +1233,9 @@ public:
 		return make_unique<StringStatisticsState>();
 	}
 
-	unique_ptr<ColumnWriterState> InitializeWriteState(duckdb_parquet::format::RowGroup &row_group) override {
-		auto result = make_unique<StringColumnWriterState>(row_group, row_group.columns.size());
+	unique_ptr<ColumnWriterState> InitializeWriteState(duckdb_parquet::format::RowGroup &row_group,
+	                                                   Allocator &allocator) override {
+		auto result = make_unique<StringColumnWriterState>(row_group, allocator, row_group.columns.size());
 		RegisterToRowGroup(row_group);
 		return move(result);
 	}
@@ -1234,13 +1264,17 @@ public:
 
 			if (validity.RowIsValid(vector_index)) {
 				run_length++;
-				const auto &value = strings[vector_index].GetString();
-				auto found = state.dictionary.insert(unordered_map<string, idx_t>::value_type(value, new_value_index));
-				state.estimated_plain_size += value.size() + STRING_LENGTH_SIZE;
+				const auto &value = strings[vector_index];
+				// If the value did not yet exist in the dictionary we add it to the StringHeap
+				auto found = !value.IsInlined() && state.dictionary.find(value) == state.dictionary.end()
+				                 ? state.dictionary.insert(string_map_t<uint32_t>::value_type(
+				                       state.dictionary_heap.AddBlob(value), new_value_index))
+				                 : state.dictionary.insert(string_map_t<uint32_t>::value_type(value, new_value_index));
+				state.estimated_plain_size += value.GetSize() + STRING_LENGTH_SIZE;
 				if (found.second) {
 					// string didn't exist yet in the dictionary
 					new_value_index++;
-					state.estimated_dict_page_size += value.size() + MAX_DICTIONARY_KEY_SIZE;
+					state.estimated_dict_page_size += value.GetSize() + MAX_DICTIONARY_KEY_SIZE;
 				}
 				// if the value changed, we will encode it in the page
 				if (last_value_index != found.first->second) {
@@ -1286,7 +1320,7 @@ public:
 				if (!mask.RowIsValid(r)) {
 					continue;
 				}
-				auto value_index = page_state.dictionary.at(ptr[r].GetString());
+				auto value_index = page_state.dictionary.at(ptr[r]);
 				if (!page_state.written_value) {
 					// first value
 					// write the bit-width as a one-byte entry
@@ -1334,6 +1368,17 @@ public:
 		return state.IsDictionaryEncoded() ? Encoding::RLE_DICTIONARY : Encoding::PLAIN;
 	}
 
+	bool HasDictionary(BasicColumnWriterState &state_p) override {
+		auto &state = (StringColumnWriterState &)state_p;
+		return state.IsDictionaryEncoded();
+	}
+
+	idx_t DictionarySize(BasicColumnWriterState &state_p) override {
+		auto &state = (StringColumnWriterState &)state_p;
+		D_ASSERT(state.IsDictionaryEncoded());
+		return state.dictionary.size();
+	}
+
 	void FlushDictionary(BasicColumnWriterState &state_p, ColumnWriterStatistics *stats_p) override {
 		auto &stats = (StringStatisticsState &)*stats_p;
 		auto &state = (StringColumnWriterState &)state_p;
@@ -1341,9 +1386,9 @@ public:
 			return;
 		}
 		// first we need to sort the values in index order
-		auto values = vector<string>(state.dictionary.size());
+		auto values = vector<string_t>(state.dictionary.size());
 		for (const auto &entry : state.dictionary) {
-			D_ASSERT(values[entry.second].empty());
+			D_ASSERT(values[entry.second].GetSize() == 0);
 			values[entry.second] = entry.first;
 		}
 		// first write the contents of the dictionary page to a temporary buffer
@@ -1353,8 +1398,8 @@ public:
 			// update the statistics
 			stats.Update(value);
 			// write this string value to the dictionary
-			temp_writer->Write<uint32_t>(value.size());
-			temp_writer->WriteData((const_data_ptr_t)value.data(), value.size());
+			temp_writer->Write<uint32_t>(value.GetSize());
+			temp_writer->WriteData((const_data_ptr_t)(value.GetDataUnsafe()), value.GetSize());
 		}
 		// flush the dictionary page and add it to the to-be-written pages
 		WriteDictionary(state, move(temp_writer), values.size());
@@ -1459,6 +1504,14 @@ public:
 		return Encoding::RLE_DICTIONARY;
 	}
 
+	bool HasDictionary(BasicColumnWriterState &state) override {
+		return true;
+	}
+
+	idx_t DictionarySize(BasicColumnWriterState &state_p) override {
+		return EnumType::GetSize(enum_type);
+	}
+
 	void FlushDictionary(BasicColumnWriterState &state, ColumnWriterStatistics *stats_p) override {
 		auto &stats = (StringStatisticsState &)*stats_p;
 		// write the enum values to a dictionary page
@@ -1499,7 +1552,8 @@ public:
 	vector<unique_ptr<ColumnWriter>> child_writers;
 
 public:
-	unique_ptr<ColumnWriterState> InitializeWriteState(duckdb_parquet::format::RowGroup &row_group) override;
+	unique_ptr<ColumnWriterState> InitializeWriteState(duckdb_parquet::format::RowGroup &row_group,
+	                                                   Allocator &allocator) override;
 	bool HasAnalyze() override;
 	void Analyze(ColumnWriterState &state, ColumnWriterState *parent, Vector &vector, idx_t count) override;
 	void FinalizeAnalyze(ColumnWriterState &state) override;
@@ -1522,12 +1576,13 @@ public:
 	vector<unique_ptr<ColumnWriterState>> child_states;
 };
 
-unique_ptr<ColumnWriterState> StructColumnWriter::InitializeWriteState(duckdb_parquet::format::RowGroup &row_group) {
+unique_ptr<ColumnWriterState> StructColumnWriter::InitializeWriteState(duckdb_parquet::format::RowGroup &row_group,
+                                                                       Allocator &allocator) {
 	auto result = make_unique<StructColumnWriterState>(row_group, row_group.columns.size());
 
 	result->child_states.reserve(child_writers.size());
 	for (auto &child_writer : child_writers) {
-		result->child_states.push_back(child_writer->InitializeWriteState(row_group));
+		result->child_states.push_back(child_writer->InitializeWriteState(row_group, allocator));
 	}
 	return move(result);
 }
@@ -1620,7 +1675,8 @@ public:
 	unique_ptr<ColumnWriter> child_writer;
 
 public:
-	unique_ptr<ColumnWriterState> InitializeWriteState(duckdb_parquet::format::RowGroup &row_group) override;
+	unique_ptr<ColumnWriterState> InitializeWriteState(duckdb_parquet::format::RowGroup &row_group,
+	                                                   Allocator &allocator) override;
 	bool HasAnalyze() override;
 	void Analyze(ColumnWriterState &state, ColumnWriterState *parent, Vector &vector, idx_t count) override;
 	void FinalizeAnalyze(ColumnWriterState &state) override;
@@ -1644,9 +1700,10 @@ public:
 	idx_t parent_index = 0;
 };
 
-unique_ptr<ColumnWriterState> ListColumnWriter::InitializeWriteState(duckdb_parquet::format::RowGroup &row_group) {
+unique_ptr<ColumnWriterState> ListColumnWriter::InitializeWriteState(duckdb_parquet::format::RowGroup &row_group,
+                                                                     Allocator &allocator) {
 	auto result = make_unique<ListColumnWriterState>(row_group, row_group.columns.size());
-	result->child_state = child_writer->InitializeWriteState(row_group);
+	result->child_state = child_writer->InitializeWriteState(row_group, allocator);
 	return move(result);
 }
 
@@ -1860,8 +1917,7 @@ unique_ptr<ColumnWriter> ColumnWriter::CreateWriterRecursive(vector<duckdb_parqu
 	duckdb_parquet::format::SchemaElement schema_element;
 	schema_element.type = ParquetWriter::DuckDBTypeToParquetType(type);
 	schema_element.repetition_type = null_type;
-	schema_element.num_children = 0;
-	schema_element.__isset.num_children = true;
+	schema_element.__isset.num_children = false;
 	schema_element.__isset.type = true;
 	schema_element.__isset.repetition_type = true;
 	schema_element.name = name;

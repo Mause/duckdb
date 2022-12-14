@@ -6,6 +6,7 @@
 #include "utf8proc_wrapper.hpp"
 #include "duckdb/common/types/interval.hpp"
 #include "duckdb_python/pyrelation.hpp"
+#include "duckdb_python/python_objects.hpp"
 #include "duckdb_python/pyconnection.hpp"
 #include "duckdb_python/pyresult.hpp"
 #include "duckdb/common/types/uuid.hpp"
@@ -176,7 +177,7 @@ struct StringConvert {
 			                                      start_pos);
 			break;
 		default:
-			throw std::runtime_error("Unsupported typekind for Python Unicode Compact decode");
+			throw NotImplementedException("Unsupported typekind constant '%d' for Python Unicode Compact decode", kind);
 		}
 		return result;
 	}
@@ -239,7 +240,7 @@ struct ListConvert {
 		auto &list_children = ListValue::GetChildren(val);
 		py::list list;
 		for (auto &list_elem : list_children) {
-			list.append(DuckDBPyResult::GetValueToPython(list_elem, ListType::GetChildType(input.GetType())));
+			list.append(PythonObject::FromValue(list_elem, ListType::GetChildType(input.GetType())));
 		}
 		return list;
 	}
@@ -256,7 +257,7 @@ struct StructMapConvert {
 			auto &child_entry = child_types[i];
 			auto &child_name = child_entry.first;
 			auto &child_type = child_entry.second;
-			py_struct[child_name.c_str()] = DuckDBPyResult::GetValueToPython(struct_children[i], child_type);
+			py_struct[child_name.c_str()] = PythonObject::FromValue(struct_children[i], child_type);
 		}
 		return py_struct;
 	}
@@ -322,7 +323,7 @@ static bool ConvertColumnCategoricalTemplate(idx_t target_offset, data_ptr_t tar
 			idx_t src_idx = idata.sel->get_index(i);
 			idx_t offset = target_offset + i;
 			if (!idata.validity.RowIsValidUnsafe(src_idx)) {
-				out_ptr[offset] = duckdb_py_convert::RegularConvert::template ConvertValue<DUCKDB_T, NUMPY_T>(-1);
+				out_ptr[offset] = static_cast<NUMPY_T>(-1);
 			} else {
 				out_ptr[offset] =
 				    duckdb_py_convert::RegularConvert::template ConvertValue<DUCKDB_T, NUMPY_T>(src_ptr[src_idx]);
@@ -495,7 +496,7 @@ RawArrayWrapper::RawArrayWrapper(const LogicalType &type) : data(nullptr), type(
 		type_width = sizeof(PyObject *);
 		break;
 	default:
-		throw std::runtime_error("Unsupported type " + type.ToString() + " for DuckDB -> NumPy conversion");
+		throw NotImplementedException("Unsupported type \"%s\" for DuckDB -> NumPy conversion", type.ToString());
 	}
 }
 
@@ -572,7 +573,7 @@ void RawArrayWrapper::Initialize(idx_t capacity) {
 		}
 	} break;
 	default:
-		throw std::runtime_error("unsupported type " + type.ToString());
+		throw NotImplementedException("Unsupported type \"%s\"", type.ToString());
 	}
 	array = py::array(py::dtype(dtype), capacity);
 	data = (data_ptr_t)array.mutable_data();
@@ -717,7 +718,7 @@ void ArrayWrapper::Append(idx_t current_offset, Vector &input, idx_t count) {
 		break;
 
 	default:
-		throw std::runtime_error("unsupported type " + input.GetType().ToString());
+		throw NotImplementedException("Unsupported type \"%s\"", input.GetType().ToString());
 	}
 	if (may_have_null) {
 		requires_mask = true;

@@ -10,6 +10,7 @@
 #include "duckdb/function/scalar/nested_functions.hpp"
 #include "duckdb/planner/expression/bound_function_expression.hpp"
 #include "duckdb/storage/statistics/numeric_statistics.hpp"
+#include "duckdb/common/field_writer.hpp"
 
 namespace duckdb {
 
@@ -1310,7 +1311,7 @@ struct StructDatePart {
 		child_list_t<LogicalType> struct_children;
 		part_codes_t part_codes;
 
-		Value parts_list = ExpressionExecutor::EvaluateScalar(*arguments[0]);
+		Value parts_list = ExpressionExecutor::EvaluateScalar(context, *arguments[0]);
 		if (parts_list.type().id() == LogicalTypeId::LIST) {
 			auto &list_children = ListValue::GetChildren(parts_list);
 			if (list_children.empty()) {
@@ -1333,8 +1334,7 @@ struct StructDatePart {
 			throw BinderException("%s can only take constant lists of part names", bound_function.name);
 		}
 
-		arguments.erase(arguments.begin());
-		bound_function.arguments.erase(bound_function.arguments.begin());
+		Function::EraseArgument(bound_function, arguments, 0);
 		bound_function.return_type = LogicalType::STRUCT(move(struct_children));
 		return make_unique<BindData>(bound_function.return_type, part_codes);
 	}
@@ -1420,16 +1420,16 @@ struct StructDatePart {
 				const auto idx = rdata.sel->get_index(i);
 				if (arg_valid.RowIsValid(idx)) {
 					if (Value::IsFinite(tdata[idx])) {
-						DatePart::StructOperator::Operation(part_values.data(), tdata[idx], idx, part_mask);
+						DatePart::StructOperator::Operation(part_values.data(), tdata[idx], i, part_mask);
 					} else {
 						for (auto &child_entry : child_entries) {
-							FlatVector::Validity(*child_entry).SetInvalid(idx);
+							FlatVector::Validity(*child_entry).SetInvalid(i);
 						}
 					}
 				} else {
-					res_valid.SetInvalid(idx);
+					res_valid.SetInvalid(i);
 					for (auto &child_entry : child_entries) {
-						FlatVector::Validity(*child_entry).SetInvalid(idx);
+						FlatVector::Validity(*child_entry).SetInvalid(i);
 					}
 				}
 			}
@@ -1447,11 +1447,29 @@ struct StructDatePart {
 		result.Verify(count);
 	}
 
+	static void SerializeFunction(FieldWriter &writer, const FunctionData *bind_data_p,
+	                              const ScalarFunction &function) {
+		D_ASSERT(bind_data_p);
+		auto &info = (BindData &)*bind_data_p;
+		writer.WriteSerializable(info.stype);
+		writer.WriteList<DatePartSpecifier>(info.part_codes);
+	}
+
+	static unique_ptr<FunctionData> DeserializeFunction(ClientContext &context, FieldReader &reader,
+	                                                    ScalarFunction &bound_function) {
+		auto stype = reader.ReadRequiredSerializable<LogicalType, LogicalType>();
+		auto part_codes = reader.ReadRequiredList<DatePartSpecifier>();
+		return make_unique<BindData>(move(stype), move(part_codes));
+	}
+
 	template <typename INPUT_TYPE>
 	static ScalarFunction GetFunction(const LogicalType &temporal_type) {
 		auto part_type = LogicalType::LIST(LogicalType::VARCHAR);
 		auto result_type = LogicalType::STRUCT({});
-		return ScalarFunction({part_type, temporal_type}, result_type, Function<INPUT_TYPE>, Bind);
+		ScalarFunction result({part_type, temporal_type}, result_type, Function<INPUT_TYPE>, Bind);
+		result.serialize = SerializeFunction;
+		result.deserialize = DeserializeFunction;
+		return result;
 	}
 };
 

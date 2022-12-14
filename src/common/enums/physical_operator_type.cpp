@@ -11,6 +11,8 @@ string PhysicalOperatorToString(PhysicalOperatorType type) {
 		return "DUMMY_SCAN";
 	case PhysicalOperatorType::CHUNK_SCAN:
 		return "CHUNK_SCAN";
+	case PhysicalOperatorType::COLUMN_DATA_SCAN:
+		return "COLUMN_DATA_SCAN";
 	case PhysicalOperatorType::DELIM_SCAN:
 		return "DELIM_SCAN";
 	case PhysicalOperatorType::ORDER_BY:
@@ -65,6 +67,8 @@ string PhysicalOperatorToString(PhysicalOperatorType type) {
 		return "UNION";
 	case PhysicalOperatorType::INSERT:
 		return "INSERT";
+	case PhysicalOperatorType::BATCH_INSERT:
+		return "BATCH_INSERT";
 	case PhysicalOperatorType::DELETE_OPERATOR:
 		return "DELETE";
 	case PhysicalOperatorType::UPDATE:
@@ -75,6 +79,8 @@ string PhysicalOperatorToString(PhysicalOperatorType type) {
 		return "CREATE_TABLE";
 	case PhysicalOperatorType::CREATE_TABLE_AS:
 		return "CREATE_TABLE_AS";
+	case PhysicalOperatorType::BATCH_CREATE_TABLE_AS:
+		return "BATCH_CREATE_TABLE_AS";
 	case PhysicalOperatorType::CREATE_INDEX:
 		return "CREATE_INDEX";
 	case PhysicalOperatorType::EXPLAIN:
@@ -113,6 +119,8 @@ string PhysicalOperatorToString(PhysicalOperatorType type) {
 		return "EXPORT";
 	case PhysicalOperatorType::SET:
 		return "SET";
+	case PhysicalOperatorType::RESET:
+		return "RESET";
 	case PhysicalOperatorType::LOAD:
 		return "LOAD";
 	case PhysicalOperatorType::INOUT_FUNCTION:

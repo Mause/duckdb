@@ -18,7 +18,7 @@ unique_ptr<ExpressionState> ExpressionExecutor::InitializeState(const BoundFunct
 	}
 	result->Finalize();
 	if (expr.function.init_local_state) {
-		result->local_state = expr.function.init_local_state(expr, expr.bind_info.get());
+		result->local_state = expr.function.init_local_state(*result, expr, expr.bind_info.get());
 	}
 	return move(result);
 }
@@ -75,6 +75,7 @@ void ExpressionExecutor::Execute(const BoundFunctionExpression &expr, Expression
 	arguments.SetCardinality(count);
 
 	state->profiler.BeginSample();
+	D_ASSERT(expr.function.function);
 	expr.function.function(arguments, *state, result);
 	state->profiler.EndSample(count);
 

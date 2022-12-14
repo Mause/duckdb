@@ -60,17 +60,28 @@ AggregateFunction CountFun::GetFunction() {
 	return fun;
 }
 
+static void CountStarSerialize(FieldWriter &writer, const FunctionData *bind_data, const AggregateFunction &function) {
+}
+
+static unique_ptr<FunctionData> CountStarDeserialize(ClientContext &context, FieldReader &reader,
+                                                     AggregateFunction &function) {
+	return nullptr;
+}
+
 AggregateFunction CountStarFun::GetFunction() {
 	auto fun = AggregateFunction::NullaryAggregate<int64_t, int64_t, CountStarFunction>(LogicalType::BIGINT);
 	fun.name = "count_star";
 	fun.null_handling = FunctionNullHandling::SPECIAL_HANDLING;
+	// TODO is there a better way to set those?
+	fun.serialize = CountStarSerialize;
+	fun.deserialize = CountStarDeserialize;
 	return fun;
 }
 
 unique_ptr<BaseStatistics> CountPropagateStats(ClientContext &context, BoundAggregateExpression &expr,
                                                FunctionData *bind_data, vector<unique_ptr<BaseStatistics>> &child_stats,
                                                NodeStatistics *node_stats) {
-	if (!expr.distinct && child_stats[0] && !child_stats[0]->CanHaveNull()) {
+	if (!expr.IsDistinct() && child_stats[0] && !child_stats[0]->CanHaveNull()) {
 		// count on a column without null values: use count star
 		expr.function = CountStarFun::GetFunction();
 		expr.function.name = "count_star";

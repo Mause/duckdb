@@ -4,19 +4,19 @@
 
 namespace duckdb {
 
-PerfectAggregateHashTable::PerfectAggregateHashTable(Allocator &allocator, BufferManager &buffer_manager,
+PerfectAggregateHashTable::PerfectAggregateHashTable(ClientContext &context, Allocator &allocator,
                                                      const vector<LogicalType> &group_types_p,
                                                      vector<LogicalType> payload_types_p,
                                                      vector<AggregateObject> aggregate_objects_p,
                                                      vector<Value> group_minima_p, vector<idx_t> required_bits_p)
-    : BaseAggregateHashTable(allocator, aggregate_objects_p, buffer_manager, move(payload_types_p)),
+    : BaseAggregateHashTable(context, allocator, aggregate_objects_p, move(payload_types_p)),
       addresses(LogicalType::POINTER), required_bits(move(required_bits_p)), total_required_bits(0),
       group_minima(move(group_minima_p)), sel(STANDARD_VECTOR_SIZE) {
 	for (auto &group_bits : required_bits) {
 		total_required_bits += group_bits;
 	}
 	// the total amount of groups we allocate space for is 2^required_bits
-	total_groups = 1 << total_required_bits;
+	total_groups = (uint64_t)1 << total_required_bits;
 	// we don't need to store the groups in a perfect hash table, since the group keys can be deduced by their location
 	grouping_columns = group_types_p.size();
 	layout.Initialize(move(aggregate_objects_p));
@@ -200,7 +200,7 @@ static void ReconstructGroupVectorTemplated(uint32_t group_values[], Value &min,
 static void ReconstructGroupVector(uint32_t group_values[], Value &min, idx_t required_bits, idx_t shift,
                                    idx_t entry_count, Vector &result) {
 	// construct the mask for this entry
-	idx_t mask = (1 << required_bits) - 1;
+	idx_t mask = ((uint64_t)1 << required_bits) - 1;
 	switch (result.GetType().InternalType()) {
 	case PhysicalType::INT8:
 		ReconstructGroupVectorTemplated<int8_t>(group_values, min, mask, shift, entry_count, result);

@@ -8,8 +8,8 @@
 
 #pragma once
 
-#include "duckdb/common/common.hpp"
 #include "duckdb/common/allocator.hpp"
+#include "duckdb/common/common.hpp"
 
 namespace duckdb {
 
@@ -17,7 +17,7 @@ struct ArenaChunk {
 	ArenaChunk(Allocator &allocator, idx_t size);
 	~ArenaChunk();
 
-	unique_ptr<AllocatedData> data;
+	AllocatedData data;
 	idx_t current_position;
 	idx_t maximum_size;
 	unique_ptr<ArenaChunk> next;
@@ -28,10 +28,12 @@ class ArenaAllocator {
 	static constexpr const idx_t ARENA_ALLOCATOR_INITIAL_CAPACITY = 2048;
 
 public:
-	ArenaAllocator(Allocator &allocator, idx_t initial_capacity = ARENA_ALLOCATOR_INITIAL_CAPACITY);
-	~ArenaAllocator();
+	DUCKDB_API ArenaAllocator(Allocator &allocator, idx_t initial_capacity = ARENA_ALLOCATOR_INITIAL_CAPACITY);
+	DUCKDB_API ~ArenaAllocator();
 
 	data_ptr_t Allocate(idx_t size);
+	//! Resets the current head and destroys all previous arena chunks
+	void Reset();
 	void Destroy();
 	void Move(ArenaAllocator &allocator);
 

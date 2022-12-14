@@ -1,16 +1,16 @@
 #include "parquet_writer.hpp"
-#include "parquet_timestamp.hpp"
 
 #include "duckdb.hpp"
+#include "parquet_timestamp.hpp"
 #ifndef DUCKDB_AMALGAMATION
+#include "duckdb/common/file_system.hpp"
+#include "duckdb/common/serializer/buffered_file_writer.hpp"
+#include "duckdb/common/string_util.hpp"
 #include "duckdb/function/table_function.hpp"
-#include "duckdb/parser/parsed_data/create_table_function_info.hpp"
-#include "duckdb/parser/parsed_data/create_copy_function_info.hpp"
 #include "duckdb/main/client_context.hpp"
 #include "duckdb/main/connection.hpp"
-#include "duckdb/common/file_system.hpp"
-#include "duckdb/common/string_util.hpp"
-#include "duckdb/common/serializer/buffered_file_writer.hpp"
+#include "duckdb/parser/parsed_data/create_copy_function_info.hpp"
+#include "duckdb/parser/parsed_data/create_table_function_info.hpp"
 #endif
 
 namespace duckdb {
@@ -245,7 +245,7 @@ ParquetWriter::ParquetWriter(FileSystem &fs, string file_name_p, FileOpener *fil
 	}
 }
 
-void ParquetWriter::Flush(ChunkCollection &buffer) {
+void ParquetWriter::Flush(ColumnDataCollection &buffer) {
 	if (buffer.Count() == 0) {
 		return;
 	}
@@ -258,23 +258,22 @@ void ParquetWriter::Flush(ChunkCollection &buffer) {
 	row_group.__isset.file_offset = true;
 
 	// iterate over each of the columns of the chunk collection and write them
-	auto &chunks = buffer.Chunks();
 	D_ASSERT(buffer.ColumnCount() == column_writers.size());
 	for (idx_t col_idx = 0; col_idx < buffer.ColumnCount(); col_idx++) {
 		const unique_ptr<ColumnWriter> &col_writer = column_writers[col_idx];
-		auto write_state = col_writer->InitializeWriteState(row_group);
+		auto write_state = col_writer->InitializeWriteState(row_group, buffer.GetAllocator());
 		if (col_writer->HasAnalyze()) {
-			for (idx_t chunk_idx = 0; chunk_idx < chunks.size(); chunk_idx++) {
-				col_writer->Analyze(*write_state, nullptr, chunks[chunk_idx]->data[col_idx], chunks[chunk_idx]->size());
+			for (auto &chunk : buffer.Chunks()) {
+				col_writer->Analyze(*write_state, nullptr, chunk.data[col_idx], chunk.size());
 			}
 			col_writer->FinalizeAnalyze(*write_state);
 		}
-		for (idx_t chunk_idx = 0; chunk_idx < chunks.size(); chunk_idx++) {
-			col_writer->Prepare(*write_state, nullptr, chunks[chunk_idx]->data[col_idx], chunks[chunk_idx]->size());
+		for (auto &chunk : buffer.Chunks()) {
+			col_writer->Prepare(*write_state, nullptr, chunk.data[col_idx], chunk.size());
 		}
 		col_writer->BeginWrite(*write_state);
-		for (idx_t chunk_idx = 0; chunk_idx < chunks.size(); chunk_idx++) {
-			col_writer->Write(*write_state, chunks[chunk_idx]->data[col_idx], chunks[chunk_idx]->size());
+		for (auto &chunk : buffer.Chunks()) {
+			col_writer->Write(*write_state, chunk.data[col_idx], chunk.size());
 		}
 		col_writer->FinalizeWrite(*write_state);
 	}

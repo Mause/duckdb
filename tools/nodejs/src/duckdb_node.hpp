@@ -15,8 +15,26 @@ struct Task {
 		}
 		object.Ref();
 	}
+	explicit Task(Napi::Reference<Napi::Object> &object) : object(object) {
+		object.Ref();
+	}
+
+	// Called on a worker thread (i.e., not the main event loop thread)
 	virtual void DoWork() = 0;
 
+	// Called on the event loop thread after the work has been completed. By
+	// default, call the associated callback, if defined. If you're writing
+	// a Task that uses promises, override this method instead of Callback.
+	virtual void DoCallback() {
+		auto env = object.Env();
+		Napi::HandleScope scope(env);
+
+		if (!callback.Value().IsUndefined()) {
+			Callback();
+		}
+	}
+
+	// Called on the event loop thread by DoCallback (see above)
 	virtual void Callback() {
 		auto env = object.Env();
 		Napi::HandleScope scope(env);
@@ -95,8 +113,10 @@ public:
 public:
 	Napi::Value Prepare(const Napi::CallbackInfo &info);
 	Napi::Value Exec(const Napi::CallbackInfo &info);
-	Napi::Value Register(const Napi::CallbackInfo &info);
-	Napi::Value Unregister(const Napi::CallbackInfo &info);
+	Napi::Value RegisterUdf(const Napi::CallbackInfo &info);
+	Napi::Value UnregisterUdf(const Napi::CallbackInfo &info);
+	Napi::Value RegisterBuffer(const Napi::CallbackInfo &info);
+	Napi::Value UnRegisterBuffer(const Napi::CallbackInfo &info);
 
 	static bool HasInstance(Napi::Value val) {
 		Napi::Env env = val.Env();
@@ -113,6 +133,7 @@ public:
 	std::unique_ptr<duckdb::Connection> connection;
 	Database *database_ref;
 	std::unordered_map<std::string, duckdb_node_udf_function_t> udfs;
+	std::unordered_map<std::string, Napi::Reference<Napi::Array>> array_references;
 };
 
 struct StatementParam;
@@ -128,10 +149,11 @@ public:
 
 public:
 	Napi::Value All(const Napi::CallbackInfo &info);
+	Napi::Value ArrowIPCAll(const Napi::CallbackInfo &info);
 	Napi::Value Each(const Napi::CallbackInfo &info);
 	Napi::Value Run(const Napi::CallbackInfo &info);
-	Napi::Value Bind(const Napi::CallbackInfo &info);
 	Napi::Value Finish(const Napi::CallbackInfo &info);
+	Napi::Value Stream(const Napi::CallbackInfo &info);
 
 public:
 	static Napi::FunctionReference constructor;
@@ -142,6 +164,23 @@ public:
 
 private:
 	std::unique_ptr<StatementParam> HandleArgs(const Napi::CallbackInfo &info);
+};
+
+class QueryResult : public Napi::ObjectWrap<QueryResult> {
+public:
+	explicit QueryResult(const Napi::CallbackInfo &info);
+	~QueryResult() override;
+	static Napi::Object Init(Napi::Env env, Napi::Object exports);
+	std::unique_ptr<duckdb::QueryResult> result;
+
+public:
+	static Napi::FunctionReference constructor;
+	Napi::Value NextChunk(const Napi::CallbackInfo &info);
+	Napi::Value NextIpcBuffer(const Napi::CallbackInfo &info);
+	duckdb::shared_ptr<ArrowSchema> cschema;
+
+private:
+	Database *database_ref;
 };
 
 struct TaskHolder {

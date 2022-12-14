@@ -34,6 +34,7 @@ jobs:
       CXX: g++-10
       TREAT_WARNINGS_AS_ERRORS: 1
       BUILD_VISUALIZER: 1
+      BUILD_INET: 1
       BUILD_TPCH: 1
       BUILD_TPCDS: 1
       BUILD_FTS: 1
@@ -42,6 +43,7 @@ jobs:
       BUILD_EXCEL: 1
       BUILD_PARQUET: 1
       BUILD_SUBSTRAIT_EXTENSION: 1
+      BUILD_JEMALLOC: 1
       GEN: ninja
 
     steps:
@@ -76,6 +78,7 @@ jobs:
       CXX: g++-10
       GEN: ninja
       BUILD_ICU: 1
+      BUILD_INET: 1
       BUILD_PARQUET: 1
       BUILD_TPCH: 1
       BUILD_TPCDS: 1
@@ -83,6 +86,7 @@ jobs:
       BUILD_VISUALIZER: 1
       BUILD_JSON: 1
       BUILD_EXCEL: 1
+      BUILD_JEMALLOC: 1
 
     steps:
     - uses: actions/checkout@v3
@@ -104,7 +108,7 @@ jobs:
 
     - name: Test
       shell: bash
-      run: build/reldebug/test/unittest "*" --force-storage
+      run: build/reldebug/test/unittest --force-storage
 
  force-restart:
     name: Force Restart
@@ -115,6 +119,7 @@ jobs:
       CXX: g++-10
       GEN: ninja
       BUILD_ICU: 1
+      BUILD_INET: 1
       BUILD_PARQUET: 1
       BUILD_TPCH: 1
       BUILD_TPCDS: 1
@@ -122,6 +127,7 @@ jobs:
       BUILD_VISUALIZER: 1
       BUILD_JSON: 1
       BUILD_EXCEL: 1
+      BUILD_JEMALLOC: 1
 
     steps:
     - uses: actions/checkout@v3
@@ -143,39 +149,49 @@ jobs:
 
     - name: Test
       shell: bash
-      run: build/reldebug/test/unittest "*" --force-reload --force-storage
+      run: build/reldebug/test/unittest --force-reload --force-storage
 
- linux-arrow:
-      name: Linux Debug (Arrow Tests)
-      runs-on: ubuntu-20.04
-      needs: linux-debug
-      env:
-        CC: gcc-10
-        CXX: g++-10
-        TREAT_WARNINGS_AS_ERRORS: 1
-        GEN: ninja
+ no-string-inline:
+    name: No String Inline / Destroy Unpinned Blocks
+    runs-on: ubuntu-20.04
+    needs: linux-debug
+    env:
+      CC: gcc-10
+      CXX: g++-10
+      GEN: ninja
+      BUILD_ICU: 1
+      BUILD_INET: 1
+      BUILD_PARQUET: 1
+      BUILD_TPCH: 1
+      BUILD_TPCDS: 1
+      BUILD_FTS: 1
+      BUILD_VISUALIZER: 1
+      BUILD_JSON: 1
+      BUILD_EXCEL: 1
+      DISABLE_STRING_INLINE: 1
+      DESTROY_UNPINNED_BLOCKS: 1
 
-      steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
 
-      - name: Install
-        shell: bash
-        run: sudo apt-get update -y -qq && sudo apt-get install -y -qq ninja-build
+    - name: Install
+      shell: bash
+      run: sudo apt-get update -y -qq && sudo apt-get install -y -qq ninja-build
 
-      - name: Setup Ccache
-        uses: hendrikmuhs/ccache-action@main
-        with:
-          key: ${{ github.job }}
+    - name: Setup Ccache
+      uses: hendrikmuhs/ccache-action@main
+      with:
+        key: ${{ github.job }}
 
-      - name: Build
-        shell: bash
-        run: BUILD_ARROW_ABI_TEST=1 make debug
+    - name: Build
+      shell: bash
+      run: make debug
 
-      - name: Test
-        shell: bash
-        run: make unittestarrow
+    - name: Test
+      shell: bash
+      run: build/debug/test/unittest
 
  threadsan:
     name: Thread Sanitizer
@@ -186,12 +202,14 @@ jobs:
       CXX: g++-10
       GEN: ninja
       BUILD_ICU: 1
+      BUILD_INET: 1
       BUILD_TPCH: 1
       BUILD_TPCDS: 1
       BUILD_FTS: 1
       BUILD_VISUALIZER: 1
       BUILD_JSON: 1
       BUILD_EXCEL: 1
+      BUILD_JEMALLOC: 1
       TSAN_OPTIONS: suppressions=.sanitizer-thread-suppressions.txt
 
     steps:
@@ -230,6 +248,7 @@ jobs:
       CC: gcc-10
       CXX: g++-10
       DISABLE_SANITIZER: 1
+      BUILD_JEMALLOC: 1
       GEN: ninja
 
     steps:
@@ -394,7 +413,7 @@ jobs:
       shell: bash
       run: |
         git clone https://github.com/Mytherin/psqlodbc.git
-        (cd psqlodbc && git checkout d4d9097b87c46ddee5c8ae015c3ea27a6bd8938e && make debug)
+        (cd psqlodbc && git checkout 0a939c70ec405abde8a36dc4d88043561b64b78d && make debug)
 
     - name: Setup Ccache
       uses: hendrikmuhs/ccache-action@main

@@ -5,6 +5,7 @@ import os
 import sys
 import platform
 import multiprocessing.pool
+from glob import glob
 
 from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext as _build_ext
@@ -62,6 +63,9 @@ extensions = ['parquet', 'icu', 'fts', 'tpch', 'tpcds', 'visualizer', 'json', 'e
 if platform.system() == 'Windows':
     extensions = ['parquet', 'icu', 'fts', 'tpch', 'json', 'excel']
 
+if platform.system() == 'Linux' and platform.architecture()[0] == '64bit':
+    extensions.append('jemalloc')
+
 unity_build = 0
 if 'DUCKDB_BUILD_UNITY' in os.environ:
     unity_build = 16
@@ -102,7 +106,7 @@ os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
 if os.name == 'nt':
     # windows:
-    toolchain_args = ['/wd4244', '/wd4267', '/wd4200', '/wd26451', '/wd26495', '/D_CRT_SECURE_NO_WARNINGS']
+    toolchain_args = ['/wd4244', '/wd4267', '/wd4200', '/wd26451', '/wd26495', '/D_CRT_SECURE_NO_WARNINGS', '/utf-8']
 else:
     # macos/linux
     toolchain_args = ['-std=c++11', '-g0']
@@ -157,10 +161,14 @@ class get_numpy_include(object):
 extra_files = []
 header_files = []
 
+def list_source_files(directory):
+    sources = glob('src/**/*.cpp', recursive=True)
+    return sources
+
 script_path = os.path.dirname(os.path.abspath(__file__))
 main_include_path = os.path.join(script_path, 'src', 'include')
 main_source_path = os.path.join(script_path, 'src')
-main_source_files = ['duckdb_python.cpp'] + [os.path.join('src', x) for x in os.listdir(main_source_path) if '.cpp' in x]
+main_source_files = ['duckdb_python.cpp'] + list_source_files(main_source_path)
 include_directories = [main_include_path, get_numpy_include(), get_pybind_include(), get_pybind_include(user=True)]
 
 if len(existing_duckdb_dir) == 0:
@@ -275,7 +283,7 @@ setup(
     description = 'DuckDB embedded database',
     keywords = 'DuckDB Database SQL OLAP',
     url="https://www.duckdb.org",
-    long_description = 'See here for an introduction: https://duckdb.org/docs/api/python',
+    long_description = 'See here for an introduction: https://duckdb.org/docs/api/python/overview',
     license='MIT',
     install_requires=[ # these version is still available for Python 2, newer ones aren't
          'numpy>=1.14'
@@ -286,7 +294,7 @@ setup(
         'duckdb-stubs'
     ],
     include_package_data=True,
-    setup_requires=setup_requires + ["setuptools_scm"] + ['pybind11>=2.6.0'],
+    setup_requires=setup_requires + ["setuptools_scm<7.0.0", 'numpy>=1.14', 'pybind11>=2.6.0'],
     use_scm_version = setuptools_scm_conf,
     tests_require=['google-cloud-storage', 'mypy', 'pytest'],
     classifiers = [
@@ -298,4 +306,10 @@ setup(
     maintainer = "Hannes Muehleisen",
     maintainer_email = "hannes@cwi.nl",
     cmdclass={"build_ext": build_ext},
+    project_urls={
+        "Documentation": "https://duckdb.org/docs/api/python/overview",
+        "Source": "https://github.com/duckdb/duckdb/blob/master/tools/pythonpkg",
+        "Issues": "https://github.com/duckdb/duckdb/issues",
+        "Changelog": "https://github.com/duckdb/duckdb/releases",
+    },
 )

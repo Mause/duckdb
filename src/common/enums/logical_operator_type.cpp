@@ -106,10 +106,14 @@ string LogicalOperatorToString(LogicalOperatorType type) {
 		return "EXPORT";
 	case LogicalOperatorType::LOGICAL_SET:
 		return "SET";
+	case LogicalOperatorType::LOGICAL_RESET:
+		return "RESET";
 	case LogicalOperatorType::LOGICAL_LOAD:
 		return "LOAD";
 	case LogicalOperatorType::LOGICAL_INVALID:
 		break;
+	case LogicalOperatorType::LOGICAL_EXTENSION_OPERATOR:
+		return "CUSTOM_OP";
 	}
 	return "INVALID";
 }

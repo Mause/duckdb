@@ -10,6 +10,11 @@
 
 #include "duckdb/execution/physical_operator.hpp"
 #include "duckdb/planner/expression.hpp"
+#include "duckdb/execution/operator/aggregate/grouped_aggregate_data.hpp"
+#include "duckdb/execution/operator/aggregate/distinct_aggregate_data.hpp"
+#include "duckdb/parser/group_by_node.hpp"
+#include "duckdb/execution/radix_partitioned_hashtable.hpp"
+#include "duckdb/common/unordered_map.hpp"
 
 namespace duckdb {
 
@@ -22,6 +27,8 @@ public:
 
 	//! The aggregates that have to be computed
 	vector<unique_ptr<Expression>> aggregates;
+	unique_ptr<DistinctAggregateData> distinct_data;
+	unique_ptr<DistinctAggregateCollectionInfo> distinct_collection_info;
 
 public:
 	// Source interface
@@ -49,6 +56,16 @@ public:
 	bool ParallelSink() const override {
 		return true;
 	}
+
+private:
+	//! Finalize the distinct aggregates
+	SinkFinalizeType FinalizeDistinct(Pipeline &pipeline, Event &event, ClientContext &context,
+	                                  GlobalSinkState &gstate) const;
+	//! Combine the distinct aggregates
+	void CombineDistinct(ExecutionContext &context, GlobalSinkState &state, LocalSinkState &lstate) const;
+	//! Sink the distinct aggregates
+	void SinkDistinct(ExecutionContext &context, GlobalSinkState &state, LocalSinkState &lstate,
+	                  DataChunk &input) const;
 };
 
 } // namespace duckdb

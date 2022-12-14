@@ -1,5 +1,8 @@
 name: CIFuzz
-on: [push]
+on:
+  push:
+    paths-ignore:
+      - '**.md'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.head_ref || '' }}-${{ github.base_ref || '' }}-${{ github.ref != 'refs/heads/master' || github.sha }}
@@ -39,6 +42,7 @@ jobs:
       BUILD_TPCH: 1
       BUILD_TPCDS: 1
       BUILD_PARQUET: 1
+      BUILD_JEMALLOC: 1
       GEN: ninja
       FUZZEROFDUCKSKEY: ${{ secrets.FUZZEROFDUCKSKEY }}
 
@@ -68,6 +72,7 @@ jobs:
     env:
       BUILD_SQLSMITH: 1
       BUILD_JDBC: 1
+      BUILD_JEMALLOC: 1
       GEN: ninja
       FUZZEROFDUCKSKEY: ${{ secrets.FUZZEROFDUCKSKEY }}
 

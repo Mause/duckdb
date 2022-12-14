@@ -5,6 +5,7 @@
 
 #include "boolean_column_reader.hpp"
 #include "generated_column_reader.hpp"
+#include "row_number_column_reader.hpp"
 #include "cast_column_reader.hpp"
 #include "callback_column_reader.hpp"
 #include "list_column_reader.hpp"
@@ -95,8 +96,14 @@ LogicalType ParquetReader::DeriveLogicalType(const SchemaElement &s_ele, bool bi
 	if (s_ele.type == Type::FIXED_LEN_BYTE_ARRAY && !s_ele.__isset.type_length) {
 		throw IOException("FIXED_LEN_BYTE_ARRAY requires length to be set");
 	}
-	if (s_ele.type == Type::FIXED_LEN_BYTE_ARRAY && s_ele.__isset.logicalType && s_ele.logicalType.__isset.UUID) {
-		return LogicalType::UUID;
+	if (s_ele.__isset.logicalType) {
+		if (s_ele.logicalType.__isset.UUID) {
+			if (s_ele.type == Type::FIXED_LEN_BYTE_ARRAY) {
+				return LogicalType::UUID;
+			}
+		} else if (s_ele.logicalType.__isset.TIMESTAMP) {
+			return LogicalType::TIMESTAMP;
+		}
 	}
 	if (s_ele.__isset.converted_type) {
 		switch (s_ele.converted_type) {
@@ -193,10 +200,11 @@ LogicalType ParquetReader::DeriveLogicalType(const SchemaElement &s_ele, bool bi
 			}
 		case ConvertedType::INTERVAL:
 			return LogicalType::INTERVAL;
+		case ConvertedType::JSON:
+			return LogicalType::JSON;
 		case ConvertedType::MAP:
 		case ConvertedType::MAP_KEY_VALUE:
 		case ConvertedType::LIST:
-		case ConvertedType::JSON:
 		case ConvertedType::BSON:
 		default:
 			throw IOException("Unsupported converted type");
@@ -252,7 +260,7 @@ unique_ptr<ColumnReader> ParquetReader::CreateReaderRecursive(const FileMetaData
 
 	if (!s_ele.__isset.type) { // inner node
 		if (s_ele.num_children == 0) {
-			throw std::runtime_error("Node has no children but should");
+			throw InvalidInputException("Node has no children but should");
 		}
 		child_list_t<LogicalType> child_types;
 		vector<unique_ptr<ColumnReader>> child_readers;
@@ -362,8 +370,13 @@ unique_ptr<ColumnReader> ParquetReader::CreateReader(const duckdb_parquet::forma
 		    *this, LogicalType::VARCHAR, SchemaElement(), next_file_idx, 0, 0, val));
 	}
 
+	if (parquet_options.file_row_number) {
+		root_struct_reader.child_readers.push_back(
+		    make_unique<RowNumberColumnReader>(*this, LogicalType::BIGINT, SchemaElement(), next_file_idx, 0, 0));
+	}
+
 	if (parquet_options.hive_partitioning) {
-		auto res = ParseHivePartitions(file_name);
+		auto res = HivePartitioning::Parse(file_name);
 
 		for (auto &partition : res) {
 			Value val = Value(partition.second);
@@ -409,9 +422,19 @@ void ParquetReader::InitializeSchema(const vector<string> &expected_names, const
 		names.emplace_back("filename");
 	}
 
+	// Add generated constant column for row number
+	if (parquet_options.file_row_number) {
+		if (std::find(names.begin(), names.end(), "file_row_number") != names.end()) {
+			throw BinderException(
+			    "Using file_row_number option on file with column named file_row_number is not supported");
+		}
+		return_types.emplace_back(LogicalType::BIGINT);
+		names.emplace_back("file_row_number");
+	}
+
 	// Add generated constant column for filename
 	if (parquet_options.hive_partitioning) {
-		auto partitions = ParseHivePartitions(file_name);
+		auto partitions = HivePartitioning::Parse(file_name);
 		for (auto &part : partitions) {
 			return_types.emplace_back(LogicalType::VARCHAR);
 			names.emplace_back(part.first);
@@ -448,7 +471,7 @@ void ParquetReader::InitializeSchema(const vector<string> &expected_names, const
 	// now for each of the expected names, look it up in the name map and fill the column_id_map
 	D_ASSERT(column_id_map.empty());
 	for (idx_t i = 0; i < column_ids.size(); i++) {
-		if (column_ids[i] == COLUMN_IDENTIFIER_ROW_ID) {
+		if (IsRowIdColumnId(column_ids[i])) {
 			continue;
 		}
 		auto &expected_name = expected_names[column_ids[i]];
@@ -532,8 +555,9 @@ unique_ptr<BaseStatistics> ParquetReader::ReadStatistics(ParquetReader &reader, 
 	auto root_reader = reader.CreateReader(file_meta_data);
 	auto column_reader = ((StructColumnReader *)root_reader.get())->GetChildReader(file_col_idx);
 
-	for (auto &row_group : file_meta_data->row_groups) {
-		auto chunk_stats = column_reader->Stats(row_group.columns);
+	for (idx_t row_group_idx = 0; row_group_idx < file_meta_data->row_groups.size(); row_group_idx++) {
+		auto &row_group = file_meta_data->row_groups[row_group_idx];
+		auto chunk_stats = column_reader->Stats(row_group_idx, row_group.columns);
 		if (!chunk_stats) {
 			return nullptr;
 		}
@@ -569,7 +593,7 @@ uint64_t ParquetReader::GetGroupCompressedSize(ParquetReaderScanState &state) {
 
 	if (total_compressed_size != 0 && calc_compressed_size != 0 &&
 	    (idx_t)total_compressed_size != calc_compressed_size) {
-		throw std::runtime_error("mismatch between calculated compressed size and reported compressed size");
+		throw InvalidInputException("mismatch between calculated compressed size and reported compressed size");
 	}
 
 	return total_compressed_size ? total_compressed_size : calc_compressed_size;
@@ -622,7 +646,7 @@ void ParquetReader::PrepareRowGroupBuffer(ParquetReaderScanState &state, idx_t o
 
 	// TODO move this to columnreader too
 	if (state.filters) {
-		auto stats = column_reader->Stats(group.columns);
+		auto stats = column_reader->Stats(state.group_idx_list[state.current_group], group.columns);
 		// filters contain output chunk index, not file col idx!
 		auto filter_entry = state.filters->filters.find(out_col_idx);
 		if (stats && filter_entry != state.filters->filters.end()) {
@@ -640,7 +664,8 @@ void ParquetReader::PrepareRowGroupBuffer(ParquetReaderScanState &state, idx_t o
 		}
 	}
 
-	state.root_reader->InitializeRead(group.columns, *state.thrift_file_proto);
+	state.root_reader->InitializeRead(state.group_idx_list[state.current_group], group.columns,
+	                                  *state.thrift_file_proto);
 }
 
 idx_t ParquetReader::NumRows() {
@@ -892,7 +917,7 @@ bool ParquetReader::ScanInternal(ParquetReaderScanState &state, DataChunk &resul
 		uint64_t to_scan_compressed_bytes = 0;
 		for (idx_t out_col_idx = 0; out_col_idx < result.ColumnCount(); out_col_idx++) {
 			// this is a special case where we are not interested in the actual contents of the file
-			if (state.column_ids[out_col_idx] == COLUMN_IDENTIFIER_ROW_ID) {
+			if (IsRowIdColumnId(state.column_ids[out_col_idx])) {
 				continue;
 			}
 
@@ -912,7 +937,7 @@ bool ParquetReader::ScanInternal(ParquetReaderScanState &state, DataChunk &resul
 			double scan_percentage = (double)(to_scan_compressed_bytes) / total_row_group_span;
 
 			if (to_scan_compressed_bytes > total_row_group_span) {
-				throw std::runtime_error(
+				throw InvalidInputException(
 				    "Malformed parquet file: sum of total compressed bytes of columns seems incorrect");
 			}
 
@@ -933,7 +958,7 @@ bool ParquetReader::ScanInternal(ParquetReaderScanState &state, DataChunk &resul
 				// Prefetch column-wise
 				for (idx_t out_col_idx = 0; out_col_idx < result.ColumnCount(); out_col_idx++) {
 
-					if (state.column_ids[out_col_idx] == COLUMN_IDENTIFIER_ROW_ID) {
+					if (IsRowIdColumnId(state.column_ids[out_col_idx])) {
 						continue;
 					}
 
@@ -1030,17 +1055,18 @@ bool ParquetReader::ScanInternal(ParquetReaderScanState &state, DataChunk &resul
 		for (idx_t out_col_idx = 0; out_col_idx < result.ColumnCount(); out_col_idx++) {
 			auto file_col_idx = state.column_ids[out_col_idx];
 
-			if (file_col_idx == COLUMN_IDENTIFIER_ROW_ID) {
+			if (IsRowIdColumnId(file_col_idx)) {
 				Value constant_42 = Value::BIGINT(42);
 				result.data[out_col_idx].Reference(constant_42);
 				continue;
 			}
 
-			//			std::cout << "Reading nofilter for col " <<
-			// root_reader->GetChildReader(file_col_idx)->Schema().name
-			//<< "\n";
-			root_reader->GetChildReader(file_col_idx)
-			    ->Read(result.size(), filter_mask, define_ptr, repeat_ptr, result.data[out_col_idx]);
+			auto rows_read = root_reader->GetChildReader(file_col_idx)
+			                     ->Read(result.size(), filter_mask, define_ptr, repeat_ptr, result.data[out_col_idx]);
+			if (rows_read != result.size()) {
+				throw InvalidInputException("Mismatch in parquet read for column %llu, expected %llu rows, got %llu",
+				                            file_col_idx, result.size(), rows_read);
+			}
 		}
 	}
 

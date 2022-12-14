@@ -3,7 +3,7 @@ add_library_unity(
   OBJECT
   plan_aggregate.cpp
   plan_any_join.cpp
-  plan_chunk_get.cpp
+  plan_column_data_get.cpp
   plan_comparison_join.cpp
   plan_copy_to_file.cpp
   plan_create.cpp
@@ -30,6 +30,7 @@ add_library_unity(
   plan_projection.cpp
   plan_set_operation.cpp
   plan_set.cpp
+  plan_reset.cpp
   plan_sample.cpp
   plan_show_select.cpp
   plan_simple.cpp

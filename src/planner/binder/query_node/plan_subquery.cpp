@@ -1,3 +1,5 @@
+#include "duckdb/function/aggregate/distributive_functions.hpp"
+#include "duckdb/main/client_config.hpp"
 #include "duckdb/planner/binder.hpp"
 #include "duckdb/planner/expression/bound_aggregate_expression.hpp"
 #include "duckdb/planner/expression/bound_cast_expression.hpp"
@@ -6,13 +8,12 @@
 #include "duckdb/planner/expression/bound_constant_expression.hpp"
 #include "duckdb/planner/expression/bound_reference_expression.hpp"
 #include "duckdb/planner/expression/bound_subquery_expression.hpp"
+#include "duckdb/planner/expression/bound_window_expression.hpp"
 #include "duckdb/planner/expression_iterator.hpp"
 #include "duckdb/planner/operator/list.hpp"
-#include "duckdb/planner/subquery/flatten_dependent_join.hpp"
-#include "duckdb/function/aggregate/distributive_functions.hpp"
 #include "duckdb/planner/operator/logical_window.hpp"
-#include "duckdb/planner/expression/bound_window_expression.hpp"
-#include "duckdb/main/client_config.hpp"
+#include "duckdb/function/function_binder.hpp"
+#include "duckdb/planner/subquery/flatten_dependent_join.hpp"
 
 namespace duckdb {
 
@@ -30,7 +31,10 @@ static unique_ptr<Expression> PlanUncorrelatedSubquery(Binder &binder, BoundSubq
 
 		// now we push a COUNT(*) aggregate onto the limit, this will be either 0 or 1 (EXISTS or NOT EXISTS)
 		auto count_star_fun = CountStarFun::GetFunction();
-		auto count_star = AggregateFunction::BindAggregateFunction(binder.context, count_star_fun, {}, nullptr, false);
+
+		FunctionBinder function_binder(binder.context);
+		auto count_star =
+		    function_binder.BindAggregateFunction(count_star_fun, {}, nullptr, AggregateType::NON_DISTINCT);
 		auto idx_type = count_star->return_type;
 		vector<unique_ptr<Expression>> aggregate_list;
 		aggregate_list.push_back(move(count_star));
@@ -80,8 +84,10 @@ static unique_ptr<Expression> PlanUncorrelatedSubquery(Binder &binder, BoundSubq
 		auto bound = make_unique<BoundColumnRefExpression>(expr.return_type, ColumnBinding(table_idx, 0));
 		vector<unique_ptr<Expression>> first_children;
 		first_children.push_back(move(bound));
-		auto first_agg = AggregateFunction::BindAggregateFunction(
-		    binder.context, FirstFun::GetFunction(expr.return_type), move(first_children), nullptr, false);
+
+		FunctionBinder function_binder(binder.context);
+		auto first_agg = function_binder.BindAggregateFunction(
+		    FirstFun::GetFunction(expr.return_type), move(first_children), nullptr, AggregateType::NON_DISTINCT);
 
 		expressions.push_back(move(first_agg));
 		auto aggr_index = binder.GenerateTableIndex();
@@ -116,7 +122,7 @@ static unique_ptr<Expression> PlanUncorrelatedSubquery(Binder &binder, BoundSubq
 		// create the JOIN condition
 		JoinCondition cond;
 		cond.left = move(expr.child);
-		cond.right = BoundCastExpression::AddCastToType(
+		cond.right = BoundCastExpression::AddDefaultCastToType(
 		    make_unique<BoundColumnRefExpression>(expr.child_type, plan_columns[0]), expr.child_target);
 		cond.comparison = expr.comparison_type;
 		join->conditions.push_back(move(cond));
@@ -128,10 +134,9 @@ static unique_ptr<Expression> PlanUncorrelatedSubquery(Binder &binder, BoundSubq
 	}
 }
 
-static unique_ptr<LogicalDelimJoin> CreateDuplicateEliminatedJoin(vector<CorrelatedColumnInfo> &correlated_columns,
-                                                                  JoinType join_type,
-                                                                  unique_ptr<LogicalOperator> original_plan,
-                                                                  bool perform_delim) {
+static unique_ptr<LogicalDelimJoin>
+CreateDuplicateEliminatedJoin(const vector<CorrelatedColumnInfo> &correlated_columns, JoinType join_type,
+                              unique_ptr<LogicalOperator> original_plan, bool perform_delim) {
 	auto delim_join = make_unique<LogicalDelimJoin>(join_type);
 	if (!perform_delim) {
 		// if we are not performing a delim join, we push a row_number() OVER() window operator on the LHS
@@ -157,14 +162,19 @@ static unique_ptr<LogicalDelimJoin> CreateDuplicateEliminatedJoin(vector<Correla
 	return delim_join;
 }
 
-static void CreateDelimJoinConditions(LogicalDelimJoin &delim_join, vector<CorrelatedColumnInfo> &correlated_columns,
+static void CreateDelimJoinConditions(LogicalDelimJoin &delim_join,
+                                      const vector<CorrelatedColumnInfo> &correlated_columns,
                                       vector<ColumnBinding> bindings, idx_t base_offset, bool perform_delim) {
 	auto col_count = perform_delim ? correlated_columns.size() : 1;
 	for (idx_t i = 0; i < col_count; i++) {
 		auto &col = correlated_columns[i];
+		auto binding_idx = base_offset + i;
+		if (binding_idx >= bindings.size()) {
+			throw InternalException("Delim join - binding index out of range");
+		}
 		JoinCondition cond;
 		cond.left = make_unique<BoundColumnRefExpression>(col.name, col.type, col.binding);
-		cond.right = make_unique<BoundColumnRefExpression>(col.name, col.type, bindings[base_offset + i]);
+		cond.right = make_unique<BoundColumnRefExpression>(col.name, col.type, bindings[binding_idx]);
 		cond.comparison = ExpressionType::COMPARE_NOT_DISTINCT_FROM;
 		delim_join.conditions.push_back(move(cond));
 	}
@@ -265,7 +275,7 @@ static unique_ptr<Expression> PlanCorrelatedSubquery(Binder &binder, BoundSubque
 		auto delim_join = CreateDuplicateEliminatedJoin(correlated_columns, JoinType::MARK, move(root), perform_delim);
 		delim_join->mark_index = mark_index;
 		// RHS
-		FlattenDependentJoins flatten(binder, correlated_columns, perform_delim);
+		FlattenDependentJoins flatten(binder, correlated_columns, perform_delim, true);
 		flatten.DetectCorrelatedExpressions(plan.get());
 		auto dependent_join = flatten.PushDownDependentJoin(move(plan));
 
@@ -292,7 +302,7 @@ static unique_ptr<Expression> PlanCorrelatedSubquery(Binder &binder, BoundSubque
 		auto delim_join = CreateDuplicateEliminatedJoin(correlated_columns, JoinType::MARK, move(root), perform_delim);
 		delim_join->mark_index = mark_index;
 		// RHS
-		FlattenDependentJoins flatten(binder, correlated_columns, true);
+		FlattenDependentJoins flatten(binder, correlated_columns, true, true);
 		flatten.DetectCorrelatedExpressions(plan.get());
 		auto dependent_join = flatten.PushDownDependentJoin(move(plan));
 
@@ -304,7 +314,7 @@ static unique_ptr<Expression> PlanCorrelatedSubquery(Binder &binder, BoundSubque
 		// add the actual condition based on the ANY/ALL predicate
 		JoinCondition compare_cond;
 		compare_cond.left = move(expr.child);
-		compare_cond.right = BoundCastExpression::AddCastToType(
+		compare_cond.right = BoundCastExpression::AddDefaultCastToType(
 		    make_unique<BoundColumnRefExpression>(expr.child_type, plan_columns[0]), expr.child_target);
 		compare_cond.comparison = expr.comparison_type;
 		delim_join->conditions.push_back(move(compare_cond));
@@ -347,7 +357,7 @@ unique_ptr<Expression> Binder::PlanSubquery(BoundSubqueryExpression &expr, uniqu
 	D_ASSERT(root);
 	// first we translate the QueryNode of the subquery into a logical plan
 	// note that we do not plan nested subqueries yet
-	auto sub_binder = Binder::CreateBinder(context);
+	auto sub_binder = Binder::CreateBinder(context, this);
 	sub_binder->plan_subquery = false;
 	auto subquery_root = sub_binder->CreatePlan(*expr.subquery);
 	D_ASSERT(subquery_root);
@@ -390,6 +400,57 @@ void Binder::PlanSubqueries(unique_ptr<Expression> *expr_ptr, unique_ptr<Logical
 		}
 		*expr_ptr = PlanSubquery(subquery, *root);
 	}
+}
+
+unique_ptr<LogicalOperator> Binder::PlanLateralJoin(unique_ptr<LogicalOperator> left, unique_ptr<LogicalOperator> right,
+                                                    vector<CorrelatedColumnInfo> &correlated_columns,
+                                                    JoinType join_type, unique_ptr<Expression> condition) {
+	// scan the right operator for correlated columns
+	// correlated LATERAL JOIN
+	vector<JoinCondition> conditions;
+	vector<unique_ptr<Expression>> arbitrary_expressions;
+	if (condition) {
+		// extract join conditions, if there are any
+		LogicalComparisonJoin::ExtractJoinConditions(join_type, left, right, move(condition), conditions,
+		                                             arbitrary_expressions);
+	}
+
+	auto perform_delim = PerformDuplicateElimination(*this, correlated_columns);
+	auto delim_join = CreateDuplicateEliminatedJoin(correlated_columns, join_type, move(left), perform_delim);
+
+	FlattenDependentJoins flatten(*this, correlated_columns, perform_delim);
+
+	// first we check which logical operators have correlated expressions in the first place
+	flatten.DetectCorrelatedExpressions(right.get(), true);
+	// now we push the dependent join down
+	auto dependent_join = flatten.PushDownDependentJoin(move(right));
+
+	// now the dependent join is fully eliminated
+	// we only need to create the join conditions between the LHS and the RHS
+	// fetch the set of columns
+	auto plan_columns = dependent_join->GetColumnBindings();
+
+	// now create the join conditions
+	// start off with the conditions that were passed in (if any)
+	D_ASSERT(delim_join->conditions.empty());
+	delim_join->conditions = move(conditions);
+	// then add the delim join conditions
+	CreateDelimJoinConditions(*delim_join, correlated_columns, plan_columns, flatten.delim_offset, perform_delim);
+	delim_join->AddChild(move(dependent_join));
+
+	// check if there are any arbitrary expressions left
+	if (!arbitrary_expressions.empty()) {
+		// we can only evaluate scalar arbitrary expressions for inner joins
+		if (join_type != JoinType::INNER) {
+			throw BinderException(
+			    "Join condition for non-inner LATERAL JOIN must be a comparison between the left and right side");
+		}
+		auto filter = make_unique<LogicalFilter>();
+		filter->expressions = move(arbitrary_expressions);
+		filter->AddChild(move(delim_join));
+		return move(filter);
+	}
+	return move(delim_join);
 }
 
 } // namespace duckdb

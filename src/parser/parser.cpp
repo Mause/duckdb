@@ -164,12 +164,12 @@ vector<OrderByNode> Parser::ParseOrderList(const string &select_list, ParserOpti
 	}
 	auto &select = (SelectStatement &)*parser.statements[0];
 	if (select.node->type != QueryNodeType::SELECT_NODE) {
-		throw InternalException("Expected a single SELECT node");
+		throw ParserException("Expected a single SELECT node");
 	}
 	auto &select_node = (SelectNode &)*select.node;
 	if (select_node.modifiers.empty() || select_node.modifiers[0]->type != ResultModifierType::ORDER_MODIFIER ||
 	    select_node.modifiers.size() != 1) {
-		throw InternalException("Expected a single ORDER clause");
+		throw ParserException("Expected a single ORDER clause");
 	}
 	auto &order = (OrderModifier &)*select_node.modifiers[0];
 	return move(order.orders);
@@ -207,13 +207,13 @@ vector<vector<unique_ptr<ParsedExpression>>> Parser::ParseValuesList(const strin
 	}
 	auto &select_node = (SelectNode &)*select.node;
 	if (!select_node.from_table || select_node.from_table->type != TableReferenceType::EXPRESSION_LIST) {
-		throw InternalException("Expected a single VALUES statement");
+		throw ParserException("Expected a single VALUES statement");
 	}
 	auto &values_list = (ExpressionListRef &)*select_node.from_table;
 	return move(values_list.values);
 }
 
-vector<ColumnDefinition> Parser::ParseColumnList(const string &column_list, ParserOptions options) {
+ColumnList Parser::ParseColumnList(const string &column_list, ParserOptions options) {
 	string mock_query = "CREATE TABLE blabla (" + column_list + ")";
 	Parser parser(options);
 	parser.ParseQuery(mock_query);

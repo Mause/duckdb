@@ -67,6 +67,8 @@ private:
 	CatalogSet types;
 
 public:
+	static SchemaCatalogEntry *GetTemporaryObjects(ClientContext &context);
+
 	//! Scan the specified catalog set, invoking the callback method for every entry
 	void Scan(ClientContext &context, CatalogType type, const std::function<void(CatalogEntry *)> &callback);
 	//! Scan the specified catalog set, invoking the callback method for every committed entry
@@ -104,9 +106,6 @@ private:
 
 	//! Drops an entry from the schema
 	void DropEntry(ClientContext &context, DropInfo *info);
-
-	//! Append a scalar or aggregate function within the given schema
-	CatalogEntry *AddFunction(ClientContext &context, CreateFunctionInfo *info);
 
 	//! Alters a catalog entry
 	void Alter(ClientContext &context, AlterInfo *info);

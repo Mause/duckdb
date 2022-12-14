@@ -6,6 +6,7 @@
 #include "duckdb/execution/physical_operator.hpp"
 #include "duckdb/execution/operator/join/physical_delim_join.hpp"
 #include "duckdb/execution/operator/helper/physical_execute.hpp"
+#include "duckdb/common/http_stats.hpp"
 #include "duckdb/common/tree_renderer.hpp"
 #include "duckdb/common/limits.hpp"
 #include "duckdb/execution/expression_executor.hpp"
@@ -34,6 +35,10 @@ ProfilerPrintFormat QueryProfiler::GetPrintFormat() const {
 	return ClientConfig::GetConfig(context).profiler_print_format;
 }
 
+bool QueryProfiler::PrintOptimizerOutput() const {
+	return GetPrintFormat() == ProfilerPrintFormat::QUERY_TREE_OPTIMIZER || IsDetailedEnabled();
+}
+
 string QueryProfiler::GetSaveLocation() const {
 	return is_explain_analyze ? string() : ClientConfig::GetConfig(context).profiler_save_location;
 }
@@ -42,11 +47,20 @@ QueryProfiler &QueryProfiler::Get(ClientContext &context) {
 	return *ClientData::Get(context).profiler;
 }
 
-void QueryProfiler::StartQuery(string query, bool is_explain_analyze) {
+void QueryProfiler::StartQuery(string query, bool is_explain_analyze, bool start_at_optimizer) {
 	if (is_explain_analyze) {
 		StartExplainAnalyze();
 	}
 	if (!IsEnabled()) {
+		return;
+	}
+	if (start_at_optimizer && !PrintOptimizerOutput()) {
+		// This is the StartQuery call before the optimizer, but we don't have to print optimizer output
+		return;
+	}
+	if (running) {
+		// Called while already running: this should only happen when we print optimizer output
+		D_ASSERT(PrintOptimizerOutput());
 		return;
 	}
 	this->running = true;
@@ -139,11 +153,10 @@ string QueryProfiler::ToString() const {
 	const auto format = GetPrintFormat();
 	switch (format) {
 	case ProfilerPrintFormat::QUERY_TREE:
+	case ProfilerPrintFormat::QUERY_TREE_OPTIMIZER:
 		return QueryTreeToString();
 	case ProfilerPrintFormat::JSON:
 		return ToJSON();
-	case ProfilerPrintFormat::QUERY_TREE_OPTIMIZER:
-		return QueryTreeToString(true);
 	default:
 		throw InternalException("Unknown ProfilerPrintFormat \"%s\"", format);
 	}
@@ -339,13 +352,13 @@ static string RenderTiming(double timing) {
 	return timing_s + "s";
 }
 
-string QueryProfiler::QueryTreeToString(bool print_optimizer_output) const {
+string QueryProfiler::QueryTreeToString() const {
 	std::stringstream str;
-	QueryTreeToStream(str, print_optimizer_output);
+	QueryTreeToStream(str);
 	return str.str();
 }
 
-void QueryProfiler::QueryTreeToStream(std::ostream &ss, bool print_optimizer_output) const {
+void QueryProfiler::QueryTreeToStream(std::ostream &ss) const {
 	if (!IsEnabled()) {
 		ss << "Query profiling is disabled. Call "
 		      "Connection::EnableProfiling() to enable profiling!";
@@ -357,8 +370,36 @@ void QueryProfiler::QueryTreeToStream(std::ostream &ss, bool print_optimizer_out
 	ss << "│└───────────────────────────────────┘│\n";
 	ss << "└─────────────────────────────────────┘\n";
 	ss << StringUtil::Replace(query, "\n", " ") + "\n";
-	if (query.empty()) {
+
+	// checking the tree to ensure the query is really empty
+	// the query string is empty when a logical plan is deserialized
+	if (query.empty() && !root) {
 		return;
+	}
+
+	if (context.client_data->http_stats) {
+		string read =
+		    "in: " + StringUtil::BytesToHumanReadableString(context.client_data->http_stats->total_bytes_received);
+		string written =
+		    "out: " + StringUtil::BytesToHumanReadableString(context.client_data->http_stats->total_bytes_sent);
+		string head = "#HEAD: " + to_string(context.client_data->http_stats->head_count);
+		string get = "#GET: " + to_string(context.client_data->http_stats->get_count);
+		string put = "#PUT: " + to_string(context.client_data->http_stats->put_count);
+		string post = "#POST: " + to_string(context.client_data->http_stats->post_count);
+
+		constexpr idx_t TOTAL_BOX_WIDTH = 39;
+		ss << "┌─────────────────────────────────────┐\n";
+		ss << "│┌───────────────────────────────────┐│\n";
+		ss << "││            HTTP Stats:            ││\n";
+		ss << "││                                   ││\n";
+		ss << "││" + DrawPadded(read, TOTAL_BOX_WIDTH - 4) + "││\n";
+		ss << "││" + DrawPadded(written, TOTAL_BOX_WIDTH - 4) + "││\n";
+		ss << "││" + DrawPadded(head, TOTAL_BOX_WIDTH - 4) + "││\n";
+		ss << "││" + DrawPadded(get, TOTAL_BOX_WIDTH - 4) + "││\n";
+		ss << "││" + DrawPadded(put, TOTAL_BOX_WIDTH - 4) + "││\n";
+		ss << "││" + DrawPadded(post, TOTAL_BOX_WIDTH - 4) + "││\n";
+		ss << "│└───────────────────────────────────┘│\n";
+		ss << "└─────────────────────────────────────┘\n";
 	}
 
 	constexpr idx_t TOTAL_BOX_WIDTH = 39;
@@ -369,7 +410,7 @@ void QueryProfiler::QueryTreeToStream(std::ostream &ss, bool print_optimizer_out
 	ss << "│└───────────────────────────────────┘│\n";
 	ss << "└─────────────────────────────────────┘\n";
 	// print phase timings
-	if (print_optimizer_output) {
+	if (PrintOptimizerOutput()) {
 		bool has_previous_phase = false;
 		for (const auto &entry : GetOrderedPhaseTimings()) {
 			if (!StringUtil::Contains(entry.first, " > ")) {
@@ -460,10 +501,9 @@ static void PrintRow(std::ostream &ss, const string &annotation, int id, const s
 
 static void ExtractFunctions(std::ostream &ss, ExpressionInfo &info, int &fun_id, int depth) {
 	if (info.hasfunction) {
-		D_ASSERT(info.sample_tuples_count != 0);
-		PrintRow(ss, "Function", fun_id++, info.function_name,
-		         int(info.function_time) / double(info.sample_tuples_count), info.sample_tuples_count,
-		         info.tuples_count, "", depth);
+		double time = info.sample_tuples_count == 0 ? 0 : int(info.function_time) / double(info.sample_tuples_count);
+		PrintRow(ss, "Function", fun_id++, info.function_name, time, info.sample_tuples_count, info.tuples_count, "",
+		         depth);
 	}
 	if (info.children.empty()) {
 		return;
@@ -490,10 +530,11 @@ static void ToJSONRecursive(QueryProfiler::TreeNode &node, std::ostream &ss, int
 			continue;
 		}
 		for (auto &expr_timer : expr_executor->roots) {
-			D_ASSERT(expr_timer->sample_tuples_count != 0);
-			PrintRow(ss, "ExpressionRoot", expression_counter++, expr_timer->name,
-			         int(expr_timer->time) / double(expr_timer->sample_tuples_count), expr_timer->sample_tuples_count,
-			         expr_timer->tuples_count, expr_timer->extra_info, depth + 1);
+			double time = expr_timer->sample_tuples_count == 0
+			                  ? 0
+			                  : double(expr_timer->time) / double(expr_timer->sample_tuples_count);
+			PrintRow(ss, "ExpressionRoot", expression_counter++, expr_timer->name, time,
+			         expr_timer->sample_tuples_count, expr_timer->tuples_count, expr_timer->extra_info, depth + 1);
 			// Extract all functions inside the tree
 			ExtractFunctions(ss, *expr_timer->root, function_counter, depth + 1);
 		}
@@ -520,7 +561,7 @@ string QueryProfiler::ToJSON() const {
 	if (!IsEnabled()) {
 		return "{ \"result\": \"disabled\" }\n";
 	}
-	if (query.empty()) {
+	if (query.empty() && !root) {
 		return "{ \"result\": \"empty\" }\n";
 	}
 	if (!root) {

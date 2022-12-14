@@ -110,7 +110,7 @@ unique_ptr<BoundTableRef> Binder::Bind(BaseTableRef &ref) {
 
 		vector<LogicalType> return_types;
 		vector<string> return_names;
-		for (auto &col : table->columns) {
+		for (auto &col : table->columns.Logical()) {
 			table_types.push_back(col.Type());
 			table_names.push_back(col.Name());
 			return_types.push_back(col.Type());
@@ -120,7 +120,8 @@ unique_ptr<BoundTableRef> Binder::Bind(BaseTableRef &ref) {
 
 		auto logical_get = make_unique<LogicalGet>(table_index, scan_function, move(bind_data), move(return_types),
 		                                           move(return_names));
-		bind_context.AddBaseTable(table_index, alias, table_names, table_types, *logical_get);
+		bind_context.AddBaseTable(table_index, alias, table_names, table_types, logical_get->column_ids,
+		                          logical_get->GetTable());
 		return make_unique_base<BoundTableRef, BoundBaseTableRef>(table, move(logical_get));
 	}
 	case CatalogType::VIEW_ENTRY: {
@@ -139,6 +140,9 @@ unique_ptr<BoundTableRef> Binder::Bind(BaseTableRef &ref) {
 		// bind the child subquery
 		view_binder->AddBoundView(view_catalog_entry);
 		auto bound_child = view_binder->Bind(subquery);
+		if (!view_binder->correlated_columns.empty()) {
+			throw BinderException("Contents of view were altered - view bound correlated columns");
+		}
 
 		D_ASSERT(bound_child->type == TableReferenceType::SUBQUERY);
 		// verify that the types and names match up with the expected types and names

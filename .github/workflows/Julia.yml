@@ -13,6 +13,7 @@ on:
        - 'tools/rpkg/**'
        - '.github/workflows/**'
        - '!.github/workflows/Julia.yml'
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.head_ref || '' }}-${{ github.base_ref || '' }}-${{ github.ref != 'refs/heads/master' || github.sha }}
   cancel-in-progress: true
@@ -70,7 +71,7 @@ jobs:
       - name: Build DuckDB
         shell: bash
         run: |
-            BUILD_TPCH=1 make
+            BUILD_TPCH=1 BUILD_JEMALLOC=1 make
 
       - name: Run Tests
         shell: bash

@@ -90,24 +90,25 @@ jobs:
         aws --version
 
       # the weird openssl findreplace fix with version numbers is from: https://github.com/h2o/h2o/issues/213
-    - name: Download OpenSSL 1.1.1k
+    - name: Download OpenSSL 1.1.1s
       shell: bash
       run: |
-        wget https://ftp.openssl.org/source/openssl-1.1.1k.tar.gz --no-check-certificate
-        tar -xzvf openssl-1.1.1k.tar.gz
-        cd openssl-1.1.1k
+        wget https://github.com/openssl/openssl/archive/refs/tags/OpenSSL_1_1_1s.tar.gz
+        tar -xzvf OpenSSL_1_1_1s.tar.gz
+        mv openssl-OpenSSL_1_1_1s openssl-1.1.1s
+        cd openssl-1.1.1s
         find ./ -type f -exec sed -i -e 's/\#\ define\ OPENSSL\_VERSION\_NUMBER/\#define\ OPENSSL\_VERSION\_NUMBER/g' {} \;
 
     - name: Configure OpenSSL
       shell: bash
       run: |
-        cd openssl-1.1.1k
+        cd openssl-1.1.1s
         ./config --prefix=/usr --openssldir=/etc/ssl --libdir=lib no-shared zlib-dynamic
 
     - name: Build OpenSSL
       shell: bash
       run: |
-        cd openssl-1.1.1k
+        cd openssl-1.1.1s
         make
         make install
 
@@ -130,9 +131,7 @@ jobs:
         s3_id: ${{ secrets.S3_ID }}
         s3_key: ${{ secrets.S3_KEY }}
         signing_pk: ${{ secrets.DUCKDB_EXTENSION_SIGNING_PK }}
-        static_link_build: 1
         treat_warn_as_error: 0
-        substrait: 1
 
     - uses: actions/upload-artifact@v2
       with:
@@ -146,7 +145,7 @@ jobs:
     strategy:
       matrix:
         arch: [i686, x86_64]
-        python_build: [cp37-*, cp38-*, cp39-*,cp310-*]
+        python_build: [cp37-*, cp38-*, cp39-*, cp310-*, cp311-*]
         isRelease:
           - ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/master' }}
         exclude:
@@ -154,6 +153,8 @@ jobs:
             python_build: 'cp38-*'
           - isRelease: false
             python_build: 'cp39-*'
+          - isRelease: false
+            python_build: 'cp311-*'
     needs: manylinux-extensions
     env:
       CIBW_BUILD: ${{ matrix.python_build}}
@@ -218,7 +219,7 @@ jobs:
       runs-on: macos-latest
       strategy:
        matrix:
-        python_build: [cp36-*, cp37-*, cp38-*, cp39-*, cp310-*]
+        python_build: [cp36-*, cp37-*, cp38-*, cp39-*, cp310-*, cp311-*]
       needs: linux-python3-9
       env:
         CIBW_BUILD: ${{ matrix.python_build}}
@@ -268,7 +269,7 @@ jobs:
       runs-on: windows-latest
       strategy:
        matrix:
-        python_build: [cp36-*, cp37-*, cp38-*, cp39-*, cp310-*]
+        python_build: [cp36-*, cp37-*, cp38-*, cp39-*, cp310-*, cp311-*]
         isRelease:
           - ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/master' }}
         exclude:
@@ -278,14 +279,12 @@ jobs:
             python_build: 'cp38-*'
           - isRelease: false
             python_build: 'cp39-*'
+          - isRelease: false
+            python_build: 'cp311-*'
       needs: linux-python3-9
 
       env:
         CIBW_BUILD: ${{ matrix.python_build}}
-        CIBW_BEFORE_BUILD: 'pip install --prefer-binary "pandas>=0.24" "pytest>=4.3" "psutil>=5.9.0"'
-        CIBW_TEST_REQUIRES: 'pytest'
-        CIBW_BEFORE_TEST: 'pip install --prefer-binary "pandas>=0.24" "pytest>=4.3" mypy "psutil>=5.9.0"'
-        CIBW_TEST_COMMAND: 'python -m pytest {project}/tests/fast'
         SETUPTOOLS_SCM_NO_LOCAL: 'yes'
         SETUPTOOLS_USE_DISTUTILS: 'stdlib'
         TWINE_USERNAME: 'hfmuehleisen'
@@ -317,7 +316,7 @@ jobs:
           mkdir duckdb_tarball && tar xvf dist/duckdb-*.tar.gz --strip-components=1 -C duckdb_tarball
           export DISTUTILS_C_COMPILER_LAUNCHER=ccache
           # TODO: Use ccache inside container, see https://github.com/pypa/cibuildwheel/issues/1030
-          cibuildwheel --output-dir wheelhouse duckdb_tarball
+          cibuildwheel --output-dir wheelhouse --config-file cibw.toml duckdb_tarball
 
       - name: Deploy
         shell: bash
@@ -342,7 +341,7 @@ jobs:
 
       - name: Install
         shell: bash
-        run: pip install numpy pytest pandas mypy psutil google-cloud-storage
+        run: pip install numpy pytest pandas mypy psutil
 
       - name: Setup Ccache
         uses: hendrikmuhs/ccache-action@main
@@ -361,7 +360,7 @@ jobs:
           cd tools/pythonpkg
           export SETUPTOOLS_SCM_PRETEND_VERSION=0.2.2
           export DISTUTILS_C_COMPILER_LAUNCHER=ccache
-          python setup.py install --user
+          pip install . --user
           (cd tests/ && python -m pytest)
 
    python-address-sanitizer:
@@ -408,22 +407,18 @@ jobs:
           export LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/openssl-1.0.2o/lib
           ./configure --with-ensurepip=install --with-address-sanitizer --with-undefined-behavior-sanitizer --with-openssl=${GITHUB_WORKSPACE}/openssl-1.0.2o --prefix=${GITHUB_WORKSPACE}/debug-build
           make -j
-          make install        
+          make install
 
       - name: Install Python Test Dependencies
         shell: bash
         run: |
-          ${GITHUB_WORKSPACE}/debug-build/bin/python3 -m pip install numpy
-          ${GITHUB_WORKSPACE}/debug-build/bin/python3 -m pip install pandas
-          ${GITHUB_WORKSPACE}/debug-build/bin/python3 -m pip install pyarrow
-          ${GITHUB_WORKSPACE}/debug-build/bin/python3 -m pip install pytest
-          ${GITHUB_WORKSPACE}/debug-build/bin/python3 -m pip install psutil
+          ${GITHUB_WORKSPACE}/debug-build/bin/python3 -m pip install numpy pandas pyarrow pytest psutil
 
       - name: Install DuckDB Python
         shell: bash
         run: |
           cd tools/pythonpkg
-          ${GITHUB_WORKSPACE}/debug-build/bin/python3 setup.py install
+          ${GITHUB_WORKSPACE}/debug-build/bin/python3 -m pip install .
 
       - name: Run Python Tests
         shell: bash

@@ -77,6 +77,13 @@ RStrings::RStrings() {
 	ImportRecordBatch_sym = Rf_install("ImportRecordBatch");
 	ImportRecordBatchReader_sym = Rf_install("ImportRecordBatchReader");
 	Table__from_record_batches_sym = Rf_install("Table__from_record_batches");
+	materialize_sym = Rf_install("duckdb.materialize_message");
+}
+
+LogicalType RStringsType::Get() {
+	LogicalType r_string_type(LogicalTypeId::POINTER);
+	r_string_type.SetAlias(R_STRING_TYPE_NAME);
+	return r_string_type;
 }
 
 template <class SRC, class DST, class RTYPE>
@@ -116,8 +123,6 @@ Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx) {
 	case RType::STRING: {
 		auto str_val = STRING_ELT(ToUtf8(valsexp), idx);
 		return str_val == NA_STRING ? Value(LogicalType::VARCHAR) : Value(CHAR(str_val));
-		//  TODO this does not deal with NULLs yet
-		// return Value::ENUM((uint64_t)DATAPTR(str_val), LogicalType::DEDUP_POINTER_ENUM());
 	}
 	case RType::FACTOR: {
 		auto int_val = INTEGER_POINTER(valsexp)[idx];
@@ -188,6 +193,12 @@ Value RApiTypes::SexpToValue(SEXP valsexp, R_len_t idx) {
 	case RType::TIME_WEEKS_INTEGER: {
 		auto ts_val = INTEGER_POINTER(valsexp)[idx];
 		return RIntegerType::IsNull(ts_val) ? Value(LogicalType::TIME) : Value::TIME(RTimeWeeksType::Convert(ts_val));
+	}
+	case RType::LIST_OF_NULLS:
+		return Value();
+	case RType::BLOB: {
+		auto ts_val = VECTOR_ELT(valsexp, idx);
+		return Rf_isNull(ts_val) ? Value(LogicalType::BLOB) : Value::BLOB(RAW(ts_val), Rf_xlength(ts_val));
 	}
 	default:
 		cpp11::stop("duckdb_sexp_to_value: Unsupported type");

@@ -27,7 +27,8 @@
 #include "duckdb/planner/parsed_data/bound_create_table_info.hpp"
 #include "duckdb/planner/binder.hpp"
 #include "duckdb/catalog/default/default_types.hpp"
-
+#include "duckdb/main/extension_functions.hpp"
+#include <algorithm>
 namespace duckdb {
 
 string SimilarCatalogEntry::GetQualifiedName() const {
@@ -185,19 +186,15 @@ void Catalog::DropEntry(ClientContext &context, DropInfo *info) {
 }
 
 CatalogEntry *Catalog::AddFunction(ClientContext &context, CreateFunctionInfo *info) {
-	auto schema = GetSchema(context, info->schema);
-	return AddFunction(context, schema, info);
-}
-
-CatalogEntry *Catalog::AddFunction(ClientContext &context, SchemaCatalogEntry *schema, CreateFunctionInfo *info) {
-	return schema->AddFunction(context, info);
+	info->on_conflict = OnCreateConflict::ALTER_ON_CONFLICT;
+	return CreateFunction(context, info);
 }
 
 SchemaCatalogEntry *Catalog::GetSchema(ClientContext &context, const string &schema_name, bool if_exists,
                                        QueryErrorContext error_context) {
 	D_ASSERT(!schema_name.empty());
 	if (schema_name == TEMP_SCHEMA) {
-		return ClientData::Get(context).temporary_objects.get();
+		return SchemaCatalogEntry::GetTemporaryObjects(context);
 	}
 	auto entry = schemas->GetEntry(context, schema_name);
 	if (!entry && !if_exists) {
@@ -230,6 +227,16 @@ SimilarCatalogEntry Catalog::SimilarEntryInSchemas(ClientContext &context, const
 	return {most_similar.first, most_similar.second, schema_of_most_similar};
 }
 
+string FindExtension(const string &function_name) {
+	auto size = sizeof(EXTENSION_FUNCTIONS) / sizeof(ExtensionFunction);
+	auto it = std::lower_bound(
+	    EXTENSION_FUNCTIONS, EXTENSION_FUNCTIONS + size, function_name,
+	    [](const ExtensionFunction &element, const string &value) { return element.function < value; });
+	if (it != EXTENSION_FUNCTIONS + size && it->function == function_name) {
+		return it->extension;
+	}
+	return "";
+}
 CatalogException Catalog::CreateMissingEntryException(ClientContext &context, const string &entry_name,
                                                       CatalogType type, const vector<SchemaCatalogEntry *> &schemas,
                                                       QueryErrorContext error_context) {
@@ -243,7 +250,12 @@ CatalogException Catalog::CreateMissingEntryException(ClientContext &context, co
 		}
 	});
 	auto unseen_entry = SimilarEntryInSchemas(context, entry_name, type, unseen_schemas);
-
+	auto extension_name = FindExtension(entry_name);
+	if (!extension_name.empty()) {
+		return CatalogException("Function with name %s is not on the catalog, but it exists in the %s extension. To "
+		                        "Install and Load the extension, run: INSTALL %s; LOAD %s;",
+		                        entry_name, extension_name, extension_name, extension_name);
+	}
 	string did_you_mean;
 	if (unseen_entry.Found() && unseen_entry.distance < entry.distance) {
 		did_you_mean = "\nDid you mean \"" + unseen_entry.GetQualifiedName() + "\"?";

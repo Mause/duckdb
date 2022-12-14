@@ -58,6 +58,12 @@ static unique_ptr<FunctionData> DuckDBFunctionsBind(ClientContext &context, Tabl
 	names.emplace_back("has_side_effects");
 	return_types.emplace_back(LogicalType::BOOLEAN);
 
+	names.emplace_back("internal");
+	return_types.emplace_back(LogicalType::BOOLEAN);
+
+	names.emplace_back("function_oid");
+	return_types.emplace_back(LogicalType::BIGINT);
+
 	return nullptr;
 }
 
@@ -79,7 +85,7 @@ unique_ptr<GlobalTableFunctionState> DuckDBFunctionsInit(ClientContext &context,
 	for (auto &schema : schemas) {
 		ExtractFunctionsFromSchema(context, *schema, *result);
 	};
-	ExtractFunctionsFromSchema(context, *ClientData::Get(context).temporary_objects, *result);
+	ExtractFunctionsFromSchema(context, *SchemaCatalogEntry::GetTemporaryObjects(context), *result);
 
 	std::sort(result->entries.begin(), result->entries.end(),
 	          [&](CatalogEntry *a, CatalogEntry *b) { return (int)a->type < (int)b->type; });
@@ -88,7 +94,7 @@ unique_ptr<GlobalTableFunctionState> DuckDBFunctionsInit(ClientContext &context,
 
 struct ScalarFunctionExtractor {
 	static idx_t FunctionCount(ScalarFunctionCatalogEntry &entry) {
-		return entry.functions.size();
+		return entry.functions.Size();
 	}
 
 	static Value GetFunctionType() {
@@ -100,12 +106,12 @@ struct ScalarFunctionExtractor {
 	}
 
 	static Value GetReturnType(ScalarFunctionCatalogEntry &entry, idx_t offset) {
-		return Value(entry.functions[offset].return_type.ToString());
+		return Value(entry.functions.GetFunctionByOffset(offset).return_type.ToString());
 	}
 
 	static Value GetParameters(ScalarFunctionCatalogEntry &entry, idx_t offset) {
 		vector<Value> results;
-		for (idx_t i = 0; i < entry.functions[offset].arguments.size(); i++) {
+		for (idx_t i = 0; i < entry.functions.GetFunctionByOffset(offset).arguments.size(); i++) {
 			results.emplace_back("col" + to_string(i));
 		}
 		return Value::LIST(LogicalType::VARCHAR, move(results));
@@ -113,14 +119,16 @@ struct ScalarFunctionExtractor {
 
 	static Value GetParameterTypes(ScalarFunctionCatalogEntry &entry, idx_t offset) {
 		vector<Value> results;
-		for (idx_t i = 0; i < entry.functions[offset].arguments.size(); i++) {
-			results.emplace_back(entry.functions[offset].arguments[i].ToString());
+		auto fun = entry.functions.GetFunctionByOffset(offset);
+		for (idx_t i = 0; i < fun.arguments.size(); i++) {
+			results.emplace_back(fun.arguments[i].ToString());
 		}
 		return Value::LIST(LogicalType::VARCHAR, move(results));
 	}
 
 	static Value GetVarArgs(ScalarFunctionCatalogEntry &entry, idx_t offset) {
-		return !entry.functions[offset].HasVarArgs() ? Value() : Value(entry.functions[offset].varargs.ToString());
+		auto fun = entry.functions.GetFunctionByOffset(offset);
+		return !fun.HasVarArgs() ? Value() : Value(fun.varargs.ToString());
 	}
 
 	static Value GetMacroDefinition(ScalarFunctionCatalogEntry &entry, idx_t offset) {
@@ -128,13 +136,14 @@ struct ScalarFunctionExtractor {
 	}
 
 	static Value HasSideEffects(ScalarFunctionCatalogEntry &entry, idx_t offset) {
-		return Value::BOOLEAN(entry.functions[offset].side_effects == FunctionSideEffects::HAS_SIDE_EFFECTS);
+		return Value::BOOLEAN(entry.functions.GetFunctionByOffset(offset).side_effects ==
+		                      FunctionSideEffects::HAS_SIDE_EFFECTS);
 	}
 };
 
 struct AggregateFunctionExtractor {
 	static idx_t FunctionCount(AggregateFunctionCatalogEntry &entry) {
-		return entry.functions.size();
+		return entry.functions.Size();
 	}
 
 	static Value GetFunctionType() {
@@ -146,12 +155,12 @@ struct AggregateFunctionExtractor {
 	}
 
 	static Value GetReturnType(AggregateFunctionCatalogEntry &entry, idx_t offset) {
-		return Value(entry.functions[offset].return_type.ToString());
+		return Value(entry.functions.GetFunctionByOffset(offset).return_type.ToString());
 	}
 
 	static Value GetParameters(AggregateFunctionCatalogEntry &entry, idx_t offset) {
 		vector<Value> results;
-		for (idx_t i = 0; i < entry.functions[offset].arguments.size(); i++) {
+		for (idx_t i = 0; i < entry.functions.GetFunctionByOffset(offset).arguments.size(); i++) {
 			results.emplace_back("col" + to_string(i));
 		}
 		return Value::LIST(LogicalType::VARCHAR, move(results));
@@ -159,14 +168,16 @@ struct AggregateFunctionExtractor {
 
 	static Value GetParameterTypes(AggregateFunctionCatalogEntry &entry, idx_t offset) {
 		vector<Value> results;
-		for (idx_t i = 0; i < entry.functions[offset].arguments.size(); i++) {
-			results.emplace_back(entry.functions[offset].arguments[i].ToString());
+		auto fun = entry.functions.GetFunctionByOffset(offset);
+		for (idx_t i = 0; i < fun.arguments.size(); i++) {
+			results.emplace_back(fun.arguments[i].ToString());
 		}
 		return Value::LIST(LogicalType::VARCHAR, move(results));
 	}
 
 	static Value GetVarArgs(AggregateFunctionCatalogEntry &entry, idx_t offset) {
-		return !entry.functions[offset].HasVarArgs() ? Value() : Value(entry.functions[offset].varargs.ToString());
+		auto fun = entry.functions.GetFunctionByOffset(offset);
+		return !fun.HasVarArgs() ? Value() : Value(fun.varargs.ToString());
 	}
 
 	static Value GetMacroDefinition(AggregateFunctionCatalogEntry &entry, idx_t offset) {
@@ -174,7 +185,8 @@ struct AggregateFunctionExtractor {
 	}
 
 	static Value HasSideEffects(AggregateFunctionCatalogEntry &entry, idx_t offset) {
-		return Value::BOOLEAN(entry.functions[offset].side_effects == FunctionSideEffects::HAS_SIDE_EFFECTS);
+		return Value::BOOLEAN(entry.functions.GetFunctionByOffset(offset).side_effects ==
+		                      FunctionSideEffects::HAS_SIDE_EFFECTS);
 	}
 };
 
@@ -294,7 +306,7 @@ struct TableMacroExtractor {
 
 struct TableFunctionExtractor {
 	static idx_t FunctionCount(TableFunctionCatalogEntry &entry) {
-		return entry.functions.size();
+		return entry.functions.Size();
 	}
 
 	static Value GetFunctionType() {
@@ -311,10 +323,11 @@ struct TableFunctionExtractor {
 
 	static Value GetParameters(TableFunctionCatalogEntry &entry, idx_t offset) {
 		vector<Value> results;
-		for (idx_t i = 0; i < entry.functions[offset].arguments.size(); i++) {
+		auto fun = entry.functions.GetFunctionByOffset(offset);
+		for (idx_t i = 0; i < fun.arguments.size(); i++) {
 			results.emplace_back("col" + to_string(i));
 		}
-		for (auto &param : entry.functions[offset].named_parameters) {
+		for (auto &param : fun.named_parameters) {
 			results.emplace_back(param.first);
 		}
 		return Value::LIST(LogicalType::VARCHAR, move(results));
@@ -322,17 +335,20 @@ struct TableFunctionExtractor {
 
 	static Value GetParameterTypes(TableFunctionCatalogEntry &entry, idx_t offset) {
 		vector<Value> results;
-		for (idx_t i = 0; i < entry.functions[offset].arguments.size(); i++) {
-			results.emplace_back(entry.functions[offset].arguments[i].ToString());
+		auto fun = entry.functions.GetFunctionByOffset(offset);
+
+		for (idx_t i = 0; i < fun.arguments.size(); i++) {
+			results.emplace_back(fun.arguments[i].ToString());
 		}
-		for (auto &param : entry.functions[offset].named_parameters) {
+		for (auto &param : fun.named_parameters) {
 			results.emplace_back(param.second.ToString());
 		}
 		return Value::LIST(LogicalType::VARCHAR, move(results));
 	}
 
 	static Value GetVarArgs(TableFunctionCatalogEntry &entry, idx_t offset) {
-		return !entry.functions[offset].HasVarArgs() ? Value() : Value(entry.functions[offset].varargs.ToString());
+		auto fun = entry.functions.GetFunctionByOffset(offset);
+		return !fun.HasVarArgs() ? Value() : Value(fun.varargs.ToString());
 	}
 
 	static Value GetMacroDefinition(TableFunctionCatalogEntry &entry, idx_t offset) {
@@ -346,7 +362,7 @@ struct TableFunctionExtractor {
 
 struct PragmaFunctionExtractor {
 	static idx_t FunctionCount(PragmaFunctionCatalogEntry &entry) {
-		return entry.functions.size();
+		return entry.functions.Size();
 	}
 
 	static Value GetFunctionType() {
@@ -363,10 +379,12 @@ struct PragmaFunctionExtractor {
 
 	static Value GetParameters(PragmaFunctionCatalogEntry &entry, idx_t offset) {
 		vector<Value> results;
-		for (idx_t i = 0; i < entry.functions[offset].arguments.size(); i++) {
+		auto fun = entry.functions.GetFunctionByOffset(offset);
+
+		for (idx_t i = 0; i < fun.arguments.size(); i++) {
 			results.emplace_back("col" + to_string(i));
 		}
-		for (auto &param : entry.functions[offset].named_parameters) {
+		for (auto &param : fun.named_parameters) {
 			results.emplace_back(param.first);
 		}
 		return Value::LIST(LogicalType::VARCHAR, move(results));
@@ -374,17 +392,20 @@ struct PragmaFunctionExtractor {
 
 	static Value GetParameterTypes(PragmaFunctionCatalogEntry &entry, idx_t offset) {
 		vector<Value> results;
-		for (idx_t i = 0; i < entry.functions[offset].arguments.size(); i++) {
-			results.emplace_back(entry.functions[offset].arguments[i].ToString());
+		auto fun = entry.functions.GetFunctionByOffset(offset);
+
+		for (idx_t i = 0; i < fun.arguments.size(); i++) {
+			results.emplace_back(fun.arguments[i].ToString());
 		}
-		for (auto &param : entry.functions[offset].named_parameters) {
+		for (auto &param : fun.named_parameters) {
 			results.emplace_back(param.second.ToString());
 		}
 		return Value::LIST(LogicalType::VARCHAR, move(results));
 	}
 
 	static Value GetVarArgs(PragmaFunctionCatalogEntry &entry, idx_t offset) {
-		return !entry.functions[offset].HasVarArgs() ? Value() : Value(entry.functions[offset].varargs.ToString());
+		auto fun = entry.functions.GetFunctionByOffset(offset);
+		return !fun.HasVarArgs() ? Value() : Value(fun.varargs.ToString());
 	}
 
 	static Value GetMacroDefinition(PragmaFunctionCatalogEntry &entry, idx_t offset) {
@@ -428,6 +449,12 @@ bool ExtractFunctionData(StandardEntry *entry, idx_t function_idx, DataChunk &ou
 
 	// has_side_effects, LogicalType::BOOLEAN
 	output.SetValue(9, output_offset, OP::HasSideEffects(function, function_idx));
+
+	// internal, LogicalType::BOOLEAN
+	output.SetValue(10, output_offset, Value::BOOLEAN(entry->internal));
+
+	// function_oid, LogicalType::BIGINT
+	output.SetValue(11, output_offset, Value::BIGINT(entry->oid));
 
 	return function_idx + 1 == OP::FunctionCount(function);
 }

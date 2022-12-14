@@ -18,17 +18,16 @@ void ShiftRight(unsigned char *ar, int size, int shift) {
 	}
 }
 
-void SetValidityMask(Vector &vector, ArrowArray &array, ArrowScanLocalState &scan_state, idx_t size,
-                     int64_t nested_offset, bool add_null = false) {
-	auto &mask = FlatVector::Validity(vector);
+void GetValidityMask(ValidityMask &mask, ArrowArray &array, ArrowScanLocalState &scan_state, idx_t size,
+                     int64_t nested_offset = -1, bool add_null = false) {
 	if (array.null_count != 0 && array.buffers[0]) {
-		D_ASSERT(vector.GetVectorType() == VectorType::FLAT_VECTOR);
 		auto bit_offset = scan_state.chunk_offset + array.offset;
 		if (nested_offset != -1) {
 			bit_offset = nested_offset;
 		}
-		auto n_bitmask_bytes = (size + 8 - 1) / 8;
 		mask.EnsureWritable();
+#if STANDARD_VECTOR_SIZE > 64
+		auto n_bitmask_bytes = (size + 8 - 1) / 8;
 		if (bit_offset % 8 == 0) {
 			//! just memcpy nullmask
 			memcpy((void *)mask.GetData(), (uint8_t *)array.buffers[0] + bit_offset / 8, n_bitmask_bytes);
@@ -40,6 +39,19 @@ void SetValidityMask(Vector &vector, ArrowArray &array, ArrowScanLocalState &sca
 			           bit_offset % 8); //! why this has to be a right shift is a mystery to me
 			memcpy((void *)mask.GetData(), (data_ptr_t)temp_nullmask.data(), n_bitmask_bytes);
 		}
+#else
+		auto byte_offset = bit_offset / 8;
+		auto source_data = (uint8_t *)array.buffers[0];
+		bit_offset %= 8;
+		for (idx_t i = 0; i < size; i++) {
+			mask.Set(i, source_data[byte_offset] & (1 << bit_offset));
+			bit_offset++;
+			if (bit_offset == 8) {
+				bit_offset = 0;
+				byte_offset++;
+			}
+		}
+#endif
 	}
 	if (add_null) {
 		//! We are setting a validity mask of the data part of dictionary vector
@@ -50,23 +62,11 @@ void SetValidityMask(Vector &vector, ArrowArray &array, ArrowScanLocalState &sca
 	}
 }
 
-void GetValidityMask(ValidityMask &mask, ArrowArray &array, ArrowScanLocalState &scan_state, idx_t size) {
-	if (array.null_count != 0 && array.buffers[0]) {
-		auto bit_offset = scan_state.chunk_offset + array.offset;
-		auto n_bitmask_bytes = (size + 8 - 1) / 8;
-		mask.EnsureWritable();
-		if (bit_offset % 8 == 0) {
-			//! just memcpy nullmask
-			memcpy((void *)mask.GetData(), (uint8_t *)array.buffers[0] + bit_offset / 8, n_bitmask_bytes);
-		} else {
-			//! need to re-align nullmask
-			std::vector<uint8_t> temp_nullmask(n_bitmask_bytes + 1);
-			memcpy(temp_nullmask.data(), (uint8_t *)array.buffers[0] + bit_offset / 8, n_bitmask_bytes + 1);
-			ShiftRight(temp_nullmask.data(), n_bitmask_bytes + 1,
-			           bit_offset % 8); //! why this has to be a right shift is a mystery to me
-			memcpy((void *)mask.GetData(), (data_ptr_t)temp_nullmask.data(), n_bitmask_bytes);
-		}
-	}
+void SetValidityMask(Vector &vector, ArrowArray &array, ArrowScanLocalState &scan_state, idx_t size,
+                     int64_t nested_offset, bool add_null = false) {
+	D_ASSERT(vector.GetVectorType() == VectorType::FLAT_VECTOR);
+	auto &mask = FlatVector::Validity(vector);
+	GetValidityMask(mask, array, scan_state, size, nested_offset, add_null);
 }
 
 void ColumnArrowToDuckDB(Vector &vector, ArrowArray &array, ArrowScanLocalState &scan_state, idx_t size,
@@ -447,7 +447,7 @@ void ColumnArrowToDuckDB(Vector &vector, ArrowArray &array, ArrowScanLocalState 
 			}
 			auto tgt_ptr = (date_t *)FlatVector::GetData(vector);
 			for (idx_t row = 0; row < size; row++) {
-				tgt_ptr[row] = date_t(int64_t(src_ptr[row]) / (1000 * 60 * 60 * 24));
+				tgt_ptr[row] = date_t(int64_t(src_ptr[row]) / static_cast<int64_t>(1000 * 60 * 60 * 24));
 			}
 			break;
 		}
@@ -812,11 +812,20 @@ void ColumnArrowToDuckDBDictionary(Vector &vector, ArrowArray &array, ArrowScanL
 
 void ArrowTableFunction::ArrowToDuckDB(ArrowScanLocalState &scan_state,
                                        unordered_map<idx_t, unique_ptr<ArrowConvertData>> &arrow_convert_data,
-                                       DataChunk &output, idx_t start) {
+                                       DataChunk &output, idx_t start, bool arrow_scan_is_projected) {
 	for (idx_t idx = 0; idx < output.ColumnCount(); idx++) {
 		auto col_idx = scan_state.column_ids[idx];
+
+		// If projection was not pushed down into the arrow scanner, but projection pushdown is enabled on the
+		// table function, we need to use original column ids here.
+		auto arrow_array_idx = arrow_scan_is_projected ? idx : col_idx;
+
+		if (col_idx == COLUMN_IDENTIFIER_ROW_ID) {
+			continue;
+		}
+
 		std::pair<idx_t, idx_t> arrow_convert_idx {0, 0};
-		auto &array = *scan_state.chunk->arrow_array.children[idx];
+		auto &array = *scan_state.chunk->arrow_array.children[arrow_array_idx];
 		if (!array.release) {
 			throw InvalidInputException("arrow_scan: released array passed");
 		}

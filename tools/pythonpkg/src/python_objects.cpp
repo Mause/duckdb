@@ -1,8 +1,13 @@
 #include "duckdb_python/python_objects.hpp"
 #include "duckdb/common/types.hpp"
+#include "duckdb/common/types/uuid.hpp"
 #include "duckdb/common/types/value.hpp"
 #include "duckdb/common/types/decimal.hpp"
 #include "duckdb/common/types/cast_helpers.hpp"
+#include "duckdb/common/operator/cast_operators.hpp"
+#include "duckdb_python/pyconnection.hpp"
+
+#include "datetime.h" // Python datetime initialize #1
 
 namespace duckdb {
 
@@ -23,10 +28,10 @@ PyTimeDelta::PyTimeDelta(py::handle &obj) {
 interval_t PyTimeDelta::ToInterval() {
 	interval_t interval;
 
-	//! Timedelta stores any amount of seconds lower than a day only
+	// Timedelta stores any amount of seconds lower than a day only
 	D_ASSERT(seconds < Interval::SECS_PER_DAY);
 
-	//! Convert overflow of days to months
+	// Convert overflow of days to months
 	interval.months = days / Interval::DAYS_PER_MONTH;
 	days -= interval.months * Interval::DAYS_PER_MONTH;
 
@@ -36,7 +41,7 @@ interval_t PyTimeDelta::ToInterval() {
 	return interval;
 }
 
-PyDecimal::PyDecimal(py::handle &obj) {
+PyDecimal::PyDecimal(py::handle &obj) : obj(obj) {
 	auto as_tuple = obj.attr("as_tuple")();
 
 	py::object exponent = as_tuple.attr("exponent");
@@ -60,13 +65,17 @@ bool PyDecimal::TryGetType(LogicalType &type) {
 	case PyDecimalExponentType::EXPONENT_SCALE: {
 	case PyDecimalExponentType::EXPONENT_POWER: {
 		auto scale = exponent_value;
-		if (exponent_type == PyDecimalExponentType::EXPONENT_SCALE) {
-			scale *= -1;
-		} else if (exponent_type == PyDecimalExponentType::EXPONENT_POWER) {
+		if (exponent_type == PyDecimalExponentType::EXPONENT_POWER) {
 			width += scale;
 		}
-		if (width > Decimal::MAX_WIDTH_INT64) {
-			return false;
+		if (scale > width) {
+			// The value starts with 1 or more zeros, which are optimized out of the 'digits' array
+			// 0.001; width=1, exponent=-3
+			width = scale + 1; // DECIMAL(4,3) - add 1 for the non-decimal values
+		}
+		if (width > Decimal::MAX_WIDTH_INT128) {
+			type = LogicalType::DOUBLE;
+			return true;
 		}
 		type = LogicalType::DECIMAL(width, scale);
 		return true;
@@ -79,16 +88,17 @@ bool PyDecimal::TryGetType(LogicalType &type) {
 		type = LogicalType::FLOAT;
 		return true;
 	}
-	default:
+	default: // LCOV_EXCL_START
 		throw NotImplementedException("case not implemented for type PyDecimalExponentType");
-	}
+	} // LCOV_EXCL_STOP
 	}
 	return true;
 }
-
+// LCOV_EXCL_START
 static void ExponentNotRecognized() {
 	throw NotImplementedException("Failed to convert decimal.Decimal value, exponent type is unknown");
 }
+// LCOV_EXCL_STOP
 
 void PyDecimal::SetExponent(py::handle &exponent) {
 	if (py::isinstance<py::int_>(exponent)) {
@@ -112,53 +122,65 @@ void PyDecimal::SetExponent(py::handle &exponent) {
 			return;
 		}
 	}
+	// LCOV_EXCL_START
 	ExponentNotRecognized();
+	// LCOV_EXCL_STOP
 }
 
-static void UnsupportedWidth(uint16_t width) {
-	throw ConversionException(
-	    "Failed to convert to a DECIMAL value with a width of %d because it exceeds the max supported with of %d",
-	    width, Decimal::MAX_WIDTH_INT64);
+static bool WidthFitsInDecimal(int32_t width) {
+	return width >= 0 && width <= Decimal::MAX_WIDTH_DECIMAL;
+}
+
+template <class OP>
+Value PyDecimalCastSwitch(PyDecimal &decimal, uint8_t width, uint8_t scale) {
+	if (width > DecimalWidth<int64_t>::max) {
+		return OP::template Operation<hugeint_t>(decimal.signed_value, decimal.digits, width, scale);
+	}
+	if (width > DecimalWidth<int32_t>::max) {
+		return OP::template Operation<int64_t>(decimal.signed_value, decimal.digits, width, scale);
+	}
+	if (width > DecimalWidth<int16_t>::max) {
+		return OP::template Operation<int32_t>(decimal.signed_value, decimal.digits, width, scale);
+	}
+	return OP::template Operation<int16_t>(decimal.signed_value, decimal.digits, width, scale);
+}
+
+// Wont fit in a DECIMAL, fall back to DOUBLE
+static Value CastToDouble(py::handle &obj) {
+	string converted = py::str(obj);
+	string_t decimal_string(converted);
+	double double_val;
+	bool try_cast = TryCast::Operation<string_t, double>(decimal_string, double_val, true);
+	(void)try_cast;
+	D_ASSERT(try_cast);
+	return Value::DOUBLE(double_val);
 }
 
 Value PyDecimal::ToDuckValue() {
 	int32_t width = digits.size();
+	if (!WidthFitsInDecimal(width)) {
+		return CastToDouble(obj);
+	}
 	switch (exponent_type) {
 	case PyDecimalExponentType::EXPONENT_SCALE: {
 		uint8_t scale = exponent_value;
-		if (width > Decimal::MAX_WIDTH_INT64) {
-			UnsupportedWidth(width);
+		D_ASSERT(WidthFitsInDecimal(width));
+		if (scale > width) {
+			// Values like '0.001'
+			width = scale + 1; // leave 1 room for the non-decimal value
 		}
-		int64_t value = 0;
-		for (auto it = digits.begin(); it != digits.end(); it++) {
-			value = value * 10 + *it;
+		if (!WidthFitsInDecimal(width)) {
+			return CastToDouble(obj);
 		}
-		if (signed_value) {
-			value = -value;
-		}
-		return Value::DECIMAL(value, width, scale);
+		return PyDecimalCastSwitch<PyDecimalScaleConverter>(*this, width, scale);
 	}
 	case PyDecimalExponentType::EXPONENT_POWER: {
 		uint8_t scale = exponent_value;
 		width += scale;
-		if (width > Decimal::MAX_WIDTH_INT64) {
-			UnsupportedWidth(width);
+		if (!WidthFitsInDecimal(width)) {
+			return CastToDouble(obj);
 		}
-		int64_t value = 0;
-		for (auto &digit : digits) {
-			value = value * 10 + digit;
-		}
-		D_ASSERT(scale >= 0);
-		int64_t multiplier =
-		    NumericHelper::POWERS_OF_TEN[MinValue<uint8_t>(scale, NumericHelper::CACHED_POWERS_OF_TEN - 1)];
-		for (auto power = scale; power > NumericHelper::CACHED_POWERS_OF_TEN; power--) {
-			multiplier *= 10;
-		}
-		value *= multiplier;
-		if (signed_value) {
-			value = -value;
-		}
-		return Value::DECIMAL(value, width, scale);
+		return PyDecimalCastSwitch<PyDecimalPowerConverter>(*this, width, scale);
 	}
 	case PyDecimalExponentType::EXPONENT_NAN: {
 		return Value::FLOAT(NAN);
@@ -166,9 +188,10 @@ Value PyDecimal::ToDuckValue() {
 	case PyDecimalExponentType::EXPONENT_INFINITY: {
 		return Value::FLOAT(INFINITY);
 	}
+	// LCOV_EXCL_START
 	default: {
 		throw NotImplementedException("case not implemented for type PyDecimalExponentType");
-	}
+	} // LCOV_EXCL_STOP
 	}
 }
 
@@ -187,7 +210,7 @@ Value PyTime::ToDuckValue() {
 	auto duckdb_time = this->ToDuckTime();
 	if (this->timezone_obj != Py_None) {
 		auto utc_offset = PyTimezone::GetUTCOffset(this->timezone_obj);
-		//! 'Add' requires a date_t for overflows
+		// 'Add' requires a date_t for overflows
 		date_t ignored_date;
 		utc_offset = Interval::Invert(utc_offset);
 		duckdb_time = Interval::Add(duckdb_time, utc_offset, ignored_date);
@@ -224,7 +247,7 @@ Value PyDateTime::ToDuckValue() {
 	auto timestamp = ToTimestamp();
 	if (tzone_obj != Py_None) {
 		auto utc_offset = PyTimezone::GetUTCOffset(tzone_obj);
-		//! Need to subtract the UTC offset, so we invert the interval
+		// Need to subtract the UTC offset, so we invert the interval
 		utc_offset = Interval::Invert(utc_offset);
 		timestamp = Interval::Add(timestamp, utc_offset);
 	}
@@ -247,6 +270,128 @@ PyDate::PyDate(py::handle &ele) {
 
 Value PyDate::ToDuckValue() {
 	return Value::DATE(year, month, day);
+}
+
+void PythonObject::Initialize() {
+	PyDateTime_IMPORT; // Python datetime initialize #2
+}
+
+py::object PythonObject::FromValue(const Value &val, const LogicalType &type) {
+	auto &import_cache = *DuckDBPyConnection::ImportCache();
+	if (val.IsNull()) {
+		return py::none();
+	}
+	switch (type.id()) {
+	case LogicalTypeId::BOOLEAN:
+		return py::cast(val.GetValue<bool>());
+	case LogicalTypeId::TINYINT:
+		return py::cast(val.GetValue<int8_t>());
+	case LogicalTypeId::SMALLINT:
+		return py::cast(val.GetValue<int16_t>());
+	case LogicalTypeId::INTEGER:
+		return py::cast(val.GetValue<int32_t>());
+	case LogicalTypeId::BIGINT:
+		return py::cast(val.GetValue<int64_t>());
+	case LogicalTypeId::UTINYINT:
+		return py::cast(val.GetValue<uint8_t>());
+	case LogicalTypeId::USMALLINT:
+		return py::cast(val.GetValue<uint16_t>());
+	case LogicalTypeId::UINTEGER:
+		return py::cast(val.GetValue<uint32_t>());
+	case LogicalTypeId::UBIGINT:
+		return py::cast(val.GetValue<uint64_t>());
+	case LogicalTypeId::HUGEINT:
+		return py::cast<py::object>(PyLong_FromString((char *)val.GetValue<string>().c_str(), nullptr, 10));
+	case LogicalTypeId::FLOAT:
+		return py::cast(val.GetValue<float>());
+	case LogicalTypeId::DOUBLE:
+		return py::cast(val.GetValue<double>());
+	case LogicalTypeId::DECIMAL: {
+		return import_cache.decimal.Decimal()(val.ToString());
+	}
+	case LogicalTypeId::ENUM:
+		return py::cast(EnumType::GetValue(val));
+	case LogicalTypeId::JSON:
+	case LogicalTypeId::VARCHAR:
+		return py::cast(StringValue::Get(val));
+	case LogicalTypeId::BLOB:
+		return py::bytes(StringValue::Get(val));
+	case LogicalTypeId::TIMESTAMP:
+	case LogicalTypeId::TIMESTAMP_MS:
+	case LogicalTypeId::TIMESTAMP_NS:
+	case LogicalTypeId::TIMESTAMP_SEC:
+	case LogicalTypeId::TIMESTAMP_TZ: {
+		D_ASSERT(type.InternalType() == PhysicalType::INT64);
+		auto timestamp = val.GetValueUnsafe<timestamp_t>();
+		if (type.id() == LogicalTypeId::TIMESTAMP_MS) {
+			timestamp = Timestamp::FromEpochMs(timestamp.value);
+		} else if (type.id() == LogicalTypeId::TIMESTAMP_NS) {
+			timestamp = Timestamp::FromEpochNanoSeconds(timestamp.value);
+		} else if (type.id() == LogicalTypeId::TIMESTAMP_SEC) {
+			timestamp = Timestamp::FromEpochSeconds(timestamp.value);
+		}
+		int32_t year, month, day, hour, min, sec, micros;
+		date_t date;
+		dtime_t time;
+		Timestamp::Convert(timestamp, date, time);
+		Date::Convert(date, year, month, day);
+		Time::Convert(time, hour, min, sec, micros);
+		return py::cast<py::object>(PyDateTime_FromDateAndTime(year, month, day, hour, min, sec, micros));
+	}
+	case LogicalTypeId::TIME:
+	case LogicalTypeId::TIME_TZ: {
+		D_ASSERT(type.InternalType() == PhysicalType::INT64);
+
+		int32_t hour, min, sec, microsec;
+		auto time = val.GetValueUnsafe<dtime_t>();
+		duckdb::Time::Convert(time, hour, min, sec, microsec);
+		return py::cast<py::object>(PyTime_FromTime(hour, min, sec, microsec));
+	}
+	case LogicalTypeId::DATE: {
+		D_ASSERT(type.InternalType() == PhysicalType::INT32);
+
+		auto date = val.GetValueUnsafe<date_t>();
+		int32_t year, month, day;
+		duckdb::Date::Convert(date, year, month, day);
+		return py::cast<py::object>(PyDate_FromDate(year, month, day));
+	}
+	case LogicalTypeId::LIST: {
+		auto &list_values = ListValue::GetChildren(val);
+
+		py::list list;
+		for (auto &list_elem : list_values) {
+			list.append(FromValue(list_elem, ListType::GetChildType(type)));
+		}
+		return std::move(list);
+	}
+	case LogicalTypeId::MAP:
+	case LogicalTypeId::STRUCT: {
+		auto &struct_values = StructValue::GetChildren(val);
+
+		py::dict py_struct;
+		auto &child_types = StructType::GetChildTypes(type);
+		for (idx_t i = 0; i < struct_values.size(); i++) {
+			auto &child_entry = child_types[i];
+			auto &child_name = child_entry.first;
+			auto &child_type = child_entry.second;
+			py_struct[child_name.c_str()] = FromValue(struct_values[i], child_type);
+		}
+		return std::move(py_struct);
+	}
+	case LogicalTypeId::UUID: {
+		auto uuid_value = val.GetValueUnsafe<hugeint_t>();
+		return py::cast<py::object>(import_cache.uuid.UUID()(UUID::ToString(uuid_value)));
+	}
+	case LogicalTypeId::INTERVAL: {
+		auto interval_value = val.GetValueUnsafe<interval_t>();
+		uint64_t days = duckdb::Interval::DAYS_PER_MONTH * interval_value.months + interval_value.days;
+		return py::cast<py::object>(
+		    import_cache.datetime.timedelta()(py::arg("days") = days, py::arg("microseconds") = interval_value.micros));
+	}
+
+	default:
+		throw NotImplementedException("Unsupported type: \"%s\"", type.ToString());
+	}
 }
 
 } // namespace duckdb

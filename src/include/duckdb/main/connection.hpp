@@ -23,7 +23,7 @@
 
 namespace duckdb {
 
-class ChunkCollection;
+class ColumnDataCollection;
 class ClientContext;
 
 class DatabaseInstance;
@@ -106,8 +106,8 @@ public:
 
 	//! Appends a DataChunk to the specified table
 	DUCKDB_API void Append(TableDescription &description, DataChunk &chunk);
-	//! Appends a ChunkCollection to the specified table
-	DUCKDB_API void Append(TableDescription &description, ChunkCollection &collection);
+	//! Appends a ColumnDataCollection to the specified table
+	DUCKDB_API void Append(TableDescription &description, ColumnDataCollection &collection);
 
 	//! Returns a relation that produces a table from this connection
 	DUCKDB_API shared_ptr<Relation> Table(const string &tname);
@@ -130,12 +130,23 @@ public:
 	//! Reads CSV file
 	DUCKDB_API shared_ptr<Relation> ReadCSV(const string &csv_file);
 	DUCKDB_API shared_ptr<Relation> ReadCSV(const string &csv_file, const vector<string> &columns);
+
+	//! Reads Parquet file
+	DUCKDB_API shared_ptr<Relation> ReadParquet(const string &parquet_file, bool binary_as_string);
 	//! Returns a relation from a query
 	DUCKDB_API shared_ptr<Relation> RelationFromQuery(const string &query, const string &alias = "queryrelation",
 	                                                  const string &error = "Expected a single SELECT statement");
 	DUCKDB_API shared_ptr<Relation> RelationFromQuery(unique_ptr<SelectStatement> select_stmt,
 	                                                  const string &alias = "queryrelation");
 
+	//! Returns a substrait BLOB from a valid query
+	DUCKDB_API string GetSubstrait(const string &query);
+	//! Returns a Query Result from a substrait blob
+	DUCKDB_API unique_ptr<QueryResult> FromSubstrait(const string &proto);
+	//! Returns a substrait BLOB from a valid query
+	DUCKDB_API string GetSubstraitJSON(const string &query);
+	//! Returns a Query Result from a substrait JSON
+	DUCKDB_API unique_ptr<QueryResult> FromSubstraitJSON(const string &json);
 	DUCKDB_API void BeginTransaction();
 	DUCKDB_API void Commit();
 	DUCKDB_API void Rollback();

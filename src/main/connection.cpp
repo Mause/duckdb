@@ -1,18 +1,21 @@
 #include "duckdb/main/connection.hpp"
-#include "duckdb/main/query_profiler.hpp"
-#include "duckdb/main/client_context.hpp"
-#include "duckdb/main/database.hpp"
+
+#include "duckdb/execution/operator/persistent/parallel_csv_reader.hpp"
 #include "duckdb/main/appender.hpp"
+#include "duckdb/main/client_context.hpp"
+#include "duckdb/main/connection_manager.hpp"
+#include "duckdb/main/database.hpp"
+#include "duckdb/main/query_profiler.hpp"
 #include "duckdb/main/relation/query_relation.hpp"
 #include "duckdb/main/relation/read_csv_relation.hpp"
-#include "duckdb/main/relation/table_relation.hpp"
 #include "duckdb/main/relation/table_function_relation.hpp"
+#include "duckdb/main/relation/table_relation.hpp"
 #include "duckdb/main/relation/value_relation.hpp"
 #include "duckdb/main/relation/view_relation.hpp"
-#include "duckdb/execution/operator/persistent/buffered_csv_reader.hpp"
 #include "duckdb/parser/parser.hpp"
-#include "duckdb/main/connection_manager.hpp"
 #include "duckdb/planner/logical_operator.hpp"
+#include "duckdb/common/types/column_data_collection.hpp"
+#include "duckdb/function/table/read_csv.hpp"
 
 namespace duckdb {
 
@@ -74,6 +77,34 @@ unique_ptr<MaterializedQueryResult> Connection::Query(const string &query) {
 	return unique_ptr_cast<QueryResult, MaterializedQueryResult>(move(result));
 }
 
+DUCKDB_API string Connection::GetSubstrait(const string &query) {
+	vector<Value> params;
+	params.emplace_back(query);
+	auto result = TableFunction("get_substrait", params)->Execute();
+	auto protobuf = result->FetchRaw()->GetValue(0, 0);
+	return protobuf.GetValueUnsafe<string_t>().GetString();
+}
+
+DUCKDB_API unique_ptr<QueryResult> Connection::FromSubstrait(const string &proto) {
+	vector<Value> params;
+	params.emplace_back(Value::BLOB_RAW(proto));
+	return TableFunction("from_substrait", params)->Execute();
+}
+
+DUCKDB_API string Connection::GetSubstraitJSON(const string &query) {
+	vector<Value> params;
+	params.emplace_back(query);
+	auto result = TableFunction("get_substrait_json", params)->Execute();
+	auto protobuf = result->FetchRaw()->GetValue(0, 0);
+	return protobuf.GetValueUnsafe<string_t>().GetString();
+}
+
+DUCKDB_API unique_ptr<QueryResult> Connection::FromSubstraitJSON(const string &json) {
+	vector<Value> params;
+	params.emplace_back(json);
+	return TableFunction("from_substrait_json", params)->Execute();
+}
+
 unique_ptr<MaterializedQueryResult> Connection::Query(unique_ptr<SQLStatement> statement) {
 	auto result = context->Query(move(statement), false);
 	D_ASSERT(result->type == QueryResultType::MATERIALIZED_RESULT);
@@ -98,7 +129,7 @@ unique_ptr<PreparedStatement> Connection::Prepare(unique_ptr<SQLStatement> state
 
 unique_ptr<QueryResult> Connection::QueryParamsRecursive(const string &query, vector<Value> &values) {
 	auto statement = Prepare(query);
-	if (!statement->success) {
+	if (statement->HasError()) {
 		return make_unique<MaterializedQueryResult>(statement->error);
 	}
 	return statement->Execute(values, false);
@@ -121,12 +152,15 @@ unique_ptr<LogicalOperator> Connection::ExtractPlan(const string &query) {
 }
 
 void Connection::Append(TableDescription &description, DataChunk &chunk) {
-	ChunkCollection collection(*context);
+	if (chunk.size() == 0) {
+		return;
+	}
+	ColumnDataCollection collection(Allocator::Get(*context), chunk.GetTypes());
 	collection.Append(chunk);
 	Append(description, collection);
 }
 
-void Connection::Append(TableDescription &description, ChunkCollection &collection) {
+void Connection::Append(TableDescription &description, ColumnDataCollection &collection) {
 	context->Append(description, collection);
 }
 
@@ -201,12 +235,19 @@ shared_ptr<Relation> Connection::ReadCSV(const string &csv_file, const vector<st
 	vector<ColumnDefinition> column_list;
 	for (auto &column : columns) {
 		auto col_list = Parser::ParseColumnList(column, context->GetParserOptions());
-		if (col_list.size() != 1) {
+		if (col_list.LogicalColumnCount() != 1) {
 			throw ParserException("Expected a single column definition");
 		}
-		column_list.push_back(move(col_list[0]));
+		column_list.push_back(move(col_list.GetColumnMutable(LogicalIndex(0))));
 	}
 	return make_shared<ReadCSVRelation>(context, csv_file, move(column_list));
+}
+
+shared_ptr<Relation> Connection::ReadParquet(const string &parquet_file, bool binary_as_string) {
+	vector<Value> params;
+	params.emplace_back(parquet_file);
+	named_parameter_map_t named_parameters({{"binary_as_string", Value::BOOLEAN(binary_as_string)}});
+	return TableFunction("parquet_scan", params, named_parameters)->Alias(parquet_file);
 }
 
 unordered_set<string> Connection::GetTableNames(const string &query) {
@@ -223,22 +264,22 @@ shared_ptr<Relation> Connection::RelationFromQuery(unique_ptr<SelectStatement> s
 
 void Connection::BeginTransaction() {
 	auto result = Query("BEGIN TRANSACTION");
-	if (!result->success) {
-		throw Exception(result->error);
+	if (result->HasError()) {
+		result->ThrowError();
 	}
 }
 
 void Connection::Commit() {
 	auto result = Query("COMMIT");
-	if (!result->success) {
-		throw Exception(result->error);
+	if (result->HasError()) {
+		result->ThrowError();
 	}
 }
 
 void Connection::Rollback() {
 	auto result = Query("ROLLBACK");
-	if (!result->success) {
-		throw Exception(result->error);
+	if (result->HasError()) {
+		result->ThrowError();
 	}
 }
 

@@ -6,6 +6,21 @@
 
 namespace duckdb {
 
+void PhysicalSet::SetExtensionVariable(ExecutionContext &context, DBConfig &config,
+                                       ExtensionOption &extension_option) const {
+	auto &target_type = extension_option.type;
+	Value target_value = value.CastAs(context.client, target_type);
+	if (extension_option.set_function) {
+		extension_option.set_function(context.client, scope, target_value);
+	}
+	if (scope == SetScope::GLOBAL) {
+		config.SetOption(name, move(target_value));
+	} else {
+		auto &client_config = ClientConfig::GetConfig(context.client);
+		client_config.set_variables[name] = move(target_value);
+	}
+}
+
 void PhysicalSet::GetData(ExecutionContext &context, DataChunk &chunk, GlobalSourceState &gstate,
                           LocalSourceState &lstate) const {
 	auto option = DBConfig::GetOptionByName(name);
@@ -16,10 +31,7 @@ void PhysicalSet::GetData(ExecutionContext &context, DataChunk &chunk, GlobalSou
 		if (entry == config.extension_parameters.end()) {
 			// it is not!
 			// get a list of all options
-			vector<string> potential_names;
-			for (idx_t i = 0, option_count = DBConfig::GetOptionCount(); i < option_count; i++) {
-				potential_names.emplace_back(DBConfig::GetOptionByIndex(i)->name);
-			}
+			vector<string> potential_names = DBConfig::GetOptionNames();
 			for (auto &entry : config.extension_parameters) {
 				potential_names.push_back(entry.first);
 			}
@@ -27,19 +39,7 @@ void PhysicalSet::GetData(ExecutionContext &context, DataChunk &chunk, GlobalSou
 			throw CatalogException("unrecognized configuration parameter \"%s\"\n%s", name,
 			                       StringUtil::CandidatesErrorMessage(potential_names, name, "Did you mean"));
 		}
-		//! it is!
-		auto &extension_option = entry->second;
-		auto &target_type = extension_option.type;
-		Value target_value = value.CastAs(target_type);
-		if (extension_option.set_function) {
-			extension_option.set_function(context.client, scope, target_value);
-		}
-		if (scope == SetScope::GLOBAL) {
-			config.options.set_variables[name] = move(target_value);
-		} else {
-			auto &client_config = ClientConfig::GetConfig(context.client);
-			client_config.set_variables[name] = move(target_value);
-		}
+		SetExtensionVariable(context, config, entry->second);
 		return;
 	}
 	SetScope variable_scope = scope;
@@ -52,7 +52,7 @@ void PhysicalSet::GetData(ExecutionContext &context, DataChunk &chunk, GlobalSou
 		}
 	}
 
-	Value input = value.CastAs(option->parameter_type);
+	Value input = value.CastAs(context.client, option->parameter_type);
 	switch (variable_scope) {
 	case SetScope::GLOBAL: {
 		if (!option->set_global) {
@@ -60,7 +60,7 @@ void PhysicalSet::GetData(ExecutionContext &context, DataChunk &chunk, GlobalSou
 		}
 		auto &db = DatabaseInstance::GetDatabase(context.client);
 		auto &config = DBConfig::GetConfig(context.client);
-		option->set_global(&db, config, input);
+		config.SetOption(&db, *option, input);
 		break;
 	}
 	case SetScope::SESSION:
