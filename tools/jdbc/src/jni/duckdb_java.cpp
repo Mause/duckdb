@@ -37,7 +37,9 @@ static jclass J_Double;
 static jclass J_String;
 static jclass J_Timestamp;
 static jclass J_Decimal;
+static jclass J_ArrayList;
 
+static jmethodID J_Int_init;
 static jmethodID J_Bool_booleanValue;
 static jmethodID J_Byte_byteValue;
 static jmethodID J_Short_shortValue;
@@ -51,6 +53,9 @@ static jmethodID J_Decimal_scale;
 static jmethodID J_Decimal_scaleByPowTen;
 static jmethodID J_Decimal_toPlainString;
 static jmethodID J_Decimal_longValue;
+
+static jclass J_Arrays;
+static jmethodID J_Arrays_AsList;
 
 static jclass J_DuckResultSetMeta;
 static jmethodID J_DuckResultSetMeta_init;
@@ -106,9 +111,21 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {
 	tmpLocalRef = env->FindClass("java/lang/Short");
 	J_Short = (jclass)env->NewGlobalRef(tmpLocalRef);
 	env->DeleteLocalRef(tmpLocalRef);
+
 	tmpLocalRef = env->FindClass("java/lang/Integer");
 	J_Int = (jclass)env->NewGlobalRef(tmpLocalRef);
 	env->DeleteLocalRef(tmpLocalRef);
+
+	tmpLocalRef = env->FindClass("java/util/Arrays$ArrayList");
+	J_ArrayList = (jclass)env->NewGlobalRef(tmpLocalRef);
+	env->DeleteLocalRef(tmpLocalRef);
+
+	tmpLocalRef = env->FindClass("java/util/Arrays");
+	J_Arrays = (jclass)env->NewGlobalRef(tmpLocalRef);
+	env->DeleteLocalRef(tmpLocalRef);
+
+	J_Arrays_AsList = env->GetStaticMethodID(J_Arrays, "asList", "([Ljava/lang/Object;)Ljava/util/List;");
+
 	tmpLocalRef = env->FindClass("java/lang/Long");
 	J_Long = (jclass)env->NewGlobalRef(tmpLocalRef);
 	env->DeleteLocalRef(tmpLocalRef);
@@ -145,6 +162,8 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {
 	J_Entry_getKey = env->GetMethodID(tmpLocalRef, "getKey", "()Ljava/lang/Object;");
 	J_Entry_getValue = env->GetMethodID(tmpLocalRef, "getValue", "()Ljava/lang/Object;");
 	env->DeleteLocalRef(tmpLocalRef);
+
+	J_Int_init = env->GetMethodID(J_Int, "<init>", "(I)V");
 
 	J_Bool_booleanValue = env->GetMethodID(J_Bool, "booleanValue", "()Z");
 	J_Byte_byteValue = env->GetMethodID(J_Byte, "byteValue", "()B");
@@ -758,6 +777,33 @@ JNIEXPORT jobjectArray JNICALL Java_org_duckdb_DuckDBNative_duckdb_1jdbc_1fetch(
 				env->SetObjectArrayElement(varlen_data, row_idx, j_obj);
 			}
 			break;
+		case LogicalTypeId::LIST:
+			varlen_data = env->NewObjectArray(row_count, J_ArrayList, nullptr);
+
+			for (idx_t row_idx = 0; row_idx < row_count; row_idx++) {
+				if (FlatVector::IsNull(vec, row_idx)) {
+					continue;
+				}
+
+				auto typ = J_Int;
+				auto lst = vec.GetValue(row_idx);
+				auto &children = ListValue::GetChildren(lst);
+
+				auto j_obj = env->NewObjectArray(children.size(), typ, nullptr);
+				// TODO: populate data into array
+
+				for (idx_t i = 0; i < children.size(); i++) {
+					auto inte = children[i].GetValue<int32_t>();
+					auto j_inte = env->NewObject(J_Int, J_Int_init, inte);
+					env->SetObjectArrayElement(j_obj, i, j_inte);
+				}
+
+				auto j_list = env->CallObjectMethod(J_Arrays, J_Arrays_AsList, j_obj);
+
+				env->SetObjectArrayElement(varlen_data, row_idx, j_list);
+			}
+			break;
+
 		default:
 			env->ThrowNew(J_SQLException, ("Unsupported result column type " + vec.GetType().ToString()).c_str());
 			return nullptr;

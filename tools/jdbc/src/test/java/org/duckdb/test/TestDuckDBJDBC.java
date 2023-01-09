@@ -2499,6 +2499,39 @@ public class TestDuckDBJDBC {
 		assertTrue(p.containsKey("duckdb.read_only"));
 	}
 
+	public static void test_lists() throws Exception {
+		DuckDBConnection conn =
+				(DuckDBConnection)DriverManager.getConnection("jdbc:duckdb:");
+
+		try (Statement stmt = conn.createStatement()) {
+			ResultSet rs = stmt.executeQuery("select list_value(1, 2, 3)");
+
+			rs.next();
+
+			Object[] arr = (Object[])rs.getArray(1).getArray();
+
+			assertEquals(Arrays.asList(arr), Arrays.asList(1, 2, 3));
+		}
+	}
+
+// public void test_structs() throws SQLException {
+// 	DuckDBConnection conn = (DuckDBConnection)
+// DriverManager.getConnection("jdbc:duckdb:");
+
+// 	try (Statement stmt = conn.createStatement()) {
+// 		stmt.execute("SELECT {'x': 1, 'y': 2, 'z': 3}");
+// 	}
+// }
+
+// public void test_maps() throws SQLException {
+// 	DuckDBConnection conn = (DuckDBConnection)
+// DriverManager.getConnection("jdbc:duckdb:");
+
+// 	try (Statement stmt = conn.createStatement()) {
+// 		stmt.execute("select map([1, 5], ['a', 'e'])");
+// 	}
+// }
+
 	public static void main(String[] args) throws Exception {
 		// Woo I can do reflection too, take this, JUnit!
 		Method[] methods = TestDuckDBJDBC.class.getMethods();
