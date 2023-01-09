@@ -792,6 +792,8 @@ JNIEXPORT jobjectArray JNICALL Java_org_duckdb_DuckDBNative_duckdb_1jdbc_1fetch(
 				auto j_obj = env->NewObjectArray(children.size(), typ, nullptr);
 				// TODO: populate data into array
 
+				Vector vector(ListType::GetChildType(vec.GetType()));
+
 				for (idx_t i = 0; i < children.size(); i++) {
 					auto inte = children[i].GetValue<int32_t>();
 					auto j_inte = env->NewObject(J_Int, J_Int_init, inte);
