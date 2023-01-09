@@ -26,15 +26,15 @@ import java.sql.Statement;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.sql.Types;
+import java.util.Calendar;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
-import java.util.Calendar;
-import java.util.logging.Level;
+
 import java.util.logging.Logger;
+import java.util.logging.Level;
 
 public class DuckDBPreparedStatement implements PreparedStatement {
-	private static Logger logger =
-	    Logger.getLogger(DuckDBPreparedStatement.class.getName());
+	private static Logger logger = Logger.getLogger(DuckDBPreparedStatement.class.getName());
 
 	private DuckDBConnection conn;
 
@@ -54,8 +54,7 @@ public class DuckDBPreparedStatement implements PreparedStatement {
 		this.conn = conn;
 	}
 
-	public DuckDBPreparedStatement(DuckDBConnection conn, String sql)
-	    throws SQLException {
+	public DuckDBPreparedStatement(DuckDBConnection conn, String sql) throws SQLException {
 		if (conn == null) {
 			throw new SQLException("connection parameter cannot be null");
 		}
@@ -67,7 +66,8 @@ public class DuckDBPreparedStatement implements PreparedStatement {
 	}
 
 	private void startTransaction() throws SQLException {
-		if (this.conn.autoCommit || this.conn.transactionRunning) {
+		if (this.conn.autoCommit
+			|| this.conn.transactionRunning) {
 			return;
 		}
 
@@ -100,8 +100,7 @@ public class DuckDBPreparedStatement implements PreparedStatement {
 		update_result = 0;
 
 		try {
-			stmt_ref = DuckDBNative.duckdb_jdbc_prepare(
-			    conn.conn_ref, sql.getBytes(StandardCharsets.UTF_8));
+			stmt_ref = DuckDBNative.duckdb_jdbc_prepare(conn.conn_ref, sql.getBytes(StandardCharsets.UTF_8));
 			meta = DuckDBNative.duckdb_jdbc_meta(stmt_ref);
 			params = new Object[0];
 			returnsResultSet = meta.return_type.equals(StatementReturnType.QUERY_RESULT);
@@ -131,12 +130,14 @@ public class DuckDBPreparedStatement implements PreparedStatement {
 			startTransaction();
 			result_ref = DuckDBNative.duckdb_jdbc_execute(stmt_ref, params);
 			select_result = new DuckDBResultSet(this, meta, result_ref);
-		} catch (SQLException e) {
-			// Delete stmt_ref as it cannot be used anymore and
+		}
+		catch (SQLException e) {
+			// Delete stmt_ref as it cannot be used anymore and 
 			// result_ref as it might be allocated
 			if (select_result != null) {
 				select_result.close();
-			} else if (result_ref != null) {
+			}
+			else if (result_ref != null) {
 				result_ref = null;
 			}
 			close();
@@ -148,8 +149,7 @@ public class DuckDBPreparedStatement implements PreparedStatement {
 	@Override
 	public ResultSet executeQuery() throws SQLException {
 		if (!returnsResultSet) {
-			throw new SQLException(
-			    "executeQuery() can only be used with queries that return a ResultSet");
+			throw new SQLException("executeQuery() can only be used with queries that return a ResultSet");
 		}
 		execute();
 		return getResultSet();
@@ -158,8 +158,7 @@ public class DuckDBPreparedStatement implements PreparedStatement {
 	@Override
 	public int executeUpdate() throws SQLException {
 		if (!(returnsChangedRows || returnsNothing)) {
-			throw new SQLException(
-			    "executeUpdate() can only be used with queries that return nothing (eg, a DDL statement), or update rows");
+			throw new SQLException("executeUpdate() can only be used with queries that return nothing (eg, a DDL statement), or update rows");
 		}
 		execute();
 		update_result = 0;
@@ -213,8 +212,7 @@ public class DuckDBPreparedStatement implements PreparedStatement {
 
 	@Override
 	public void setObject(int parameterIndex, Object x) throws SQLException {
-		if (parameterIndex < 1 ||
-		    parameterIndex > getParameterMetaData().getParameterCount()) {
+		if (parameterIndex < 1 || parameterIndex > getParameterMetaData().getParameterCount()) {
 			throw new SQLException("Parameter index out of bounds");
 		}
 		if (params.length == 0) {
@@ -224,9 +222,9 @@ public class DuckDBPreparedStatement implements PreparedStatement {
 		if (x instanceof Timestamp) {
 			x = new DuckDBTimestamp((Timestamp)x);
 		} else if (x instanceof LocalDateTime) {
-			x = new DuckDBTimestamp((LocalDateTime)x);
+			x = new DuckDBTimestamp((LocalDateTime) x);
 		} else if (x instanceof OffsetDateTime) {
-			x = new DuckDBTimestamp((OffsetDateTime)x);
+			x = new DuckDBTimestamp((OffsetDateTime) x);
 		}
 		params[parameterIndex - 1] = x;
 	}
@@ -293,7 +291,9 @@ public class DuckDBPreparedStatement implements PreparedStatement {
 		conn = null; // we use this as a check for closed-ness
 	}
 
-	protected void finalize() throws Throwable { close(); }
+	protected void finalize() throws Throwable {
+		close();
+	}
 
 	@Override
 	public int getMaxFieldSize() throws SQLException {
@@ -311,10 +311,12 @@ public class DuckDBPreparedStatement implements PreparedStatement {
 	}
 
 	@Override
-	public void setMaxRows(int max) throws SQLException {}
+	public void setMaxRows(int max) throws SQLException {
+	}
 
 	@Override
-	public void setEscapeProcessing(boolean enable) throws SQLException {}
+	public void setEscapeProcessing(boolean enable) throws SQLException {
+	}
 
 	@Override
 	public int getQueryTimeout() throws SQLException {
@@ -337,7 +339,8 @@ public class DuckDBPreparedStatement implements PreparedStatement {
 	}
 
 	@Override
-	public void clearWarnings() throws SQLException {}
+	public void clearWarnings() throws SQLException {
+	}
 
 	@Override
 	public void setCursorName(String name) throws SQLException {
@@ -393,7 +396,8 @@ public class DuckDBPreparedStatement implements PreparedStatement {
 	}
 
 	@Override
-	public void setFetchSize(int rows) throws SQLException {}
+	public void setFetchSize(int rows) throws SQLException {
+	}
 
 	@Override
 	public int getFetchSize() throws SQLException {
@@ -529,8 +533,7 @@ public class DuckDBPreparedStatement implements PreparedStatement {
 	}
 
 	@Override
-	public void setTimestamp(int parameterIndex, Timestamp x)
-	    throws SQLException {
+	public void setTimestamp(int parameterIndex, Timestamp x) throws SQLException {
 		setObject(parameterIndex, x);
 	}
 
@@ -550,8 +553,7 @@ public class DuckDBPreparedStatement implements PreparedStatement {
 	}
 
 	@Override
-	public void setObject(int parameterIndex, Object x, int targetSqlType)
-	    throws SQLException {
+	public void setObject(int parameterIndex, Object x, int targetSqlType) throws SQLException {
 		if (x == null) {
 			setNull(parameterIndex, targetSqlType);
 			return;
@@ -562,68 +564,63 @@ public class DuckDBPreparedStatement implements PreparedStatement {
 			if (x instanceof Boolean) {
 				setObject(parameterIndex, x);
 			} else if (x instanceof Number) {
-				setObject(parameterIndex, ((Number)x).byteValue() == 1);
+				setObject(parameterIndex, ((Number) x).byteValue() == 1);
 			} else if (x instanceof String) {
-				setObject(parameterIndex, Boolean.parseBoolean((String)x));
+				setObject(parameterIndex, Boolean.parseBoolean((String) x));
 			} else {
-				throw new SQLException("Can't convert value to boolean " +
-				                       x.getClass().toString());
+				throw new SQLException("Can't convert value to boolean " + x.getClass().toString());
 			}
 			break;
 		case Types.TINYINT:
 			if (x instanceof Byte) {
 				setObject(parameterIndex, x);
 			} else if (x instanceof Number) {
-				setObject(parameterIndex, ((Number)x).byteValue());
+				setObject(parameterIndex, ((Number) x).byteValue());
 			} else if (x instanceof String) {
-				setObject(parameterIndex, Byte.parseByte((String)x));
+				setObject(parameterIndex, Byte.parseByte((String) x));
 			} else if (x instanceof Boolean) {
-				setObject(parameterIndex, (byte)(((Boolean)x) ? 1 : 0));
+				setObject(parameterIndex, (byte) (((Boolean) x) ? 1 : 0));
 			} else {
-				throw new SQLException("Can't convert value to byte " +
-				                       x.getClass().toString());
+				throw new SQLException("Can't convert value to byte " + x.getClass().toString());
 			}
 			break;
 		case Types.SMALLINT:
 			if (x instanceof Short) {
 				setObject(parameterIndex, x);
 			} else if (x instanceof Number) {
-				setObject(parameterIndex, ((Number)x).shortValue());
+				setObject(parameterIndex, ((Number) x).shortValue());
 			} else if (x instanceof String) {
-				setObject(parameterIndex, Short.parseShort((String)x));
+				setObject(parameterIndex, Short.parseShort((String) x));
 			} else if (x instanceof Boolean) {
-				setObject(parameterIndex, (short)(((Boolean)x) ? 1 : 0));
+				setObject(parameterIndex, (short) (((Boolean) x) ? 1 : 0));
 			} else {
-				throw new SQLException("Can't convert value to short " +
-				                       x.getClass().toString());
+				throw new SQLException("Can't convert value to short " + x.getClass().toString());
 			}
 			break;
 		case Types.INTEGER:
 			if (x instanceof Integer) {
 				setObject(parameterIndex, x);
 			} else if (x instanceof Number) {
-				setObject(parameterIndex, ((Number)x).intValue());
+				setObject(parameterIndex, ((Number) x).intValue());
 			} else if (x instanceof String) {
-				setObject(parameterIndex, Integer.parseInt((String)x));
+				setObject(parameterIndex, Integer.parseInt((String) x));
 			} else if (x instanceof Boolean) {
-				setObject(parameterIndex, (int)(((Boolean)x) ? 1 : 0));
+				setObject(parameterIndex, (int) (((Boolean) x) ? 1 : 0));
 			} else {
-				throw new SQLException("Can't convert value to int " +
-				                       x.getClass().toString());
+				throw new SQLException("Can't convert value to int " + x.getClass().toString());
 			}
 			break;
 		case Types.BIGINT:
 			if (x instanceof Long) {
 				setObject(parameterIndex, x);
 			} else if (x instanceof Number) {
-				setObject(parameterIndex, ((Number)x).longValue());
+				setObject(parameterIndex, ((Number) x).longValue());
 			} else if (x instanceof String) {
-				setObject(parameterIndex, Long.parseLong((String)x));
+				setObject(parameterIndex, Long.parseLong((String) x));
 			} else if (x instanceof Boolean) {
-				setObject(parameterIndex, (long)(((Boolean)x) ? 1 : 0));
+				setObject(parameterIndex, (long) (((Boolean) x) ? 1 : 0));
 			} else {
-				throw new SQLException("Can't convert value to long " +
-				                       x.getClass().toString());
+				throw new SQLException("Can't convert value to long " + x.getClass().toString());
 			}
 			break;
 		case Types.REAL:
@@ -631,26 +628,24 @@ public class DuckDBPreparedStatement implements PreparedStatement {
 			if (x instanceof Float) {
 				setObject(parameterIndex, x);
 			} else if (x instanceof Number) {
-				setObject(parameterIndex, ((Number)x).floatValue());
+				setObject(parameterIndex, ((Number) x).floatValue());
 			} else if (x instanceof String) {
-				setObject(parameterIndex, Float.parseFloat((String)x));
+				setObject(parameterIndex, Float.parseFloat((String) x));
 			} else if (x instanceof Boolean) {
-				setObject(parameterIndex, (float)(((Boolean)x) ? 1 : 0));
+				setObject(parameterIndex, (float) (((Boolean) x) ? 1 : 0));
 			} else {
-				throw new SQLException("Can't convert value to float " +
-				                       x.getClass().toString());
+				throw new SQLException("Can't convert value to float " + x.getClass().toString());
 			}
 			break;
 		case Types.DECIMAL:
 			if (x instanceof BigDecimal) {
 				setObject(parameterIndex, x);
 			} else if (x instanceof Double) {
-				setObject(parameterIndex, new BigDecimal((Double)x));
+				setObject(parameterIndex, new BigDecimal((Double) x));
 			} else if (x instanceof String) {
-				setObject(parameterIndex, new BigDecimal((String)x));
+				setObject(parameterIndex, new BigDecimal((String) x));
 			} else {
-				throw new SQLException("Can't convert value to double " +
-				                       x.getClass().toString());
+				throw new SQLException("Can't convert value to double " + x.getClass().toString());
 			}
 			break;
 		case Types.NUMERIC:
@@ -658,21 +653,20 @@ public class DuckDBPreparedStatement implements PreparedStatement {
 			if (x instanceof Double) {
 				setObject(parameterIndex, x);
 			} else if (x instanceof Number) {
-				setObject(parameterIndex, ((Number)x).doubleValue());
+				setObject(parameterIndex, ((Number) x).doubleValue());
 			} else if (x instanceof String) {
-				setObject(parameterIndex, Double.parseDouble((String)x));
+				setObject(parameterIndex, Double.parseDouble((String) x));
 			} else if (x instanceof Boolean) {
-				setObject(parameterIndex, (double)(((Boolean)x) ? 1 : 0));
+				setObject(parameterIndex, (double) (((Boolean) x) ? 1 : 0));
 			} else {
-				throw new SQLException("Can't convert value to double " +
-				                       x.getClass().toString());
+				throw new SQLException("Can't convert value to double " + x.getClass().toString());
 			}
 			break;
 		case Types.CHAR:
 		case Types.LONGVARCHAR:
 		case Types.VARCHAR:
 			if (x instanceof String) {
-				setObject(parameterIndex, (String)x);
+				setObject(parameterIndex, (String) x);
 			} else {
 				setObject(parameterIndex, x.toString());
 			}
@@ -686,8 +680,7 @@ public class DuckDBPreparedStatement implements PreparedStatement {
 			} else if (x instanceof OffsetDateTime) {
 				setObject(parameterIndex, x);
 			} else {
-				throw new SQLException("Can't convert value to timestamp " +
-				                       x.getClass().toString());
+				throw new SQLException("Can't convert value to timestamp " + x.getClass().toString());
 			}
 			break;
 		default:
@@ -706,8 +699,7 @@ public class DuckDBPreparedStatement implements PreparedStatement {
 	}
 
 	@Override
-	public void setBigDecimal(int parameterIndex, BigDecimal x)
-	    throws SQLException {
+	public void setBigDecimal(int parameterIndex, BigDecimal x) throws SQLException {
 		setObject(parameterIndex, x);
 	}
 
@@ -797,8 +789,7 @@ public class DuckDBPreparedStatement implements PreparedStatement {
 	}
 
 	@Override
-	public void setObject(int parameterIndex, Object x, int targetSqlType,
-	                      int scaleOrLength) throws SQLException {
+	public void setObject(int parameterIndex, Object x, int targetSqlType, int scaleOrLength) throws SQLException {
 		setObject(parameterIndex, x, targetSqlType);
 	}
 
@@ -851,4 +842,5 @@ public class DuckDBPreparedStatement implements PreparedStatement {
 	public void setNClob(int parameterIndex, Reader reader) throws SQLException {
 		throw new SQLFeatureNotSupportedException("setNClob");
 	}
+
 }
