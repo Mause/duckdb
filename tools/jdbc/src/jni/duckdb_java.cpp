@@ -798,7 +798,7 @@ jobject ProcessVector(JNIEnv *env, Vector &vec, uint32_t row_count) {
 		}
 		break;
 	case LogicalTypeId::STRUCT:
-		varlen_data = env->NewObjectArray(row_count, J_DuckVector, nullptr);
+		varlen_data = env->NewObjectArray(row_count, J_HashMap, nullptr);
 		for (idx_t row_idx = 0; row_idx < row_count; row_idx++) {
 			if (FlatVector::IsNull(vec, row_idx)) {
 				continue;
