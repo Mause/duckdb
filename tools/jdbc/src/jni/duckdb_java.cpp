@@ -778,11 +778,11 @@ jobject ProcessVector(JNIEnv *env, Vector& vec, uint32_t row_count) {
 						}
 						auto lst = vec.GetValue(row_idx);
 						auto &children = ListValue::GetChildren(lst);
-						Vector vector(ListType::GetChildType(vec.GetType()));
+						auto vector = new Vector(ListType::GetChildType(vec.GetType()));
 						for (idx_t i = 0; i < children.size(); i++) {
-								vector.SetValue(i, children[i]);
+								vector->SetValue(i, children[i]);
 						}
-						auto j_obj = ProcessVector(env, vector, children.size());
+						auto j_obj = ProcessVector(env, *vector, children.size());
 						env->SetObjectArrayElement(varlen_data, row_idx, j_obj);
 				}
 				break;
