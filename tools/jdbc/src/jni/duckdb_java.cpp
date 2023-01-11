@@ -140,7 +140,7 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {
 	tmpLocalRef = env->FindClass("java/util/HashMap");
 	J_HashMap = (jclass)env->NewGlobalRef(tmpLocalRef);
 	env->DeleteLocalRef(tmpLocalRef);
-	J_Map_put = env->GetMethodID(J_HashMap, "<init>", "()V");
+	J_HashMap_init = env->GetMethodID(J_HashMap, "<init>", "()V");
 
 	tmpLocalRef = env->FindClass("java/util/Set");
 	J_Set_iterator = env->GetMethodID(tmpLocalRef, "iterator", "()Ljava/util/Iterator;");
