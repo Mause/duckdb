@@ -67,14 +67,14 @@ public class DuckDBVector<T> implements Collection<T> {
 		};
 	}
 
-	public Object getObject(int columnIndex) {
+	public Object getObject(int i) {
 		DuckDBColumnType type = DuckDBResultSetMetaData.TypeNameToType(duckdb_type);
 		switch (type) {
 			case INTEGER:
 				return getInt(i);
 			case VARCHAR:
 				return getLazyString(i);
-			case SHORT:
+			case UTINYINT:
 				return getShort(i);
 			default:
 				throw new IllegalStateException(String.format("unsupported list type: %s", duckdb_type));
