@@ -638,6 +638,8 @@ JNIEXPORT jobject JNICALL Java_org_duckdb_DuckDBNative_duckdb_1jdbc_1meta(JNIEnv
 	                      name_array, type_array, type_detail_array, return_type);
 }
 
+jobject ProcessVector(JNIEnv *env, Vector& vec, uint32_t row_count);
+
 JNIEXPORT jobjectArray JNICALL Java_org_duckdb_DuckDBNative_duckdb_1jdbc_1fetch(JNIEnv *env, jclass,
                                                                                 jobject res_ref_buf) {
 	auto res_ref = (ResultHolder *)env->GetDirectBufferAddress(res_ref_buf);
@@ -655,6 +657,16 @@ JNIEXPORT jobjectArray JNICALL Java_org_duckdb_DuckDBNative_duckdb_1jdbc_1fetch(
 
 	for (idx_t col_idx = 0; col_idx < res_ref->chunk->ColumnCount(); col_idx++) {
 		auto &vec = res_ref->chunk->data[col_idx];
+
+		auto jvec = ProcessVector(env, vec, row_count);
+
+		env->SetObjectArrayElement(vec_array, col_idx, jvec);
+	}
+
+	return vec_array;
+}
+
+jobject ProcessVector(JNIEnv *env, Vector& vec, uint32_t row_count) {
 		auto type_str = env->NewStringUTF(vec.GetType().ToString().c_str());
 		// construct nullmask
 		auto null_array = env->NewBooleanArray(row_count);
@@ -778,31 +790,25 @@ JNIEXPORT jobjectArray JNICALL Java_org_duckdb_DuckDBNative_duckdb_1jdbc_1fetch(
 			}
 			break;
 		case LogicalTypeId::LIST:
-			varlen_data = env->NewObjectArray(row_count, J_ArrayList, nullptr);
+			varlen_data = env->NewObjectArray(row_count, J_DuckVector, nullptr);
 
 			for (idx_t row_idx = 0; row_idx < row_count; row_idx++) {
 				if (FlatVector::IsNull(vec, row_idx)) {
 					continue;
 				}
 
-				auto typ = J_Int;
 				auto lst = vec.GetValue(row_idx);
 				auto &children = ListValue::GetChildren(lst);
-
-				auto j_obj = env->NewObjectArray(children.size(), typ, nullptr);
-				// TODO: populate data into array
 
 				Vector vector(ListType::GetChildType(vec.GetType()));
 
 				for (idx_t i = 0; i < children.size(); i++) {
-					auto inte = children[i].GetValue<int32_t>();
-					auto j_inte = env->NewObject(J_Int, J_Int_init, inte);
-					env->SetObjectArrayElement(j_obj, i, j_inte);
+					vector.SetValue(i, children[i]);
 				}
 
-				auto j_list = env->CallObjectMethod(J_Arrays, J_Arrays_AsList, j_obj);
+				auto j_obj = ProcessVector(env, vector, children.size());
 
-				env->SetObjectArrayElement(varlen_data, row_idx, j_list);
+				env->SetObjectArrayElement(varlen_data, row_idx, j_obj);
 			}
 			break;
 
@@ -814,10 +820,7 @@ JNIEXPORT jobjectArray JNICALL Java_org_duckdb_DuckDBNative_duckdb_1jdbc_1fetch(
 		env->SetObjectField(jvec, J_DuckVector_constlen, constlen_data);
 		env->SetObjectField(jvec, J_DuckVector_varlen, varlen_data);
 
-		env->SetObjectArrayElement(vec_array, col_idx, jvec);
-	}
-
-	return vec_array;
+		return jvec;
 }
 
 JNIEXPORT jint JNICALL Java_org_duckdb_DuckDBNative_duckdb_1jdbc_1fetch_1size(JNIEnv *, jclass) {
