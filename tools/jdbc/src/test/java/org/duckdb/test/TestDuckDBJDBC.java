@@ -2505,6 +2505,9 @@ public class TestDuckDBJDBC {
 	public static void test_decimal_lists() throws Exception {
 		check_list("1.5, 2.5, 3.5", 1, 2, 3);
 	}
+	public static void test_string_lists() throws Exception {
+		check_list("'hello', 'world'", "hello", "world");
+	}
 
 	private static void check_list(String expr, Object... expected) throws Exception {
 		Connection conn = DriverManager.getConnection("jdbc:duckdb:");
