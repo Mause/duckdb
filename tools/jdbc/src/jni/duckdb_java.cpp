@@ -59,10 +59,14 @@ static jclass J_DuckVector;
 static jmethodID J_DuckVector_init;
 static jfieldID J_DuckVector_constlen;
 static jfieldID J_DuckVector_varlen;
+static jmethodID J_DuckVector_getObject;
 
 static jclass J_ByteBuffer;
 
+static jclass J_HashMap;
+static jmethodID J_HashMap_init;
 static jmethodID J_Map_entrySet;
+static jmethodID J_Map_put;
 static jmethodID J_Set_iterator;
 static jmethodID J_Iterator_hasNext;
 static jmethodID J_Iterator_next;
@@ -130,7 +134,13 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {
 
 	tmpLocalRef = env->FindClass("java/util/Map");
 	J_Map_entrySet = env->GetMethodID(tmpLocalRef, "entrySet", "()Ljava/util/Set;");
+	J_Map_put = env->GetMethodID(tmpLocalRef, "put", "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;");
 	env->DeleteLocalRef(tmpLocalRef);
+
+	tmpLocalRef = env->FindClass("java/util/HashMap");
+	J_HashMap = (jclass)env->NewGlobalRef(tmpLocalRef);
+	env->DeleteLocalRef(tmpLocalRef);
+	J_Map_put = env->GetMethodID(J_HashMap, "<init>", "()V");
 
 	tmpLocalRef = env->FindClass("java/util/Set");
 	J_Set_iterator = env->GetMethodID(tmpLocalRef, "iterator", "()Ljava/util/Iterator;");
@@ -177,6 +187,7 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {
 	J_DuckVector_init = env->GetMethodID(J_DuckVector, "<init>", "(Ljava/lang/String;I[Z)V");
 	J_DuckVector_constlen = env->GetFieldID(J_DuckVector, "constlen_data", "Ljava/nio/ByteBuffer;");
 	J_DuckVector_varlen = env->GetFieldID(J_DuckVector, "varlen_data", "[Ljava/lang/Object;");
+	J_DuckVector_getObject = env->GetFieldID(J_DuckVector, "getObject", "(I)Ljava/lang/Object;");
 
 	tmpLocalRef = env->FindClass("java/nio/ByteBuffer");
 	J_ByteBuffer = (jclass)env->NewGlobalRef(tmpLocalRef);
@@ -786,6 +797,32 @@ jobject ProcessVector(JNIEnv *env, Vector& vec, uint32_t row_count) {
 						env->SetObjectArrayElement(varlen_data, row_idx, j_obj);
 				}
 				break;
+		case LogicalTypeId::STRUCT:
+				varlen_data = env->NewObjectArray(row_count, J_DuckVector, nullptr);
+				for (idx_t row_idx = 0; row_idx < row_count; row_idx++) {
+					if (FlatVector::IsNull(vec, row_idx)) {
+						continue;
+					}
+					auto val = vec.GetValue(row_idx);
+
+					auto &struct_values = StructValue::GetChildren(val);
+
+					auto py_struct = env->NewObject(J_HashMap, J_HashMap_init);
+					auto &child_types = StructType::GetChildTypes(vec.GetType());
+					for (idx_t i = 0; i < struct_values.size(); i++) {
+						auto &child_entry = child_types[i];
+						auto &child_name = child_entry.first;
+						auto &child_type = child_entry.second;
+
+						Vector vector(child_type);
+						auto jobj = ProcessVector(env, vector, 1);
+						auto value = env->CallObjectMethod(J_DuckVector, J_DuckVector_getObject, jobj, 0);
+
+						env->CallObjectMethod(py_struct, J_Map_put, env->NewStringUTF(child_name.c_str()), value);
+					}
+
+					env->SetObjectArrayElement(varlen_data, row_idx, py_struct);
+				}
 		default:
 			env->ThrowNew(J_SQLException, ("Unsupported result column type " + vec.GetType().ToString()).c_str());
 			return nullptr;
