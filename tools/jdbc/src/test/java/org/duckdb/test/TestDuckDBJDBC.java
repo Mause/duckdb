@@ -2499,18 +2499,24 @@ public class TestDuckDBJDBC {
 		assertTrue(p.containsKey("duckdb.read_only"));
 	}
 
-	public static void test_lists() throws Exception {
-		DuckDBConnection conn =
-				(DuckDBConnection)DriverManager.getConnection("jdbc:duckdb:");
+	public static void test_integer_lists() throws Exception {
+		check_list("1, 2, 3", 1, 2, 3);
+	}
+	public static void test_decimal_lists() throws Exception {
+		check_list("1.5, 2.5, 3.5", 1, 2, 3);
+	}
+
+	private static void check_list(String expr, Object... expected) throws Exception {
+		Connection conn = DriverManager.getConnection("jdbc:duckdb:");
 
 		try (Statement stmt = conn.createStatement()) {
-			ResultSet rs = stmt.executeQuery("select list_value(1, 2, 3)");
+			ResultSet rs = stmt.executeQuery("select list_value("+expr+")");
 
 			rs.next();
 
 			Object[] arr = (Object[])rs.getArray(1).getArray();
 
-			assertEquals(Arrays.asList(arr), Arrays.asList(1, 2, 3));
+			assertEquals(Arrays.asList(arr), Arrays.asList(expected));
 		}
 	}
 
