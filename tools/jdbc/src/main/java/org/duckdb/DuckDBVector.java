@@ -43,20 +43,11 @@ public class DuckDBVector<T> implements Collection<T> {
 		throw new UnsupportedOperationException();
 	}
 
-	private void precondition(boolean condition, String message) {
-		if (!condition) {
-			throw new IllegalStateException(message);
-		}
-	}
-	private int getInt(int columnIndex) {
-		return getbuf(columnIndex, 4).getInt();
-	}
 	public Object[] toArray() {
-		precondition(duckdb_type.equals("INTEGER"), "only supportng integers for now");
 
 		Object[] data = new Object[length];
-		for (int j=0; j<length; j++) {
-			data[j] = getInt(j);			
+		for (int i = 0; i < length; i++) {
+			data[i] = getObject(i);
 		}
 
 		return data;
@@ -74,5 +65,31 @@ public class DuckDBVector<T> implements Collection<T> {
 			public boolean hasNext() { return length < index; }
 			public T next() { return (T)varlen_data[index++]; }
 		};
+	}
+
+	public Object getObject(int columnIndex) {
+		DuckDBColumnType type = DuckDBResultSetMetaData.TypeNameToType(duckdb_type);
+		switch (type) {
+			case INTEGER:
+				return getInt(i);
+			case VARCHAR:
+				return getLazyString(i);
+			case SHORT:
+				return getShort(i);
+			default:
+				throw new IllegalStateException(String.format("unsupported list type: %s", duckdb_type));
+		}
+	}
+
+	public String getLazyString(int columnIndex) {
+		return (String) varlen_data[columnIndex];
+	}
+
+	public int getInt(int columnIndex) {
+		return getbuf(columnIndex, 4).getInt();
+	}
+
+	public short getShort(int columnIndex) {
+		return getbuf(columnIndex, 2).getShort();
 	}
 }
