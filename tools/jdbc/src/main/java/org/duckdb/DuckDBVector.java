@@ -19,10 +19,10 @@ public class DuckDBVector<T> implements Collection<T> {
 	protected ByteBuffer constlen_data = null;
 	protected Object[] varlen_data = null;
 
-	protected ByteBuffer getbuf(int chunk_idx, int typeWidth) {
+	protected ByteBuffer getbuf(int columnIndex, int typeWidth) {
 		ByteBuffer buf = constlen_data;
 		buf.order(ByteOrder.LITTLE_ENDIAN);
-		buf.position((chunk_idx - 1) * typeWidth);
+		buf.position(columnIndex * typeWidth);
 		return buf;
 	}
 
@@ -42,7 +42,25 @@ public class DuckDBVector<T> implements Collection<T> {
 	public boolean remove(Object o) {
 		throw new UnsupportedOperationException();
 	}
-	public Object[] toArray() { return varlen_data; }
+
+	private void precondition(boolean condition, String message) {
+		if (!condition) {
+			throw new IllegalStateException(message);
+		}
+	}
+	private int getInt(int columnIndex) {
+		return getbuf(columnIndex, 4).getInt();
+	}
+	public Object[] toArray() {
+		precondition(duckdb_type.equals("INTEGER"), "only supportng integers for now");
+
+		Object[] data = new Object[length];
+		for (int j=0; j<length; j++) {
+			data[j] = getInt(j);			
+		}
+
+		return data;
+	}
 	public <T> T[] toArray(T[] o) { throw new UnsupportedOperationException(); }
 	public boolean add(T o) { throw new UnsupportedOperationException(); }
 	public boolean contains(Object o) {

@@ -14,9 +14,11 @@ import java.util.List;
 import java.util.Map;
 
 public class DuckDBArray implements java.sql.Array {
-	private final List<Object> array;
+	private final DuckDBVector array;
 
-	public DuckDBArray(List<Object> array) { this.array = array; }
+	public DuckDBArray(DuckDBVector array) {
+		this.array = array;
+	}
 
 	@Override
 	public void free() {

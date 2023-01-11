@@ -1034,10 +1034,8 @@ public class DuckDBResultSet implements ResultSet {
 		if (check_and_null(columnIndex)) {
 			return null;
 		}
-		List<Object> vect = (List<Object>)current_chunk[columnIndex - 1]
+		DuckDBVector vect = (DuckDBVector)current_chunk[columnIndex - 1]
 		                        .varlen_data[chunk_idx - 1];
-
-		System.out.println(vect.size());
 
 		return new DuckDBArray(vect);
 	}
