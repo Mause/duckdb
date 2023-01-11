@@ -823,6 +823,7 @@ jobject ProcessVector(JNIEnv *env, Vector &vec, uint32_t row_count) {
 
 			env->SetObjectArrayElement(varlen_data, row_idx, py_struct);
 		}
+		break;
 	default:
 		env->ThrowNew(J_SQLException, ("Unsupported result column type " + vec.GetType().ToString()).c_str());
 		return nullptr;
