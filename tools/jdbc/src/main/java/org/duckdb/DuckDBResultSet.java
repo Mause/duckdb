@@ -202,6 +202,8 @@ public class DuckDBResultSet implements ResultSet {
 			return getArray(columnIndex);
 		case STRUCT:
 			return getStruct(columnIndex);
+                case MAP:
+                        return getMap(columnIndex);
 		default:
 			throw new SQLException("Not implemented type: " + meta.column_types_string[columnIndex - 1]);
 		}
