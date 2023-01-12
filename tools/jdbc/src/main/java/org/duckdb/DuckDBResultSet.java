@@ -254,8 +254,8 @@ public class DuckDBResultSet implements ResultSet {
 
 	private ByteBuffer getbuf(int columnIndex, int typeWidth) throws SQLException {
                 ByteBuffer buf = current_chunk[columnIndex - 1].constlen_data;
-                buf.order(ByteOrder.LITTLE_ENDIAN)
-                    .position((chunk_idx - 1) * typeWidth);
+                buf.order(ByteOrder.LITTLE_ENDIAN);
+                buf.position((chunk_idx - 1) * typeWidth);
                 return buf;
 	}
 
