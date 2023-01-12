@@ -658,7 +658,7 @@ JNIEXPORT jobjectArray JNICALL Java_org_duckdb_DuckDBNative_duckdb_1jdbc_1fetch(
 	return vec_array;
 }
 
-jobject ProcessVector(JNIEnv *env, Vector &vec, uint32_t row_count) {
+jobject ProcessVector(JNIEnv *env, Vector &vec, idx_t row_count) {
 	auto type_str = env->NewStringUTF(vec.GetType().ToString().c_str());
 	// construct nullmask
 	auto null_array = env->NewBooleanArray(row_count);
