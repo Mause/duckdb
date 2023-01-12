@@ -658,6 +658,13 @@ JNIEXPORT jobjectArray JNICALL Java_org_duckdb_DuckDBNative_duckdb_1jdbc_1fetch(
 	return vec_array;
 }
 
+jobject ProcessValue(JNIEnv *env, const Value &child_value) {
+	auto vector = new Vector(child_value); // TODO: DuckVector should own this
+	int n_elements = 1;
+	vector->Flatten(n_elements);
+	auto jobj = ProcessVector(env, *vector, n_elements);
+	return env->CallObjectMethod(jobj, J_DuckVector_getObject, 0);
+}
 jobject ProcessVector(JNIEnv *env, Vector &vec, idx_t row_count) {
 	auto type_str = env->NewStringUTF(vec.GetType().ToString().c_str());
 	// construct nullmask
@@ -811,13 +818,10 @@ jobject ProcessVector(JNIEnv *env, Vector &vec, idx_t row_count) {
 			auto py_struct = env->NewObject(J_HashMap, J_HashMap_init);
 			auto &child_types = StructType::GetChildTypes(vec.GetType());
 			for (idx_t i = 0; i < struct_values.size(); i++) {
-				auto &child_entry = child_types[i];
-				auto &child_name = child_entry.first;
-				auto &child_type = child_entry.second;
+				auto &child_name = child_types[i].first;
+				auto &child_value = struct_values[i];
 
-				auto vector = new Vector(child_type);
-				auto jobj = ProcessVector(env, *vector, 1);
-				auto value = env->CallObjectMethod(jobj, J_DuckVector_getObject, 0);
+				jobject value = ProcessValue(env, child_value);
 
 				env->CallObjectMethod(py_struct, J_Map_put, env->NewStringUTF(child_name.c_str()), value);
 			}
