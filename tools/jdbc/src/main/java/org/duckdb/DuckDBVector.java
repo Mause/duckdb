@@ -87,12 +87,14 @@ public class DuckDBVector<T> implements Collection<T> {
 		}
 	}
 
+	@SuppressWarnings("unchecked")
 	public Map<String, Object> getStruct(int i) {
 		return (Map<String, Object>) varlen_data[i];
 	}
 
+	@SuppressWarnings("unchecked")
 	public  <K,V> Map<K, V> getMap(int columnIndex) {
-		DuckDBVector varlenDatum = (DuckDBVector) varlen_data[columnIndex];
+		DuckDBVector<?> varlenDatum = (DuckDBVector<?>) varlen_data[columnIndex];
 
 		return Arrays
 				.stream(varlenDatum.toArray())
