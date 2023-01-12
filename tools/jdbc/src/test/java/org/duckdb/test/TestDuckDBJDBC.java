@@ -2530,17 +2530,18 @@ public class TestDuckDBJDBC {
 			rs.next();
 			Map<String, Object> object = rs.getStruct(1);
 
-
-			Map<String,Object> expected = new HashMap<>();
-			expected.put("x", 1);
-			expected.put("y", 2);
-			expected.put("z", 3);
-
-			assertEquals(object, expected);
+			assertEquals(
+					object,
+					new MapBuilder<String,Object>()
+							.put("x", 1)
+							.put("y", 2)
+							.put("z", 3)
+							.build()
+			);
 		}
 	}
 
-	public static void test_maps() throws SQLException {
+	public static void test_maps() throws Exception {
 		Connection conn = DriverManager.getConnection("jdbc:duckdb:");
 
 		try (Statement stmt = conn.createStatement()) {
@@ -2549,6 +2550,11 @@ public class TestDuckDBJDBC {
 			resultSet.next();
 
 			Map<Object, Object> map = resultSet.getMap(1);
+
+			assertEquals(
+					map,
+					new MapBuilder<>().put(1, "a").put(5, "e").build()
+			);
 		}
 	}
 
