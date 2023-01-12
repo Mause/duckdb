@@ -814,8 +814,8 @@ jobject ProcessVector(JNIEnv *env, Vector &vec, uint32_t row_count) {
 				auto &child_name = child_entry.first;
 				auto &child_type = child_entry.second;
 
-				Vector vector(child_type);
-				auto jobj = ProcessVector(env, vector, 1);
+				auto vector = new Vector(child_type);
+				auto jobj = ProcessVector(env, *vector, 1);
 				auto value = env->CallObjectMethod(jobj, J_DuckVector_getObject, 0);
 
 				env->CallObjectMethod(py_struct, J_Map_put, env->NewStringUTF(child_name.c_str()), value);
