@@ -378,15 +378,7 @@ public class DuckDBResultSet implements ResultSet {
 		if (check_and_null(columnIndex)) {
 			return 0;
 		}
-		if (isType(columnIndex, DuckDBColumnType.BIGINT)
-			   || isType(columnIndex, DuckDBColumnType.TIMESTAMP)) {
-			return getbuf(columnIndex, 8).getLong();
-		}
-		Object o = getObject(columnIndex);
-		if (o instanceof Number) {
-			return ((Number) o).longValue();
-		}
-		return Long.parseLong(o.toString());
+		return current_chunk[columnIndex - 1].getLong(chunk_idx - 1);
 	}
 
 	public BigInteger getHugeint(int columnIndex) throws SQLException {
@@ -1041,16 +1033,13 @@ public class DuckDBResultSet implements ResultSet {
 		if (check_and_null(columnIndex)) {
 			return null;
 		}
-		DuckDBVector vect = (DuckDBVector)current_chunk[columnIndex - 1]
-		                        .varlen_data[chunk_idx - 1];
-
-		return new DuckDBArray(vect);
+		return current_chunk[columnIndex-1].getArray(chunk_idx - 1);
 	}
 
 	public Map<String, Object> getStruct(int columnIndex) throws SQLException {
 		if (check_and_null(columnIndex)) return null;
 
-		return (Map<String, Object>) current_chunk[columnIndex - 1].varlen_data[chunk_idx - 1];
+		return current_chunk[columnIndex-1].getStruct(chunk_idx - 1);
 	}
 
 	public Map<Object, Object> getMap(int columnIndex) throws SQLException {

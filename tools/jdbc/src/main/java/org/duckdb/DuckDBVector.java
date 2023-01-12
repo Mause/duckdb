@@ -130,6 +130,10 @@ public class DuckDBVector<T> implements Collection<T> {
 		return Long.parseLong(o.toString());
 	}
 
+	public Array getArray(int i) {
+		return new DuckDBArray((DuckDBVector<?>)varlen_data[i]);
+	}
+
 	public boolean isType(DuckDBColumnType type) {
 		return TypeNameToType(duckdb_type) == type;
 	}
