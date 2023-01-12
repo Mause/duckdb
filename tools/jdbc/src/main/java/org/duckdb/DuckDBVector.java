@@ -5,6 +5,7 @@ import java.nio.ByteOrder;
 import java.util.*;
 
 import static java.util.stream.Collectors.toMap;
+import static org.duckdb.DuckDBResultSetMetaData.TypeNameToType;
 
 public class DuckDBVector<T> implements Collection<T> {
 
@@ -69,7 +70,7 @@ public class DuckDBVector<T> implements Collection<T> {
 	}
 
 	public Object getObject(int i) {
-		DuckDBColumnType type = DuckDBResultSetMetaData.TypeNameToType(duckdb_type);
+		DuckDBColumnType type = TypeNameToType(duckdb_type);
 		switch (type) {
 			case INTEGER:
 				return getInt(i);
@@ -79,6 +80,8 @@ public class DuckDBVector<T> implements Collection<T> {
 				return getShort(i);
 			case STRUCT:
 				return getStruct(i);
+			case BIGINT:
+				return getLong(i);
 			default:
 				throw new IllegalStateException(String.format("unsupported list type: %s", duckdb_type));
 		}
@@ -111,5 +114,21 @@ public class DuckDBVector<T> implements Collection<T> {
 
 	public short getShort(int columnIndex) {
 		return getbuf(columnIndex, 2).getShort();
+	}
+
+	public long getLong(int columnIndex) {
+		if (isType(DuckDBColumnType.BIGINT)
+				|| isType(DuckDBColumnType.TIMESTAMP)) {
+			return constlen_data.getLong(columnIndex * 8);
+		}
+		Object o = getObject(columnIndex);
+		if (o instanceof Number) {
+			return ((Number) o).longValue();
+		}
+		return Long.parseLong(o.toString());
+	}
+
+	public boolean isType(DuckDBColumnType type) {
+		return TypeNameToType(duckdb_type) == type;
 	}
 }
