@@ -2,8 +2,9 @@ package org.duckdb;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.Collection;
-import java.util.Iterator;
+import java.util.*;
+
+import static java.util.stream.Collectors.toMap;
 
 public class DuckDBVector<T> implements Collection<T> {
 
@@ -85,6 +86,19 @@ public class DuckDBVector<T> implements Collection<T> {
 
 	public Map<String, Object> getStruct(int i) {
 		return (Map<String, Object>) varlen_data[i];
+	}
+
+	public  <K,V> Map<K, V> getMap(int columnIndex) {
+		DuckDBVector varlenDatum = (DuckDBVector) varlen_data[columnIndex];
+
+		return Arrays
+				.stream(varlenDatum.toArray())
+				.map(x -> (Map<String, Object>)x)
+				.collect(toMap(
+					pair ->(K) pair.get("key"),
+					pair -> (V) pair.get("value")
+				)
+			);
 	}
 
 	public String getLazyString(int columnIndex) {

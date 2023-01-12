@@ -21,25 +21,24 @@ import java.sql.Time;
 import java.sql.Timestamp;
 import java.sql.Types;
 import java.time.Duration;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.Properties;
-import java.util.TimeZone;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.*;
 import javax.sql.rowset.RowSetProvider;
 import javax.sql.rowset.CachedRowSet;
 
 import org.duckdb.DuckDBAppender;
+import org.duckdb.DuckDBColumnType;
 import org.duckdb.DuckDBConnection;
 import org.duckdb.DuckDBDatabase;
 import org.duckdb.DuckDBDriver;
-import org.duckdb.DuckDBTimestamp;
-import org.duckdb.DuckDBColumnType;
+import org.duckdb.DuckDBResultSet;
 import org.duckdb.DuckDBResultSetMetaData;
+import org.duckdb.DuckDBTimestamp;
 import org.duckdb.JsonNode;
+
+import static java.util.stream.Collectors.toMap;
 
 public class TestDuckDBJDBC {
 
@@ -2541,15 +2540,17 @@ public class TestDuckDBJDBC {
 		}
 	}
 
+	public static void test_maps() throws SQLException {
+		Connection conn = DriverManager.getConnection("jdbc:duckdb:");
 
-// public void test_maps() throws SQLException {
-// 	DuckDBConnection conn = (DuckDBConnection)
-// DriverManager.getConnection("jdbc:duckdb:");
+		try (Statement stmt = conn.createStatement()) {
+			DuckDBResultSet resultSet = (DuckDBResultSet) stmt.executeQuery("select map([1, 5], ['a', 'e'])");
 
-// 	try (Statement stmt = conn.createStatement()) {
-// 		stmt.execute("select map([1, 5], ['a', 'e'])");
-// 	}
-// }
+			resultSet.next();
+
+			Map<Object, Object> map = resultSet.getMap(1);
+		}
+	}
 
 	public static void main(String[] args) throws Exception {
 		// Woo I can do reflection too, take this, JUnit!

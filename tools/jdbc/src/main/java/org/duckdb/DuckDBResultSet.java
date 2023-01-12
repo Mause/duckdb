@@ -1048,6 +1048,13 @@ public class DuckDBResultSet implements ResultSet {
 		return (Map<String, Object>) current_chunk[columnIndex - 1].varlen_data[chunk_idx - 1];
 	}
 
+	public Map<Object, Object> getMap(int columnIndex) throws SQLException {
+		if (check_and_null(columnIndex)) return null;
+
+		DuckDBVector duckDBVector = current_chunk[columnIndex - 1];
+		return duckDBVector.getMap(chunk_idx-1);
+	}
+
 	public Object getObject(String columnLabel, Map<String, Class<?>> map) throws SQLException {
 		throw new SQLFeatureNotSupportedException("getObject");
 	}
