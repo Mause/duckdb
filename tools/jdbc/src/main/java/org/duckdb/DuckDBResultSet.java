@@ -200,6 +200,8 @@ public class DuckDBResultSet implements ResultSet {
 			return getLazyString(columnIndex);
 		case LIST:
 			return getArray(columnIndex);
+		case STRUCT:
+			return getStruct(columnIndex);
 		default:
 			throw new SQLException("Not implemented type: " + meta.column_types_string[columnIndex - 1]);
 		}
@@ -1038,6 +1040,12 @@ public class DuckDBResultSet implements ResultSet {
 		                        .varlen_data[chunk_idx - 1];
 
 		return new DuckDBArray(vect);
+	}
+
+	public Map<String, Object> getStruct(int columnIndex) throws SQLException {
+		if (check_and_null(columnIndex)) return null;
+
+		return (Map<String, Object>) current_chunk[columnIndex - 1].varlen_data[chunk_idx - 1];
 	}
 
 	public Object getObject(String columnLabel, Map<String, Class<?>> map) throws SQLException {

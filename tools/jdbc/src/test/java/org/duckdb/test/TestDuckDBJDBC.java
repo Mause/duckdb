@@ -2523,14 +2523,24 @@ public class TestDuckDBJDBC {
 		}
 	}
 
-// public void test_structs() throws SQLException {
-// 	DuckDBConnection conn = (DuckDBConnection)
-// DriverManager.getConnection("jdbc:duckdb:");
+	public static void test_structs() throws Exception {
+		Connection conn = DriverManager.getConnection("jdbc:duckdb:");
 
-// 	try (Statement stmt = conn.createStatement()) {
-// 		stmt.execute("SELECT {'x': 1, 'y': 2, 'z': 3}");
-// 	}
-// }
+		try (Statement stmt = conn.createStatement()) {
+			DuckDBResultSet rs = (DuckDBResultSet) stmt.executeQuery("SELECT {'x': 1, 'y': 2, 'z': 3}");
+			rs.next();
+			Map<String, Object> object = rs.getStruct(1);
+
+
+			Map<String,Object> expected = new HashMap<>();
+			expected.put("x", 1);
+			expected.put("y", 2);
+			expected.put("z", 3);
+
+			assertEquals(object, expected);
+		}
+	}
+
 
 // public void test_maps() throws SQLException {
 // 	DuckDBConnection conn = (DuckDBConnection)

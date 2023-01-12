@@ -76,9 +76,15 @@ public class DuckDBVector<T> implements Collection<T> {
 				return getLazyString(i);
 			case UTINYINT:
 				return getShort(i);
+			case STRUCT:
+				return getStruct(i);
 			default:
 				throw new IllegalStateException(String.format("unsupported list type: %s", duckdb_type));
 		}
+	}
+
+	public Map<String, Object> getStruct(int i) {
+		return (Map<String, Object>) varlen_data[i];
 	}
 
 	public String getLazyString(int columnIndex) {
