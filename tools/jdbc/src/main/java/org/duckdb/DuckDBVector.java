@@ -2,7 +2,12 @@ package org.duckdb;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.*;
+import java.sql.Array;
+import java.math.BigDecimal;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.Map;
 
 import static java.util.stream.Collectors.toMap;
 import static org.duckdb.DuckDBResultSetMetaData.TypeNameToType;
