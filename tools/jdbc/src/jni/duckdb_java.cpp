@@ -630,7 +630,7 @@ JNIEXPORT jobject JNICALL Java_org_duckdb_DuckDBNative_duckdb_1jdbc_1meta(JNIEnv
 	                      name_array, type_array, type_detail_array, return_type);
 }
 
-jobject ProcessVector(JNIEnv *env, Vector &vec, uint32_t row_count);
+jobject ProcessVector(JNIEnv *env, Vector &vec, uidx_t row_count);
 
 JNIEXPORT jobjectArray JNICALL Java_org_duckdb_DuckDBNative_duckdb_1jdbc_1fetch(JNIEnv *env, jclass,
                                                                                 jobject res_ref_buf) {
