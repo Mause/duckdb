@@ -12,7 +12,20 @@ bool Utils::OtherIsInt(Napi::Number source) {
 	}
 }
 
-Napi::Value Utils::CreateError(Napi::Env env, std::string msg) {
+Napi::Object Utils::CreateError(Napi::Env env, duckdb::PreservedError &error) {
+	auto obj = Utils::CreateError(env, error.Message());
+	if (error.Type() == duckdb::ExceptionType::HTTP) {
+		try {
+			error.Throw("");
+		} catch (const duckdb::HTTPException &e) {
+			obj.Set(Napi::String::New(env, "status_code"), Napi::Number::New(env, e.GetStatusCode()));
+		} catch (...) {}
+	}
+
+	return obj;
+}
+
+Napi::Object Utils::CreateError(Napi::Env env, std::string msg) {
 	auto err = Napi::Error::New(env, Napi::String::New(env, msg).Utf8Value()).Value();
 	Napi::Object obj = err.As<Napi::Object>();
 	obj.Set(Napi::String::New(env, "errno"), Napi::Number::New(env, Database::DUCKDB_NODEJS_ERROR));

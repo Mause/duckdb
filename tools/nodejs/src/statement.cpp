@@ -78,7 +78,7 @@ struct PrepareTask : public Task {
 
 		auto cb = callback.Value();
 		if (statement.statement->HasError()) {
-			cb.MakeCallback(statement.Value(), {Utils::CreateError(env, statement.statement->error.Message())});
+			cb.MakeCallback(statement.Value(), {Utils::CreateError(env, statement.statement->error)});
 			return;
 		}
 		cb.MakeCallback(statement.Value(), {env.Null(), statement.Value()});
