@@ -14,6 +14,10 @@
 #include "duckdb/planner/expression_binder.hpp"
 #include "duckdb/storage/buffer_manager.hpp"
 #include "duckdb/storage/storage_manager.hpp"
+#include "duckdb/main/database_manager.hpp"
+#include "duckdb/main/attached_database.hpp"
+#include "duckdb/main/database.hpp"
+#include "uri.hpp"
 
 namespace duckdb {
 
@@ -778,6 +782,44 @@ void IntegerDivisionSetting::SetLocal(ClientContext &context, const Value &input
 Value IntegerDivisionSetting::GetSetting(ClientContext &context) {
 	auto &config = ClientConfig::GetConfig(context);
 	return Value(config.integer_division);
+}
+
+static shared_ptr<ProxyUri> SetHttpProxy(DBConfig &config, const string &url) {
+	if (url.empty()) {
+		config.options.http_proxy = nullptr;
+	} else {
+		auto proxy = std::make_shared<uri>(url);
+
+		if (proxy->get_scheme() != "http") {
+			throw InvalidInputException("Invalid proxy url (only http proxies supported): %s", url);
+		}
+
+		config.options.http_proxy->username = proxy->get_username();
+		config.options.http_proxy->password = proxy->get_password();
+		config.options.http_proxy->port = proxy->get_port();
+		config.options.http_proxy->host = proxy->get_host();
+	}
+
+	return config.options.http_proxy;
+}
+
+Value HttpProxySetting::GetSetting(duckdb::ClientContext &context) {
+	DBConfig &config = DBConfig::GetConfig(context);
+	auto &http_proxy = config.options.http_proxy;
+
+	if (!http_proxy) {
+		auto proxy = getenv("HTTP_PROXY");
+		if (proxy != nullptr) {
+			http_proxy = SetHttpProxy(config, proxy);
+		}
+	}
+
+	return http_proxy ? Value(http_proxy->to_string()) : nullptr;
+}
+
+void HttpProxySetting::SetGlobal(duckdb::DatabaseInstance *db, duckdb::DBConfig &config,
+                                 const duckdb::Value &parameter) {
+	SetHttpProxy(config, parameter.GetValue<string>());
 }
 
 //===--------------------------------------------------------------------===//

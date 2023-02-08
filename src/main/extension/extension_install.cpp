@@ -207,7 +207,7 @@ void ExtensionHelper::InstallExtensionInternal(DBConfig &config, ClientConfig *c
 	if (fs.FileExists(temp_path)) {
 		fs.RemoveFile(temp_path);
 	}
-	auto is_http_url = StringUtil::Contains(extension, "http://");
+	auto is_http_url = StringUtil::StartsWith(extension, "http://");
 	if (ExtensionHelper::IsFullPath(extension)) {
 		if (fs.FileExists(extension)) {
 			idx_t file_size;
@@ -272,6 +272,12 @@ void ExtensionHelper::InstallExtensionInternal(DBConfig &config, ClientConfig *c
 
 	auto url_base = "http://" + hostname_without_http;
 	duckdb_httplib::Client cli(url_base.c_str());
+
+	auto proxy = config.options.http_proxy;
+	if (proxy) {
+		cli.set_proxy(proxy->host.c_str(), proxy->port);
+		cli.set_proxy_basic_auth(proxy->username.c_str(), proxy->password.c_str());
+	}
 
 	duckdb_httplib::Headers headers = {{"User-Agent", StringUtil::Format("DuckDB %s %s %s", DuckDB::LibraryVersion(),
 	                                                                     DuckDB::SourceID(), DuckDB::Platform())}};

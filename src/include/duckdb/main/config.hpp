@@ -44,6 +44,25 @@ class ExtensionCallback;
 struct CompressionFunctionSet;
 struct DBConfig;
 
+struct ProxyUri {
+	std::string host;
+	uint32_t port;
+	std::string username;
+	std::string password;
+
+	std::string to_string() const {
+		std::string res = "http://";
+		if (!(username.empty() && password.empty())) {
+			res += username + ":" + password + "@";
+		}
+		res += host;
+		if (port != 0) {
+			res += ":" + std::to_string(port);
+		}
+		return res;
+	}
+};
+
 enum class CheckpointAbort : uint8_t {
 	NO_ABORT = 0,
 	DEBUG_ABORT_BEFORE_TRUNCATE = 1,
@@ -165,6 +184,8 @@ struct DBConfigOptions {
 	bool immediate_transaction_mode = false;
 	//! Debug setting - how to initialize  blocks in the storage layer when allocating
 	DebugInitialize debug_initialize = DebugInitialize::NO_INITIALIZE;
+	//! HTTP CONNECT proxy
+	std::shared_ptr<ProxyUri> http_proxy;
 	//! The set of unrecognized (other) options
 	unordered_map<string, Value> unrecognized_options;
 	//! Whether or not the configuration settings can be altered
