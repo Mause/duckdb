@@ -558,6 +558,7 @@ struct HttpProxySetting {
 	    "The HTTP CONNECT proxy used to download extensions, and make http calls in the httpfs extension";
 	static constexpr const LogicalTypeId InputType = LogicalTypeId::VARCHAR;
 	static void SetGlobal(DatabaseInstance *db, DBConfig &config, const Value &parameter);
+	static void ResetGlobal(DatabaseInstance *db, DBConfig &config);
 	static Value GetSetting(ClientContext &context);
 };
 

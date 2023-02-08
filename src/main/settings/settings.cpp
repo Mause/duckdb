@@ -812,6 +812,10 @@ void HttpProxySetting::SetGlobal(duckdb::DatabaseInstance *db, duckdb::DBConfig 
 	SetHttpProxy(config, parameter.GetValue<string>());
 }
 
+void HttpProxySetting::ResetGlobal(duckdb::DatabaseInstance *db, duckdb::DBConfig &config) {
+	config.options.http_proxy = DBConfig().options.http_proxy;
+}
+
 //===--------------------------------------------------------------------===//
 // Log Query Path
 //===--------------------------------------------------------------------===//
