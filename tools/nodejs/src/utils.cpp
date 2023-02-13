@@ -18,9 +18,13 @@ Napi::Object Utils::CreateError(Napi::Env env, duckdb::PreservedError &error) {
 		try {
 			error.Throw("");
 		} catch (const duckdb::HTTPException &e) {
-			obj.Set(Napi::String::New(env, "status_code"), Napi::Number::New(env, e.GetStatusCode()));
-		} catch (...) {}
+			obj.Set(Napi::String::New(env, "statusCode"), Napi::Number::New(env, e.GetStatusCode()));
+		} catch (...) {
+		}
 	}
+
+	obj.Set(Napi::String::New(env, "errorType"),
+	        Napi::String::New(env, duckdb::Exception::ExceptionTypeToString(error.Type())));
 
 	return obj;
 }
