@@ -18,7 +18,7 @@ describe('exec', function() {
     });
 
     it('exec promise', async () => {
-        const res = await db.default_connection.exec('select 1');
+        const res = await db.connect().exec('select 1');
 
         assert.equal(res, [1]);
     })
