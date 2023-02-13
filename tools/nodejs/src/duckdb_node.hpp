@@ -18,6 +18,7 @@ public:
 		auto obj = T::constructor.New(args);
 		return Napi::ObjectWrap<T>::Unwrap(obj);
 	}
+	static duckdb::Value BindParameter(const Napi::Value source);
 };
 
 struct Task {
@@ -235,19 +236,6 @@ struct TaskHolder {
 	std::unique_ptr<Task> task;
 	napi_async_work request;
 	Database *db;
-};
-
-class Utils {
-public:
-	static Napi::Value CreateError(Napi::Env env, std::string msg);
-	static bool OtherIsInt(Napi::Number source);
-
-	template <class T>
-	static T *NewUnwrap(std::vector<napi_value> args) {
-		auto obj = T::constructor.New(args);
-		return Napi::ObjectWrap<T>::Unwrap(obj);
-	}
-	static duckdb::Value BindParameter(const Napi::Value source);
 };
 
 Napi::Array EncodeDataChunk(Napi::Env env, duckdb::DataChunk &chunk, bool with_types, bool with_data);
