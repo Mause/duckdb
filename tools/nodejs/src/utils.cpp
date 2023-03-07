@@ -12,6 +12,10 @@ bool Utils::OtherIsInt(Napi::Number source) {
 	}
 }
 
+static void SetString(Napi::Object &obj, const std::string &key, const std::string &value) {
+	obj.Set(Napi::String::New(obj.Env(), key), Napi::String::New(obj.Env(), value));
+}
+
 Napi::Object Utils::CreateError(Napi::Env env, duckdb::PreservedError &error) {
 	auto obj = Utils::CreateError(env, error.Message());
 	if (error.Type() == duckdb::ExceptionType::HTTP) {
@@ -20,8 +24,7 @@ Napi::Object Utils::CreateError(Napi::Env env, duckdb::PreservedError &error) {
 		SetString(obj, "response", e.GetResponse());
 	}
 
-	obj.Set(Napi::String::New(env, "errorType"),
-	        Napi::String::New(env, duckdb::Exception::ExceptionTypeToString(error.Type())));
+	SetString(obj, "errorType", duckdb::Exception::ExceptionTypeToString(error.Type()));
 
 	return obj;
 }
