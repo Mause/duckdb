@@ -63,7 +63,7 @@ public:
 	static bool IsInteractive();
 
 	unique_ptr<DuckDBPyRelation>
-	ReadCSV(const py::object &name, const py::object &header = py::none(), const py::object &compression = py::none(),
+	ReadCSV(const Union<py::str, FileLikeObject> &name, const py::object &header = py::none(), const py::object &compression = py::none(),
 	        const py::object &sep = py::none(), const py::object &delimiter = py::none(),
 	        const py::object &dtype = py::none(), const py::object &na_values = py::none(),
 	        const py::object &skiprows = py::none(), const py::object &quotechar = py::none(),
