@@ -546,11 +546,12 @@ unique_ptr<DuckDBPyRelation> DuckDBPyConnection::ReadJSON(const string &name, co
 }
 
 unique_ptr<DuckDBPyRelation> DuckDBPyConnection::ReadCSV(
-    const Union<py::str, FileLikeObject> &name_p, const py::object &header, const py::object &compression, const py::object &sep,
-    const py::object &delimiter, const py::object &dtype, const py::object &na_values, const py::object &skiprows,
-    const py::object &quotechar, const py::object &escapechar, const py::object &encoding, const py::object &parallel,
-    const py::object &date_format, const py::object &timestamp_format, const py::object &sample_size,
-    const py::object &all_varchar, const py::object &normalize_names, const py::object &filename) {
+    const Union<py::str, FileLikeObject> &name_p, const py::object &header, const py::object &compression,
+    const py::object &sep, const py::object &delimiter, const py::object &dtype, const py::object &na_values,
+    const py::object &skiprows, const py::object &quotechar, const py::object &escapechar, const py::object &encoding,
+    const py::object &parallel, const py::object &date_format, const py::object &timestamp_format,
+    const py::object &sample_size, const py::object &all_varchar, const py::object &normalize_names,
+    const py::object &filename) {
 	if (!connection) {
 		throw ConnectionException("Connection has already been closed");
 	}

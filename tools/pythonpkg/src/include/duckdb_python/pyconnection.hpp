@@ -63,15 +63,15 @@ public:
 	static bool IsInteractive();
 
 	unique_ptr<DuckDBPyRelation>
-	ReadCSV(const Union<py::str, FileLikeObject> &name, const py::object &header = py::none(), const py::object &compression = py::none(),
-	        const py::object &sep = py::none(), const py::object &delimiter = py::none(),
-	        const py::object &dtype = py::none(), const py::object &na_values = py::none(),
-	        const py::object &skiprows = py::none(), const py::object &quotechar = py::none(),
-	        const py::object &escapechar = py::none(), const py::object &encoding = py::none(),
-	        const py::object &parallel = py::none(), const py::object &date_format = py::none(),
-	        const py::object &timestamp_format = py::none(), const py::object &sample_size = py::none(),
-	        const py::object &all_varchar = py::none(), const py::object &normalize_names = py::none(),
-	        const py::object &filename = py::none());
+	ReadCSV(const Union<py::str, FileLikeObject> &name, const py::object &header = py::none(),
+	        const py::object &compression = py::none(), const py::object &sep = py::none(),
+	        const py::object &delimiter = py::none(), const py::object &dtype = py::none(),
+	        const py::object &na_values = py::none(), const py::object &skiprows = py::none(),
+	        const py::object &quotechar = py::none(), const py::object &escapechar = py::none(),
+	        const py::object &encoding = py::none(), const py::object &parallel = py::none(),
+	        const py::object &date_format = py::none(), const py::object &timestamp_format = py::none(),
+	        const py::object &sample_size = py::none(), const py::object &all_varchar = py::none(),
+	        const py::object &normalize_names = py::none(), const py::object &filename = py::none());
 
 	unique_ptr<DuckDBPyRelation> ReadJSON(const string &filename, const py::object &columns = py::none(),
 	                                      const py::object &sample_size = py::none(),
