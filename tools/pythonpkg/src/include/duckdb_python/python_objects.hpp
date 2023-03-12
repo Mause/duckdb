@@ -212,12 +212,12 @@ bool bar(const pybind11::handle &o) {
 
 template <class... ARGS>
 bool print_all(const py::handle &o) {
-	bool data[] = {true, ((void)bar<ARGS>(o), true)...};
+	bool data[] = {false, ((void)bar<ARGS>(o), false)...};
 
-	bool valid = true;
+	bool valid = false;
 
 	for (const auto p : data) {
-		valid &= p;
+		valid = valid || p;
 	}
 
 	return valid;
