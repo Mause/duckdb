@@ -188,36 +188,11 @@ public:
 	}
 };
 
-// template <class T, void>
-// bool print_all(const pybind11::handle &o) {
-// 	return py::isinstance<T>(o);
-// }
-
-// bool print_all(const pybind11::handle &o) {
-// 	std::vector<bool> data = print_all<Ts...>(o);
-
-// 	bool valid = true;
-
-// 	for(const auto p : data) {
-// 		valid &= p;
-// 	}
-
-// 	return valid;
-// }
-
-template <class T>
-bool bar(const pybind11::handle &o) {
-	return py::isinstance<T>(o);
-}
-
-template <class... ARGS>
-bool print_all(const py::handle &o) {
-	bool data[] = {false, ((void)bar<ARGS>(o), false)...};
-
+static bool any(vector<bool> data) {
 	bool valid = false;
 
-	for (const auto p : data) {
-		valid = valid || p;
+	for (const auto &item : data) {
+		valid = valid || item;
 	}
 
 	return valid;
@@ -232,7 +207,7 @@ public:
 
 public:
 	static bool check_(const py::handle &object) {
-		return print_all<ARGS...>(object);
+		return any({py::isinstance<ARGS>(object)...});
 	}
 };
 
