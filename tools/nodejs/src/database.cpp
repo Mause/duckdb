@@ -72,7 +72,7 @@ struct OpenTask : public Task {
 		Napi::HandleScope scope(database.Env());
 
 		if (!success) {
-			Reject(database.Value(), error.Message());
+			Reject(database.Value(), error);
 		} else {
 			Resolve(database.Value(), database.Value());
 		}

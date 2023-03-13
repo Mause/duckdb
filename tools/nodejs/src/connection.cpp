@@ -380,7 +380,7 @@ struct ExecTask : public Task {
 		if (success) {
 			Resolve(object.Value(), object.Value());
 		} else {
-			Reject(object.Value(), error.Message());
+			Reject(object.Value(), error);
 		}
 	};
 

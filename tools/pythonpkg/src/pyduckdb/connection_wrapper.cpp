@@ -141,20 +141,20 @@ unique_ptr<DuckDBPyRelation> PyConnectionWrapper::FromSubstrait(py::bytes &proto
 	return conn->FromSubstrait(proto);
 }
 
-unique_ptr<DuckDBPyRelation> PyConnectionWrapper::GetSubstrait(const string &query,
-                                                               shared_ptr<DuckDBPyConnection> conn) {
+unique_ptr<DuckDBPyRelation> PyConnectionWrapper::GetSubstrait(const string &query, shared_ptr<DuckDBPyConnection> conn,
+                                                               bool enable_optimizer) {
 	if (!conn) {
 		conn = DuckDBPyConnection::DefaultConnection();
 	}
-	return conn->GetSubstrait(query);
+	return conn->GetSubstrait(query, enable_optimizer);
 }
 
-unique_ptr<DuckDBPyRelation> PyConnectionWrapper::GetSubstraitJSON(const string &query,
-                                                                   shared_ptr<DuckDBPyConnection> conn) {
+unique_ptr<DuckDBPyRelation>
+PyConnectionWrapper::GetSubstraitJSON(const string &query, shared_ptr<DuckDBPyConnection> conn, bool enable_optimizer) {
 	if (!conn) {
 		conn = DuckDBPyConnection::DefaultConnection();
 	}
-	return conn->GetSubstraitJSON(query);
+	return conn->GetSubstraitJSON(query, enable_optimizer);
 }
 
 unordered_set<string> PyConnectionWrapper::GetTableNames(const string &query, shared_ptr<DuckDBPyConnection> conn) {
@@ -207,14 +207,14 @@ shared_ptr<DuckDBPyConnection> PyConnectionWrapper::Cursor(shared_ptr<DuckDBPyCo
 	return conn->Cursor();
 }
 
-py::object PyConnectionWrapper::GetDescription(shared_ptr<DuckDBPyConnection> conn) {
+Optional<py::list> PyConnectionWrapper::GetDescription(shared_ptr<DuckDBPyConnection> conn) {
 	if (!conn) {
 		conn = DuckDBPyConnection::DefaultConnection();
 	}
 	return conn->GetDescription();
 }
 
-py::object PyConnectionWrapper::FetchOne(shared_ptr<DuckDBPyConnection> conn) {
+Optional<py::tuple> PyConnectionWrapper::FetchOne(shared_ptr<DuckDBPyConnection> conn) {
 	if (!conn) {
 		conn = DuckDBPyConnection::DefaultConnection();
 	}
@@ -232,12 +232,12 @@ unique_ptr<DuckDBPyRelation> PyConnectionWrapper::ReadJSON(const string &filenam
 }
 
 unique_ptr<DuckDBPyRelation> PyConnectionWrapper::ReadCSV(
-    const string &name, shared_ptr<DuckDBPyConnection> conn, const py::object &header, const py::object &compression,
-    const py::object &sep, const py::object &delimiter, const py::object &dtype, const py::object &na_values,
-    const py::object &skiprows, const py::object &quotechar, const py::object &escapechar, const py::object &encoding,
-    const py::object &parallel, const py::object &date_format, const py::object &timestamp_format,
-    const py::object &sample_size, const py::object &all_varchar, const py::object &normalize_names,
-    const py::object &filename) {
+    const py::object &name, shared_ptr<DuckDBPyConnection> conn, const py::object &header,
+    const py::object &compression, const py::object &sep, const py::object &delimiter, const py::object &dtype,
+    const py::object &na_values, const py::object &skiprows, const py::object &quotechar, const py::object &escapechar,
+    const py::object &encoding, const py::object &parallel, const py::object &date_format,
+    const py::object &timestamp_format, const py::object &sample_size, const py::object &all_varchar,
+    const py::object &normalize_names, const py::object &filename) {
 	if (!conn) {
 		conn = DuckDBPyConnection::DefaultConnection();
 	}
@@ -289,6 +289,20 @@ duckdb::pyarrow::Table PyConnectionWrapper::FetchArrow(idx_t chunk_size, shared_
 	return conn->FetchArrow(chunk_size);
 }
 
+py::dict PyConnectionWrapper::FetchPyTorch(shared_ptr<DuckDBPyConnection> conn) {
+	if (!conn) {
+		conn = DuckDBPyConnection::DefaultConnection();
+	}
+	return conn->FetchPyTorch();
+}
+
+py::dict PyConnectionWrapper::FetchTF(shared_ptr<DuckDBPyConnection> conn) {
+	if (!conn) {
+		conn = DuckDBPyConnection::DefaultConnection();
+	}
+	return conn->FetchTF();
+}
+
 PolarsDataFrame PyConnectionWrapper::FetchPolars(idx_t chunk_size, shared_ptr<DuckDBPyConnection> conn) {
 	if (!conn) {
 		conn = DuckDBPyConnection::DefaultConnection();
@@ -321,6 +335,12 @@ py::list PyConnectionWrapper::ListFilesystems(shared_ptr<DuckDBPyConnection> con
 		conn = DuckDBPyConnection::DefaultConnection();
 	}
 	return conn->ListFilesystems();
+}
+bool PyConnectionWrapper::FileSystemIsRegistered(const string &name, shared_ptr<DuckDBPyConnection> conn) {
+	if (!conn) {
+		conn = DuckDBPyConnection::DefaultConnection();
+	}
+	return conn->FileSystemIsRegistered(name);
 }
 
 } // namespace duckdb
