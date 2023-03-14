@@ -408,8 +408,7 @@ struct RunPreparedTask : public Task {
 };
 
 struct RunQueryTask : public Task {
-	RunQueryTask(Statement &statement, unique_ptr<StatementParam> params)
-	    : Task(statement), params(std::move(params)) {
+	RunQueryTask(Statement &statement, unique_ptr<StatementParam> params) : Task(statement), params(std::move(params)) {
 	}
 
 	void DoWork() override {
