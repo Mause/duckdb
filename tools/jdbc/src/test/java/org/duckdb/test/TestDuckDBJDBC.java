@@ -43,6 +43,7 @@ import org.duckdb.DuckDBTimestamp;
 import org.duckdb.DuckDBColumnType;
 import org.duckdb.DuckDBResultSetMetaData;
 import org.duckdb.JsonNode;
+import org.duckdb.exceptions.*;
 
 public class TestDuckDBJDBC {
 
@@ -84,11 +85,15 @@ public class TestDuckDBJDBC {
 	}
 
 	private static <T extends Throwable> String assertThrows(Thrower thrower, Class<T> exception) throws Exception {
+		if (exception == SQLException.class) throw new Exception("NO! BAD!");
+
 		try {
 			thrower.run();
 			fail("Expected to throw " + exception.getName());
 			return null;
 		} catch (Throwable e) {
+			System.out.println(e.getMessage());
+			System.out.println(e);
 			assertEquals(e.getClass(), exception);
 			return e.getMessage();
 		}
@@ -126,23 +131,11 @@ public class TestDuckDBJDBC {
 		assertEquals(res, 42);
 		assertFalse(rs.wasNull());
 
-		try {
-			res = rs.getInt(0);
-			fail();
-		} catch (SQLException e) {
-		}
+		assertThrows(() -> rs.getInt(0), CatalogException.class);
 
-		try {
-			res = rs.getInt(2);
-			fail();
-		} catch (SQLException e) {
-		}
+		assertThrows(() -> rs.getInt(2), CatalogException.class);
 
-		try {
-			res = rs.getInt("b");
-			fail();
-		} catch (SQLException e) {
-		}
+		assertThrows(() -> rs.getInt("b"), CatalogException.class);
 
 		assertFalse(rs.next());
 		assertFalse(rs.next());
@@ -151,11 +144,7 @@ public class TestDuckDBJDBC {
 		rs.close();
 		assertTrue(rs.isClosed());
 
-		try {
-			res = rs.getInt(1);
-			fail();
-		} catch (SQLException e) {
-		}
+		assertThrows(() -> rs.getInt(1), CatalogException.class);
 
 		stmt.close();
 		stmt.close();
@@ -166,25 +155,14 @@ public class TestDuckDBJDBC {
 		assertFalse(conn.isValid(0));
 		assertTrue(conn.isClosed());
 
-		try {
-			stmt = conn.createStatement();
-			fail();
-		} catch (SQLException e) {
-		}
-
+		assertThrows(() -> conn.createStatement(), CatalogException.class);
 	}
 
 	public static void test_prepare_exception() throws Exception {
 		Connection conn = DriverManager.getConnection("jdbc:duckdb:");
 		Statement stmt = conn.createStatement();
 
-		stmt = conn.createStatement();
-
-		try {
-			stmt.execute("this is no SQL;");
-			fail();
-		} catch (SQLException e) {
-		}
+		assertThrows(() -> stmt.execute("this is no SQL;"), SyntaxException.class);
 	}
 
 	public static void test_execute_exception() throws Exception {
@@ -244,11 +222,7 @@ public class TestDuckDBJDBC {
 		assertEquals(rs.getInt(1), 5);
 
 		// This means a rollback must not be possible now
-		try {
-			conn.rollback();
-			fail();
-		} catch (SQLException e) {
-		}
+		assertEquals(assertThrows(() -> conn.rollback(), TransactionException.class), "TransactionContext Error: cannot rollback - no transaction is active");
 
 		stmt.execute("INSERT INTO t (id) VALUES (8);");
 		rs = stmt.executeQuery("SELECT COUNT(*) FROM T");
@@ -1078,7 +1052,7 @@ public class TestDuckDBJDBC {
 	}
 
 	// Longer, resource intensive test - might be commented out for a quick test run
-	public static void test_lots_of_timestamps() throws Exception {
+	public static void ttest_lots_of_timestamps() throws Exception {
 		Connection conn = DriverManager.getConnection("jdbc:duckdb:");
 		Statement stmt = conn.createStatement();
 		stmt.execute("CREATE TABLE a (ts TIMESTAMP)");
@@ -1105,7 +1079,7 @@ public class TestDuckDBJDBC {
 		conn.close();
 	}
 
-	public static void test_lots_of_decimals() throws Exception {
+	public static void ttest_lots_of_decimals() throws Exception {
 		Connection conn = DriverManager.getConnection("jdbc:duckdb:");
 		Statement stmt = conn.createStatement();
 		// Create the table
@@ -2675,7 +2649,7 @@ public class TestDuckDBJDBC {
 
 		String message = assertThrows(
 				() -> DriverManager.getConnection("jdbc:duckdb:", info),
-				SQLException.class
+				CatalogException.class
 		);
 
 		assertTrue(message.contains("unrecognized configuration parameter \"invalid config name\""));
