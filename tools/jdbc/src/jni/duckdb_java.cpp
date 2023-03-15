@@ -218,13 +218,13 @@ JNIEXPORT void JNICALL JNI_OnUnload(JavaVM *vm, void *reserved) {
 
 static map<string, jclass> exceptions;
 
-jclass GetException(JNIEnv *env, string name) {
+jclass GetException(JNIEnv *env, const string &name) {
 	static string package = "org/duckdb/exceptions/";
 	string key = package + name;
 
 	if (exceptions.find(key) == exceptions.end()) {
 		jclass tmpLocalRef = env->FindClass(key.c_str());
-		D_ASSERT(tmpLocalRef != nullptr);
+		D_ASSERT_MSG(tmpLocalRef != nullptr, key);
 		exceptions[key] = (jclass)env->NewGlobalRef(tmpLocalRef);
 		env->DeleteLocalRef(tmpLocalRef);
 	}
@@ -232,56 +232,94 @@ jclass GetException(JNIEnv *env, string name) {
 	return exceptions[key];
 }
 
-static jobject MapException(JNIEnv *env, const Exception &e) {
-	switch (e.type) {
+static string GetExceptionName(const duckdb::ExceptionType type) {
+	switch (type) {
 	case duckdb::ExceptionType::IO:
-		env->ThrowNew(GetException(env, "IOException"), e.what());
-		break;
+		return "IOException";
 	case duckdb::ExceptionType::TRANSACTION:
-		env->ThrowNew(GetException(env, "TransactionException"), e.what());
-		break;
+		return "TransactionException";
 	case duckdb::ExceptionType::SYNTAX:
-		env->ThrowNew(GetException(env, "SyntaxException"), e.what());
-		break;
-	case duckdb::ExceptionType::INVALID:
-	case duckdb::ExceptionType::OUT_OF_RANGE:
-	case duckdb::ExceptionType::CONVERSION:
-	case duckdb::ExceptionType::UNKNOWN_TYPE:
-	case duckdb::ExceptionType::DECIMAL:
-	case duckdb::ExceptionType::MISMATCH_TYPE:
-	case duckdb::ExceptionType::DIVIDE_BY_ZERO:
-	case duckdb::ExceptionType::OBJECT_SIZE:
-	case duckdb::ExceptionType::INVALID_TYPE:
-	case duckdb::ExceptionType::SERIALIZATION:
-	case duckdb::ExceptionType::NOT_IMPLEMENTED:
-	case duckdb::ExceptionType::EXPRESSION:
-	case duckdb::ExceptionType::CATALOG:
+		return "SyntaxException";
 	case duckdb::ExceptionType::PARSER:
+		return "ParserException";
+	case duckdb::ExceptionType::INVALID:
+		return "InvalidException";
+	case duckdb::ExceptionType::OUT_OF_RANGE:
+		return "OutOfRangeException";
+	case duckdb::ExceptionType::CONVERSION:
+		return "ConversionException";
+	case duckdb::ExceptionType::UNKNOWN_TYPE:
+		return "UnknownTypeException";
+	case duckdb::ExceptionType::DECIMAL:
+		return "DecimalException";
+	case duckdb::ExceptionType::MISMATCH_TYPE:
+		return "MismatchTypeException";
+	case duckdb::ExceptionType::DIVIDE_BY_ZERO:
+		return "DivideByZeroException";
+	case duckdb::ExceptionType::OBJECT_SIZE:
+		return "ObjectSizeException";
+	case duckdb::ExceptionType::INVALID_TYPE:
+		return "InvalidTypeException";
+	case duckdb::ExceptionType::SERIALIZATION:
+		return "SerializationException";
+	case duckdb::ExceptionType::NOT_IMPLEMENTED:
+		return "NotImplementedException";
+	case duckdb::ExceptionType::EXPRESSION:
+		return "ExpressionException";
+	case duckdb::ExceptionType::CATALOG:
+		return "CatalogException";
 	case duckdb::ExceptionType::PLANNER:
+		return "PlannerException";
 	case duckdb::ExceptionType::SCHEDULER:
+		return "SchedulerException";
 	case duckdb::ExceptionType::EXECUTOR:
+		return "ExecutorException";
 	case duckdb::ExceptionType::CONSTRAINT:
+		return "ConstraintException";
 	case duckdb::ExceptionType::INDEX:
+		return "IndexException";
 	case duckdb::ExceptionType::STAT:
+		return "StatException";
 	case duckdb::ExceptionType::CONNECTION:
+		return "ConnectionException";
 	case duckdb::ExceptionType::SETTINGS:
+		return "SettingsException";
 	case duckdb::ExceptionType::BINDER:
+		return "BinderException";
 	case duckdb::ExceptionType::NETWORK:
+		return "NetworkException";
 	case duckdb::ExceptionType::OPTIMIZER:
+		return "OptimizerException";
 	case duckdb::ExceptionType::NULL_POINTER:
+		return "NullPointerException";
 	case duckdb::ExceptionType::INTERRUPT:
+		return "InterruptException";
 	case duckdb::ExceptionType::FATAL:
+		return "FatalException";
 	case duckdb::ExceptionType::INTERNAL:
+		return "InternalException";
 	case duckdb::ExceptionType::INVALID_INPUT:
+		return "InvalidInputException";
 	case duckdb::ExceptionType::OUT_OF_MEMORY:
+		return "OutOfMemoryException";
 	case duckdb::ExceptionType::PERMISSION:
+		return "PermissionException";
 	case duckdb::ExceptionType::PARAMETER_NOT_RESOLVED:
+		return "ParameterNotResolvedException";
 	case duckdb::ExceptionType::PARAMETER_NOT_ALLOWED:
+		return "ParameterNotAllowedException";
 	case duckdb::ExceptionType::DEPENDENCY:
+		return "DependencyException";
 	case duckdb::ExceptionType::HTTP:
-		string msg = "unmapped exception: " + e.what();
-		env->ThrowNew(J_SQLException, msg.c_str());
+		return "HTTPException";
 	}
+	D_ASSERT(0);
+}
+
+static jobject MapException(JNIEnv *env, const Exception &e) {
+	jclass exceptionClass = GetException(env, GetExceptionName(e.type));
+
+	env->ThrowNew(exceptionClass, e.what());
 
 	return nullptr;
 }

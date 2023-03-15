@@ -1,7 +1,17 @@
 #include "duckdb/common/assert.hpp"
+
 #include "duckdb/common/exception.hpp"
 
 namespace duckdb {
+
+void DuckDBAssertInternal(bool condition, const char *condition_name, const std::string &message, const char *file,
+                          int linenr) {
+	if (condition) {
+		return;
+	}
+	throw InternalException("Assertion triggered in file \"%s\" on line %d with message \"%s\": %s%s", file, linenr,
+	                        message, condition_name, Exception::GetStackTrace());
+}
 
 void DuckDBAssertInternal(bool condition, const char *condition_name, const char *file, int linenr) {
 	if (condition) {

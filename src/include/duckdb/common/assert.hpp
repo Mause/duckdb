@@ -8,6 +8,8 @@
 
 #include "duckdb/common/winapi.hpp"
 
+#include <string>
+
 #pragma once
 
 #if (defined(DUCKDB_USE_STANDARD_ASSERT) || !defined(DEBUG)) && !defined(DUCKDB_FORCE_ASSERT)
@@ -21,8 +23,12 @@ DUCKDB_API void DuckDBAssertInternal(bool condition, const char *condition_name,
 #else
 namespace duckdb {
 DUCKDB_API void DuckDBAssertInternal(bool condition, const char *condition_name, const char *file, int linenr);
-}
+DUCKDB_API void DuckDBAssertInternal(bool condition, const char *condition_name, const std::string &message,
+                                     const char *file, int linenr);
+} // namespace duckdb
 
+#define D_ASSERT_MSG(condition, message)                                                                               \
+	duckdb::DuckDBAssertInternal(bool(condition), #condition, message, __FILE__, __LINE__)
 #define D_ASSERT(condition) duckdb::DuckDBAssertInternal(bool(condition), #condition, __FILE__, __LINE__)
 
 #endif
