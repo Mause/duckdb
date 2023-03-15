@@ -240,6 +240,9 @@ static jobject MapException(JNIEnv *env, const Exception &e) {
 	case duckdb::ExceptionType::TRANSACTION:
 		env->ThrowNew(GetException(env, "TransactionException"), e.what());
 		break;
+	case duckdb::ExceptionType::SYNTAX:
+		env->ThrowNew(GetException(env, "SyntaxException"), e.what());
+		break;
 	case duckdb::ExceptionType::INVALID:
 	case duckdb::ExceptionType::OUT_OF_RANGE:
 	case duckdb::ExceptionType::CONVERSION:
@@ -261,7 +264,6 @@ static jobject MapException(JNIEnv *env, const Exception &e) {
 	case duckdb::ExceptionType::INDEX:
 	case duckdb::ExceptionType::STAT:
 	case duckdb::ExceptionType::CONNECTION:
-	case duckdb::ExceptionType::SYNTAX:
 	case duckdb::ExceptionType::SETTINGS:
 	case duckdb::ExceptionType::BINDER:
 	case duckdb::ExceptionType::NETWORK:
