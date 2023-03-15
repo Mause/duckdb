@@ -279,7 +279,8 @@ static jobject MapException(JNIEnv *env, const Exception &e) {
 	case duckdb::ExceptionType::PARAMETER_NOT_ALLOWED:
 	case duckdb::ExceptionType::DEPENDENCY:
 	case duckdb::ExceptionType::HTTP:
-		env->ThrowNew(J_SQLException, "unmapped exception");
+		string msg = "unmapped exception: " + e.what();
+		env->ThrowNew(J_SQLException, msg.c_str());
 	}
 
 	return nullptr;
