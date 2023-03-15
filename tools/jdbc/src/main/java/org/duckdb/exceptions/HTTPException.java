@@ -15,4 +15,22 @@ class HTTPException extends IOException {
         this.reason = reason;
         this.headers = headers;
     }
+
+    public int getStatusCode() {
+        return statusCode;
+    }
+
+    public String getBody() {
+        return body;
+    }
+
+    public String getReason() {
+        return reason;
+    }
+
+    public Map<String, String> getHeaders() {
+        return headers;
+    }
 }
+
+
