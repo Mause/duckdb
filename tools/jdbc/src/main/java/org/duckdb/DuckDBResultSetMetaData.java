@@ -43,7 +43,7 @@ public class DuckDBResultSetMetaData implements ResultSetMetaData {
 		this.column_types_meta = column_types_meta.toArray(new DuckDBColumnTypeMetaData[column_count]);
 	}
 
-	public static DuckDBColumnType TypeNameToType(String type_name) {
+	static DuckDBColumnType TypeNameToType(String type_name) {
 		if (type_name.startsWith("DECIMAL")) {
 			return DuckDBColumnType.DECIMAL;
 		} else if (type_name.equals("TIMESTAMP WITH TIME ZONE")) {

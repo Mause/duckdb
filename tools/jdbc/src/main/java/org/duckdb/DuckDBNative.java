@@ -10,7 +10,7 @@ import java.nio.file.StandardCopyOption;
 import java.sql.SQLException;
 import java.util.Properties;
 
-public class DuckDBNative {
+class DuckDBNative {
 	static {
 		try {
 			String os_name = "";
