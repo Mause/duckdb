@@ -7,6 +7,7 @@
 #include "duckdb/common/operator/cast_operators.hpp"
 #include "duckdb/main/db_instance_cache.hpp"
 #include "duckdb/common/arrow/result_arrow_wrapper.hpp"
+#include "duckdb/common/assert.hpp"
 #include "duckdb/function/table/arrow.hpp"
 #include "duckdb/main/database_manager.hpp"
 
