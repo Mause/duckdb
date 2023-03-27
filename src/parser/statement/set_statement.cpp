@@ -15,6 +15,7 @@ void SetStatement::FormatSerialize(FormatSerializer &serializer) const {
 	SQLStatement::FormatSerialize(serializer);
 	const string &lname = name;
 
+	serializer.WriteProperty("class", "SET_STATEMENT");
 	serializer.WriteProperty("name", lname);
 }
 
@@ -28,10 +29,21 @@ unique_ptr<SQLStatement> SetVariableStatement::Copy() const {
 	return unique_ptr<SetVariableStatement>(new SetVariableStatement(*this));
 }
 
+void SetVariableStatement::FormatSerialize(FormatSerializer &serializer) const {
+	SetStatement::FormatSerialize(serializer);
+	serializer.WriteProperty("type", "VARIABLE");
+	serializer.WriteProperty("value", value);
+}
+
 // Reset Variable
 
 ResetVariableStatement::ResetVariableStatement(std::string name_p, SetScope scope_p)
     : SetStatement(std::move(name_p), scope_p, SetType::RESET) {
+}
+
+void ResetVariableStatement::FormatSerialize(FormatSerializer &serializer) const {
+	SetStatement::FormatSerialize(serializer);
+	serializer.WriteProperty("type", "RESET");
 }
 
 } // namespace duckdb

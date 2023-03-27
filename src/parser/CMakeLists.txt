@@ -26,7 +26,6 @@ add_library_unity(
   query_node.cpp
   result_modifier.cpp
   tableref.cpp
-  sql_statement.cpp
   transformer.cpp)
 set(ALL_OBJECT_FILES
     ${ALL_OBJECT_FILES} $<TARGET_OBJECTS:duckdb_parser>

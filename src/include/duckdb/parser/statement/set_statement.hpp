@@ -40,6 +40,7 @@ protected:
 
 public:
 	unique_ptr<SQLStatement> Copy() const override;
+	void FormatSerialize(FormatSerializer &serializer) const override;
 
 public:
 	Value value;
@@ -48,6 +49,9 @@ public:
 class ResetVariableStatement : public SetStatement {
 public:
 	ResetVariableStatement(std::string name_p, SetScope scope_p);
+
+public:
+	void FormatSerialize(FormatSerializer &serializer) const override;
 
 protected:
 	ResetVariableStatement(const ResetVariableStatement &other) = default;
