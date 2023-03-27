@@ -29,6 +29,7 @@ enum class ExpressionType : uint8_t;
 enum class ExpressionClass : uint8_t;
 enum class SampleMethod : uint8_t;
 enum class LogicalTypeId : uint8_t;
+enum class OnCreateConflict : uint8_t;
 
 template <>
 OrderType EnumSerializer::StringToEnum<OrderType>(const char *value);
@@ -109,5 +110,10 @@ template <>
 LogicalTypeId EnumSerializer::StringToEnum<LogicalTypeId>(const char *value);
 template <>
 const char *EnumSerializer::EnumToString<LogicalTypeId>(LogicalTypeId value);
+
+template <>
+OnCreateConflict EnumSerializer::StringToEnum<OnCreateConflict>(const char *value);
+template <>
+const char *EnumSerializer::EnumToString<OnCreateConflict>(OnCreateConflict value);
 
 } // namespace duckdb

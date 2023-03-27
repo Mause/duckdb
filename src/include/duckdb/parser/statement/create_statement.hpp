@@ -24,6 +24,7 @@ protected:
 
 public:
 	unique_ptr<SQLStatement> Copy() const override;
+	void FormatSerialize(FormatSerializer &serializer) const override;
 };
 
 } // namespace duckdb

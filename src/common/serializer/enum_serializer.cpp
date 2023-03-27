@@ -10,6 +10,7 @@
 #include "duckdb/common/enums/subquery_type.hpp"
 #include "duckdb/common/enums/set_operation_type.hpp"
 
+#include "duckdb/parser/parsed_data/create_info.hpp"
 #include "duckdb/parser/result_modifier.hpp"
 #include "duckdb/parser/query_node.hpp"
 #include "duckdb/parser/expression/window_expression.hpp"
@@ -1079,6 +1080,36 @@ LogicalTypeId EnumSerializer::StringToEnum(const char *value) {
 	} else {
 		throw NotImplementedException(
 		    "Unrecognized type LogicalTypeId in EnumSerializer::EnumSerializer::StringToEnum");
+	}
+}
+
+template <>
+OnCreateConflict EnumSerializer::StringToEnum(const char *value) {
+	if (StringUtil::Equals(value, "ERROR_ON_CONFLICT")) {
+		return OnCreateConflict::ERROR_ON_CONFLICT;
+	} else if (StringUtil::Equals(value, "IGNORE_ON_CONFLICT")) {
+		return OnCreateConflict::IGNORE_ON_CONFLICT;
+	} else if (StringUtil::Equals(value, "REPLACE_ON_CONFLICT")) {
+		return OnCreateConflict::REPLACE_ON_CONFLICT;
+	} else if (StringUtil::Equals(value, "ALTER_ON_CONFLICT")) {
+		return OnCreateConflict::ALTER_ON_CONFLICT;
+	} else {
+		throw NotImplementedException(
+		    "Unrecognized type OnCreateConflict in EnumSerializer::EnumSerializer::StringToEnum");
+	}
+}
+
+template <>
+const char *EnumSerializer::EnumToString(OnCreateConflict value) {
+	switch (value) {
+	case OnCreateConflict::ERROR_ON_CONFLICT:
+		return "ERROR_ON_CONFLICT";
+	case OnCreateConflict::IGNORE_ON_CONFLICT:
+		return "IGNORE_ON_CONFLICT";
+	case OnCreateConflict::REPLACE_ON_CONFLICT:
+		return "REPLACE_ON_CONFLICT";
+	case OnCreateConflict::ALTER_ON_CONFLICT:
+		return "ALTER_ON_CONFLICT";
 	}
 }
 

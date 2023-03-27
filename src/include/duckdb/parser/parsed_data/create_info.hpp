@@ -57,6 +57,7 @@ protected:
 
 public:
 	void Serialize(Serializer &serializer) const;
+	void FormatSerialize(FormatSerializer &serializer) const;
 
 	static unique_ptr<CreateInfo> Deserialize(Deserializer &deserializer);
 	static unique_ptr<CreateInfo> Deserialize(Deserializer &deserializer, PlanDeserializationState &state);

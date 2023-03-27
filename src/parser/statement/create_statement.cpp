@@ -12,4 +12,9 @@ unique_ptr<SQLStatement> CreateStatement::Copy() const {
 	return unique_ptr<CreateStatement>(new CreateStatement(*this));
 }
 
+void CreateStatement::FormatSerialize(FormatSerializer &serializer) const {
+	SQLStatement::FormatSerialize(serializer);
+	serializer.WriteProperty("info", info);
+}
+
 } // namespace duckdb

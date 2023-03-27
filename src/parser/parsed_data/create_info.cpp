@@ -27,6 +27,15 @@ void CreateInfo::Serialize(Serializer &serializer) const {
 	serializer.WriteString(sql);
 	SerializeInternal(serializer);
 }
+void CreateInfo::FormatSerialize(FormatSerializer &serializer) const {
+	//   serializer.WriteProperty("type", type);
+	serializer.WriteProperty("catalog", catalog);
+	serializer.WriteProperty("schema", schema);
+	serializer.WriteProperty("on_conflict", on_conflict);
+	serializer.WriteProperty("temporary", temporary);
+	serializer.WriteProperty("internal", internal);
+	serializer.WriteProperty("sql", sql);
+}
 
 unique_ptr<CreateInfo> CreateInfo::Deserialize(Deserializer &deserializer) {
 	auto type = deserializer.Read<CatalogType>();
