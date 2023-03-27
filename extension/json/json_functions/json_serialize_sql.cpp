@@ -90,7 +90,7 @@ static void JsonSerializeFunction(DataChunk &args, ExpressionState &state, Vecto
 
 			for (auto &statement : parser.statements) {
 				auto serializer = JsonSerializer(doc, info.skip_if_null, info.skip_if_empty);
-				statement.FormatSerialize(serializer);
+				statement->FormatSerialize(serializer);
 				auto json = serializer.GetRootObject();
 
 				yyjson_mut_arr_append(statements_arr, json);

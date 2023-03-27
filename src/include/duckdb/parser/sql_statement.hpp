@@ -13,6 +13,7 @@
 #include "duckdb/common/exception.hpp"
 #include "duckdb/common/printer.hpp"
 #include "duckdb/common/named_parameter_map.hpp"
+#include "duckdb/common/serializer/format_serializer.hpp"
 
 namespace duckdb {
 
@@ -47,8 +48,9 @@ public:
 	}
 	//! Create a copy of this SelectStatement
 	DUCKDB_API virtual unique_ptr<SQLStatement> Copy() const = 0;
-	DUCKDB_API virtual void FormatSerialize(FormatSerializer &serializer) const  {
-		serializer.WriteProperty("class", typeid(this).name());
+	DUCKDB_API virtual void FormatSerialize(FormatSerializer &serializer) const {
+                const string& name = std::string(typeid(this).name());
+		serializer.WriteProperty("class", name);
 		serializer.WriteProperty("error", "not yet supported");
 	}
 };
