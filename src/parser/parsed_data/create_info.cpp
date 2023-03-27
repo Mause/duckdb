@@ -28,7 +28,7 @@ void CreateInfo::Serialize(Serializer &serializer) const {
 	SerializeInternal(serializer);
 }
 void CreateInfo::FormatSerialize(FormatSerializer &serializer) const {
-	//   serializer.WriteProperty("type", type);
+	serializer.WriteProperty("type", type);
 	serializer.WriteProperty("catalog", catalog);
 	serializer.WriteProperty("schema", schema);
 	serializer.WriteProperty("on_conflict", on_conflict);

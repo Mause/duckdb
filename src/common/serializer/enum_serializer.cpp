@@ -10,6 +10,7 @@
 #include "duckdb/common/enums/subquery_type.hpp"
 #include "duckdb/common/enums/set_operation_type.hpp"
 
+#include "duckdb/common/enums/catalog_type.hpp"
 #include "duckdb/parser/parsed_data/create_info.hpp"
 #include "duckdb/parser/result_modifier.hpp"
 #include "duckdb/parser/query_node.hpp"
@@ -1202,6 +1203,12 @@ const char *EnumSerializer::EnumToString(LogicalTypeId value) {
 		return "BIT";
 	}
 	return "UNDEFINED";
+}
+
+template <>
+const char *EnumSerializer::EnumToString(CatalogType value) {
+	auto typ = CatalogTypeToString(value);
+	return strdup(typ.c_str());
 }
 
 } // namespace duckdb
