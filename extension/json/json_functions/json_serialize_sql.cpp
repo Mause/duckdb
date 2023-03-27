@@ -89,12 +89,8 @@ static void JsonSerializeFunction(DataChunk &args, ExpressionState &state, Vecto
 			auto statements_arr = yyjson_mut_arr(doc);
 
 			for (auto &statement : parser.statements) {
-				if (statement->type != StatementType::SELECT_STATEMENT) {
-					throw NotImplementedException("Only SELECT statements can be serialized to json!");
-				}
-				auto &select = (SelectStatement &)*statement;
 				auto serializer = JsonSerializer(doc, info.skip_if_null, info.skip_if_empty);
-				select.FormatSerialize(serializer);
+				statement.FormatSerialize(serializer);
 				auto json = serializer.GetRootObject();
 
 				yyjson_mut_arr_append(statements_arr, json);
