@@ -3,10 +3,67 @@
  * See https://duckdb.org/docs/api/nodejs/overview for details
  * on Node.JS API
  */
-export class DuckDbError extends Error {
-  errno: number;
-  code: string;
+
+export type ExceptionType =
+    | "Invalid"          // invalid type
+    | "Out of Range"     // value out of range error
+    | "Conversion"       // conversion/casting error
+    | "Unknown Type"     // unknown type
+    | "Decimal"          // decimal related
+    | "Mismatch Type"    // type mismatch
+    | "Divide by Zero"   // divide by 0
+    | "Object Size"      // object size exceeded
+    | "Invalid type"     // incompatible for operation
+    | "Serialization"    // serialization
+    | "TransactionContext" // transaction management
+    | "Not implemented"  // method not implemented
+    | "Expression"       // expression parsing
+    | "Catalog"          // catalog related
+    | "Parser"           // parser related
+    | "Binder"           // binder related
+    | "Planner"          // planner related
+    | "Scheduler"        // scheduler related
+    | "Executor"         // executor related
+    | "Constraint"       // constraint related
+    | "Index"            // index related
+    | "Stat"             // stat related
+    | "Connection"       // connection related
+    | "Syntax"           // syntax related
+    | "Settings"         // settings related
+    | "Optimizer"        // optimizer related
+    | "NullPointer"      // nullptr exception
+    | "IO"               // IO exception
+    | "INTERRUPT"        // interrupt
+    | "FATAL"            // Fatal exceptions are non-recoverable and render the entire DB in an unusable state
+    | "INTERNAL"         // Internal exceptions indicate something went wrong internally (i.e. bug in the code base)
+    | "Invalid Input"    // Input or arguments error
+    | "Out of Memory"    // out of memory
+    | "Permission"       // insufficient permissions
+    | "Parameter Not Resolved" // parameter types could not be resolved
+    | "Parameter Not Allowed"  // parameter types not allowed
+    | "Dependency"       // dependency
+    | "Unknown"
+    | "HTTP"
+    ;
+
+/**
+ * Standard error shape for DuckDB errors
+ */
+export interface _DuckDbError extends Error {
+  errno: -1; // value of ERROR
+  code: 'DUCKDB_NODEJS_ERROR';
+  errorType: ExceptionType;
 }
+
+export interface HttpError extends _DuckDbError {
+  errorType: 'HTTP';
+  statusCode: number;
+  response: string;
+  reason: string;
+  headers: Record<string, string>;
+}
+
+export type DuckDbError = HttpError | _DuckDbError;
 
 type Callback<T> = (err: DuckDbError | null, res: T) => void;
 
@@ -43,7 +100,7 @@ export class Connection {
   unregister_udf(name: string, callback: Callback<any>): void;
 
   stream(sql: any, ...args: any[]): QueryResult;
-  arrowIPCStream(sql: any, ...args: any[]): IpcResultStreamIterator;
+  arrowIPCStream(sql: any, ...args: any[]): Promise<IpcResultStreamIterator>;
 
   register_buffer(name: string, array: ArrowIterable, force: boolean, callback?: Callback<void>): void;
   unregister_buffer(name: string, callback?: Callback<void>): void;
@@ -60,6 +117,15 @@ export class IpcResultStreamIterator implements AsyncIterator<Uint8Array>, Async
 
   toArray(): Promise<ArrowArray>;
 }
+
+export interface ReplacementScanResult {
+  function: string;
+  parameters: Array<unknown>;
+}
+
+export type ReplacementScanCallback = (
+  table: string
+) => ReplacementScanResult | null;
 
 export class Database {
   constructor(path: string, accessMode?: number | Record<string,string>, callback?: Callback<any>);
@@ -99,6 +165,10 @@ export class Database {
   register_buffer(name: string, array: ArrowIterable, force: boolean, callback?: Callback<void>): void;
 
   unregister_buffer(name: string, callback?: Callback<void>): void;
+
+  registerReplacementScan(
+    replacementScan: ReplacementScanCallback
+  ): Promise<void>;
 }
 
 export class Statement {

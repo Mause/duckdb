@@ -111,6 +111,7 @@ public class DuckDBResultSetMetaData implements ResultSetMetaData {
 		case UINTEGER:
 		case UBIGINT:
 		case INTERVAL:
+		case MAP:
 			return Types.JAVA_OBJECT;
 		case FLOAT:
 			return Types.FLOAT;
@@ -259,12 +260,14 @@ public class DuckDBResultSetMetaData implements ResultSetMetaData {
 		return "";
 	}
 
+	@Override
 	public <T> T unwrap(Class<T> iface) throws SQLException {
-		throw new SQLFeatureNotSupportedException("unwrap");
+		return JdbcUtils.unwrap(this, iface);
 	}
 
-	public boolean isWrapperFor(Class<?> iface) throws SQLException {
-		throw new SQLFeatureNotSupportedException("isWrapperFor");
+	@Override
+	public boolean isWrapperFor(Class<?> iface) {
+		return iface.isInstance(this);
 	}
 
 	private DuckDBColumnTypeMetaData typeMetadataForColumn(int columnIndex) throws SQLException {

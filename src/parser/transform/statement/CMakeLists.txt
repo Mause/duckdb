@@ -3,6 +3,7 @@ add_library_unity(
   OBJECT
   transform_alter_table.cpp
   transform_attach.cpp
+  transform_detach.cpp
   transform_call.cpp
   transform_checkpoint.cpp
   transform_create_function.cpp
@@ -13,6 +14,7 @@ add_library_unity(
   transform_create_table.cpp
   transform_create_view.cpp
   transform_create_type.cpp
+  transform_create_database.cpp
   transform_delete.cpp
   transform_explain.cpp
   transform_export.cpp
@@ -25,11 +27,13 @@ add_library_unity(
   transform_select.cpp
   transform_select_node.cpp
   transform_set.cpp
+  transform_pivot_stmt.cpp
   transform_prepare.cpp
   transform_show.cpp
   transform_show_select.cpp
   transform_transaction.cpp
   transform_update.cpp
+  transform_upsert.cpp
   transform_use.cpp
   transform_create_sequence.cpp
   transform_vacuum.cpp

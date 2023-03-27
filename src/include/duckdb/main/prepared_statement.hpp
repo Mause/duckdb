@@ -48,6 +48,8 @@ public:
 public:
 	//! Returns the stored error message
 	DUCKDB_API const string &GetError();
+	//! Returns the stored error object
+	DUCKDB_API PreservedError &GetErrorObject();
 	//! Returns whether or not an error occurred
 	DUCKDB_API bool HasError() const;
 	//! Returns the number of columns in the result
@@ -60,6 +62,8 @@ public:
 	DUCKDB_API const vector<LogicalType> &GetTypes();
 	//! Returns the result names of the prepared statement
 	DUCKDB_API const vector<string> &GetNames();
+	//! Returns the map of parameter index to the expected type of parameter
+	DUCKDB_API vector<LogicalType> GetExpectedParameterTypes() const;
 
 	//! Create a pending query result of the prepared statement with the given set of arguments
 	template <typename... Args>

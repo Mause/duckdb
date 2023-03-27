@@ -38,8 +38,12 @@ void BuiltinFunctions::RegisterMathFunctions() {
 	Register<EvenFun>();
 
 	Register<IsNanFun>();
+	Register<SignBitFun>();
 	Register<IsInfiniteFun>();
 	Register<IsFiniteFun>();
+
+	Register<GreatestCommonDivisorFun>();
+	Register<LeastCommonMultipleFun>();
 }
 
 } // namespace duckdb

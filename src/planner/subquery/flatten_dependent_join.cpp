@@ -262,6 +262,7 @@ unique_ptr<LogicalOperator> FlattenDependentJoins::PushDownDependentJoinInternal
 		return std::move(join);
 	}
 	case LogicalOperatorType::LOGICAL_ANY_JOIN:
+	case LogicalOperatorType::LOGICAL_ASOF_JOIN:
 	case LogicalOperatorType::LOGICAL_COMPARISON_JOIN: {
 		auto &join = (LogicalJoin &)*plan;
 		D_ASSERT(plan->children.size() == 2);
@@ -334,7 +335,8 @@ unique_ptr<LogicalOperator> FlattenDependentJoins::PushDownDependentJoinInternal
 			auto right = make_unique<BoundColumnRefExpression>(
 			    correlated_columns[i].type, ColumnBinding(right_binding.table_index, right_binding.column_index + i));
 
-			if (join.type == LogicalOperatorType::LOGICAL_COMPARISON_JOIN) {
+			if (join.type == LogicalOperatorType::LOGICAL_COMPARISON_JOIN ||
+			    join.type == LogicalOperatorType::LOGICAL_ASOF_JOIN) {
 				JoinCondition cond;
 				cond.left = std::move(left);
 				cond.right = std::move(right);
@@ -528,6 +530,8 @@ unique_ptr<LogicalOperator> FlattenDependentJoins::PushDownDependentJoinInternal
 	case LogicalOperatorType::LOGICAL_DELIM_JOIN: {
 		throw BinderException("Nested lateral joins or lateral joins in correlated subqueries are not (yet) supported");
 	}
+	case LogicalOperatorType::LOGICAL_SAMPLE:
+		throw BinderException("Sampling in correlated subqueries is not (yet) supported");
 	default:
 		throw InternalException("Logical operator type \"%s\" for dependent join", LogicalOperatorToString(plan->type));
 	}

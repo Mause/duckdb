@@ -110,11 +110,23 @@ struct IsNanFun {
 	static void RegisterFunction(BuiltinFunctions &set);
 };
 
+struct SignBitFun {
+	static void RegisterFunction(BuiltinFunctions &set);
+};
+
 struct IsInfiniteFun {
 	static void RegisterFunction(BuiltinFunctions &set);
 };
 
 struct IsFiniteFun {
+	static void RegisterFunction(BuiltinFunctions &set);
+};
+
+struct GreatestCommonDivisorFun {
+	static void RegisterFunction(BuiltinFunctions &set);
+};
+
+struct LeastCommonMultipleFun {
 	static void RegisterFunction(BuiltinFunctions &set);
 };
 

@@ -52,7 +52,8 @@ LogicalType Transformer::TransformTypeName(duckdb_libpgquery::PGTypeName *type_n
 			children.push_back(make_pair(entry_name, entry_type));
 		}
 		D_ASSERT(!children.empty());
-		result_type = LogicalType::STRUCT(std::move(children));
+		result_type = LogicalType::STRUCT(children);
+
 	} else if (base_type == LogicalTypeId::MAP) {
 
 		if (!type_name->typmods || type_name->typmods->length != 2) {
@@ -122,6 +123,9 @@ LogicalType Transformer::TransformTypeName(duckdb_libpgquery::PGTypeName *type_n
 				}
 				if (modifier_idx == 0) {
 					width = const_val.val.val.ival;
+					if (base_type == LogicalTypeId::BIT && const_val.location != -1) {
+						width = 0;
+					}
 				} else if (modifier_idx == 1) {
 					scale = const_val.val.val.ival;
 				} else {
@@ -164,6 +168,13 @@ LogicalType Transformer::TransformTypeName(duckdb_libpgquery::PGTypeName *type_n
 			result_type = LogicalType::USER(user_type_name);
 			break;
 		}
+		case LogicalTypeId::BIT: {
+			if (!width && type_name->typmods) {
+				throw ParserException("Type %s does not support any modifiers!", LogicalType(base_type).ToString());
+			}
+			result_type = LogicalType(base_type);
+			break;
+		}
 		case LogicalTypeId::TIMESTAMP:
 			if (modifier_idx == 0) {
 				result_type = LogicalType::TIMESTAMP;
@@ -197,7 +208,7 @@ LogicalType Transformer::TransformTypeName(duckdb_libpgquery::PGTypeName *type_n
 		// array bounds: turn the type into a list
 		idx_t extra_stack = 0;
 		for (auto cell = type_name->arrayBounds->head; cell != nullptr; cell = cell->next) {
-			result_type = LogicalType::LIST(std::move(result_type));
+			result_type = LogicalType::LIST(result_type);
 			StackCheck(extra_stack++);
 		}
 	}

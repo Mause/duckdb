@@ -56,14 +56,16 @@ public:
 
 class CrossProductExecutor {
 public:
-	CrossProductExecutor(ColumnDataCollection &rhs);
+	explicit CrossProductExecutor(ColumnDataCollection &rhs);
 
 	OperatorResultType Execute(DataChunk &input, DataChunk &output);
 
+	// returns if the left side is scanned as a constant vector
 	bool ScanLHS() {
 		return scan_input_chunk;
 	}
 
+	// returns the position in the chunk of chunk scanned as a constant input vector
 	idx_t PositionInChunk() {
 		return position_in_chunk;
 	}

@@ -36,10 +36,13 @@ unique_ptr<NodeStatistics> StatisticsPropagator::PropagateStatistics(LogicalOper
 	case LogicalOperatorType::LOGICAL_PROJECTION:
 		return PropagateStatistics((LogicalProjection &)node, node_ptr);
 	case LogicalOperatorType::LOGICAL_ANY_JOIN:
+	case LogicalOperatorType::LOGICAL_ASOF_JOIN:
 	case LogicalOperatorType::LOGICAL_COMPARISON_JOIN:
 	case LogicalOperatorType::LOGICAL_JOIN:
 	case LogicalOperatorType::LOGICAL_DELIM_JOIN:
 		return PropagateStatistics((LogicalJoin &)node, node_ptr);
+	case LogicalOperatorType::LOGICAL_POSITIONAL_JOIN:
+		return PropagateStatistics((LogicalPositionalJoin &)node, node_ptr);
 	case LogicalOperatorType::LOGICAL_UNION:
 	case LogicalOperatorType::LOGICAL_EXCEPT:
 	case LogicalOperatorType::LOGICAL_INTERSECT:
@@ -90,7 +93,7 @@ unique_ptr<BaseStatistics> StatisticsPropagator::PropagateExpression(Expression 
 unique_ptr<BaseStatistics> StatisticsPropagator::PropagateExpression(unique_ptr<Expression> &expr) {
 	auto stats = PropagateExpression(*expr, &expr);
 	if (ClientConfig::GetConfig(context).query_verification_enabled && stats) {
-		expr->verification_stats = stats->Copy();
+		expr->verification_stats = stats->ToUnique();
 	}
 	return stats;
 }

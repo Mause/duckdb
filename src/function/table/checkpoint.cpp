@@ -3,6 +3,7 @@
 #include "duckdb/storage/storage_manager.hpp"
 #include "duckdb/transaction/transaction_manager.hpp"
 #include "duckdb/main/database_manager.hpp"
+#include "duckdb/function/function_set.hpp"
 
 namespace duckdb {
 
@@ -31,7 +32,11 @@ static unique_ptr<FunctionData> CheckpointBind(ClientContext &context, TableFunc
 	AttachedDatabase *db;
 	auto &db_manager = DatabaseManager::Get(context);
 	if (!input.inputs.empty()) {
-		db = db_manager.GetDatabase(context, StringValue::Get(input.inputs[0]));
+		auto &db_name = StringValue::Get(input.inputs[0]);
+		db = db_manager.GetDatabase(context, db_name);
+		if (!db) {
+			throw BinderException("Database \"%s\" not found", db_name);
+		}
 	} else {
 		db = db_manager.GetDatabase(context, DatabaseManager::GetDefaultDatabase(context));
 	}

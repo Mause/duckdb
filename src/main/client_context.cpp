@@ -1,52 +1,52 @@
 #include "duckdb/main/client_context.hpp"
 
-#include "duckdb/main/client_context_file_opener.hpp"
-#include "duckdb/main/query_profiler.hpp"
-#include "duckdb/catalog/catalog_entry/table_catalog_entry.hpp"
 #include "duckdb/catalog/catalog_entry/scalar_function_catalog_entry.hpp"
+#include "duckdb/catalog/catalog_entry/table_catalog_entry.hpp"
 #include "duckdb/catalog/catalog_search_path.hpp"
+#include "duckdb/common/file_system.hpp"
+#include "duckdb/common/http_state.hpp"
+#include "duckdb/common/preserved_error.hpp"
+#include "duckdb/common/progress_bar/progress_bar.hpp"
 #include "duckdb/common/serializer/buffered_deserializer.hpp"
+#include "duckdb/common/serializer/buffered_file_writer.hpp"
 #include "duckdb/common/serializer/buffered_serializer.hpp"
+#include "duckdb/common/types/column_data_collection.hpp"
+#include "duckdb/execution/column_binding_resolver.hpp"
+#include "duckdb/execution/operator/helper/physical_result_collector.hpp"
 #include "duckdb/execution/physical_plan_generator.hpp"
-#include "duckdb/main/database.hpp"
-#include "duckdb/main/materialized_query_result.hpp"
+#include "duckdb/main/appender.hpp"
+#include "duckdb/main/attached_database.hpp"
+#include "duckdb/main/client_context_file_opener.hpp"
 #include "duckdb/main/client_data.hpp"
+#include "duckdb/main/database.hpp"
+#include "duckdb/main/database_manager.hpp"
+#include "duckdb/main/error_manager.hpp"
+#include "duckdb/main/materialized_query_result.hpp"
+#include "duckdb/main/query_profiler.hpp"
 #include "duckdb/main/query_result.hpp"
+#include "duckdb/main/relation.hpp"
 #include "duckdb/main/stream_query_result.hpp"
 #include "duckdb/optimizer/optimizer.hpp"
-#include "duckdb/parser/parser.hpp"
+#include "duckdb/parallel/task_scheduler.hpp"
 #include "duckdb/parser/expression/constant_expression.hpp"
 #include "duckdb/parser/expression/parameter_expression.hpp"
 #include "duckdb/parser/parsed_data/create_function_info.hpp"
+#include "duckdb/parser/parsed_expression_iterator.hpp"
+#include "duckdb/parser/parser.hpp"
+#include "duckdb/parser/query_node/select_node.hpp"
 #include "duckdb/parser/statement/drop_statement.hpp"
+#include "duckdb/parser/statement/execute_statement.hpp"
 #include "duckdb/parser/statement/explain_statement.hpp"
+#include "duckdb/parser/statement/prepare_statement.hpp"
+#include "duckdb/parser/statement/relation_statement.hpp"
 #include "duckdb/parser/statement/select_statement.hpp"
 #include "duckdb/planner/operator/logical_execute.hpp"
 #include "duckdb/planner/planner.hpp"
-#include "duckdb/transaction/transaction_manager.hpp"
-#include "duckdb/transaction/transaction.hpp"
-#include "duckdb/storage/data_table.hpp"
-#include "duckdb/main/appender.hpp"
-#include "duckdb/main/relation.hpp"
-#include "duckdb/parser/statement/relation_statement.hpp"
-#include "duckdb/parallel/task_scheduler.hpp"
-#include "duckdb/common/serializer/buffered_file_writer.hpp"
 #include "duckdb/planner/pragma_handler.hpp"
-#include "duckdb/common/file_system.hpp"
-#include "duckdb/execution/column_binding_resolver.hpp"
-#include "duckdb/execution/operator/helper/physical_result_collector.hpp"
-#include "duckdb/parser/query_node/select_node.hpp"
-#include "duckdb/parser/parsed_expression_iterator.hpp"
-#include "duckdb/parser/statement/prepare_statement.hpp"
-#include "duckdb/parser/statement/execute_statement.hpp"
-#include "duckdb/common/types/column_data_collection.hpp"
-#include "duckdb/common/preserved_error.hpp"
-#include "duckdb/common/progress_bar/progress_bar.hpp"
-#include "duckdb/main/error_manager.hpp"
-#include "duckdb/main/database_manager.hpp"
+#include "duckdb/storage/data_table.hpp"
 #include "duckdb/transaction/meta_transaction.hpp"
-#include "duckdb/common/http_stats.hpp"
-#include "duckdb/main/attached_database.hpp"
+#include "duckdb/transaction/transaction.hpp"
+#include "duckdb/transaction/transaction_manager.hpp"
 
 namespace duckdb {
 
@@ -156,8 +156,8 @@ void ClientContext::BeginQueryInternal(ClientContextLock &lock, const string &qu
 PreservedError ClientContext::EndQueryInternal(ClientContextLock &lock, bool success, bool invalidate_transaction) {
 	client_data->profiler->EndQuery();
 
-	if (client_data->http_stats) {
-		client_data->http_stats->Reset();
+	if (client_data->http_state) {
+		client_data->http_state->Reset();
 	}
 
 	// Notify any registered state of query end
@@ -166,6 +166,8 @@ PreservedError ClientContext::EndQueryInternal(ClientContextLock &lock, bool suc
 	}
 
 	D_ASSERT(active_query.get());
+	active_query.reset();
+	query_progress = -1;
 	PreservedError error;
 	try {
 		if (transaction.HasActiveTransaction()) {
@@ -203,12 +205,11 @@ PreservedError ClientContext::EndQueryInternal(ClientContextLock &lock, bool suc
 	} catch (...) { // LCOV_EXCL_START
 		error = PreservedError("Unhandled exception!");
 	} // LCOV_EXCL_STOP
-	active_query.reset();
-	query_progress = -1;
 	return error;
 }
 
 void ClientContext::CleanupInternal(ClientContextLock &lock, BaseQueryResult *result, bool invalidate_transaction) {
+	client_data->http_state = make_unique<HTTPState>();
 	if (!active_query) {
 		// no query currently active
 		return;
@@ -665,6 +666,8 @@ unique_ptr<PendingQueryResult> ClientContext::PendingStatementOrPreparedStatemen
 			statement = std::move(copied_statement);
 			break;
 		}
+#ifndef DUCKDB_ALTERNATIVE_VERIFY
+		case StatementType::COPY_STATEMENT:
 		case StatementType::INSERT_STATEMENT:
 		case StatementType::DELETE_STATEMENT:
 		case StatementType::UPDATE_STATEMENT: {
@@ -684,6 +687,7 @@ unique_ptr<PendingQueryResult> ClientContext::PendingStatementOrPreparedStatemen
 			statement = std::move(parser.statements[0]);
 			break;
 		}
+#endif
 		default:
 			statement = std::move(copied_statement);
 			break;
@@ -713,10 +717,6 @@ unique_ptr<PendingQueryResult> ClientContext::PendingStatementOrPreparedStatemen
 	// start the profiler
 	auto &profiler = QueryProfiler::Get(*this);
 	profiler.StartQuery(query, IsExplainAnalyze(statement ? statement.get() : prepared->unbound_statement.get()));
-
-	if (IsExplainAnalyze(statement ? statement.get() : prepared->unbound_statement.get())) {
-		client_data->http_stats = make_unique<HTTPStats>();
-	}
 
 	bool invalidate_query = true;
 	try {
@@ -810,12 +810,14 @@ unique_ptr<QueryResult> ClientContext::Query(const string &query, bool allow_str
 
 	unique_ptr<QueryResult> result;
 	QueryResult *last_result = nullptr;
+	bool last_had_result = false;
 	for (idx_t i = 0; i < statements.size(); i++) {
 		auto &statement = statements[i];
 		bool is_last_statement = i + 1 == statements.size();
 		PendingQueryParameters parameters;
 		parameters.allow_stream_result = allow_stream_result && is_last_statement;
 		auto pending_query = PendingQueryInternal(*lock, std::move(statement), parameters);
+		auto has_result = pending_query->properties.return_type == StatementReturnType::QUERY_RESULT;
 		unique_ptr<QueryResult> current_result;
 		if (pending_query->HasError()) {
 			current_result = make_unique<MaterializedQueryResult>(pending_query->GetErrorObject());
@@ -823,12 +825,17 @@ unique_ptr<QueryResult> ClientContext::Query(const string &query, bool allow_str
 			current_result = ExecutePendingQueryInternal(*lock, *pending_query);
 		}
 		// now append the result to the list of results
-		if (!last_result) {
+		if (!last_result || !last_had_result) {
 			// first result of the query
 			result = std::move(current_result);
 			last_result = result.get();
+			last_had_result = has_result;
 		} else {
 			// later results; attach to the result chain
+			// but only if there is a result
+			if (!has_result) {
+				continue;
+			}
 			last_result->next = std::move(current_result);
 			last_result = last_result->next.get();
 		}
@@ -979,7 +986,7 @@ unique_ptr<TableDescription> ClientContext::TableInfo(const string &schema_name,
 		result = make_unique<TableDescription>();
 		result->schema = schema_name;
 		result->table = table_name;
-		for (auto &column : table->columns.Logical()) {
+		for (auto &column : table->GetColumns().Logical()) {
 			result->columns.emplace_back(column.Name(), column.Type());
 		}
 	});
@@ -991,15 +998,15 @@ void ClientContext::Append(TableDescription &description, ColumnDataCollection &
 		auto table_entry =
 		    Catalog::GetEntry<TableCatalogEntry>(*this, INVALID_CATALOG, description.schema, description.table);
 		// verify that the table columns and types match up
-		if (description.columns.size() != table_entry->columns.PhysicalColumnCount()) {
+		if (description.columns.size() != table_entry->GetColumns().PhysicalColumnCount()) {
 			throw Exception("Failed to append: table entry has different number of columns!");
 		}
 		for (idx_t i = 0; i < description.columns.size(); i++) {
-			if (description.columns[i].Type() != table_entry->columns.GetColumn(PhysicalIndex(i)).Type()) {
+			if (description.columns[i].Type() != table_entry->GetColumns().GetColumn(PhysicalIndex(i)).Type()) {
 				throw Exception("Failed to append: table entry has different number of columns!");
 			}
 		}
-		table_entry->storage->LocalAppend(*table_entry, *this, collection);
+		table_entry->GetStorage().LocalAppend(*table_entry, *this, collection);
 	});
 }
 
@@ -1040,9 +1047,10 @@ unordered_set<string> ClientContext::GetTableNames(const string &query) {
 	return result;
 }
 
-unique_ptr<QueryResult> ClientContext::Execute(const shared_ptr<Relation> &relation) {
-	auto lock = LockContext();
-	InitialCleanup(*lock);
+unique_ptr<PendingQueryResult> ClientContext::PendingQueryInternal(ClientContextLock &lock,
+                                                                   const shared_ptr<Relation> &relation,
+                                                                   bool allow_stream_result) {
+	InitialCleanup(lock);
 
 	string query;
 	if (config.query_verification_enabled) {
@@ -1053,14 +1061,32 @@ unique_ptr<QueryResult> ClientContext::Execute(const shared_ptr<Relation> &relat
 			// verify read only statements by running a select statement
 			auto select = make_unique<SelectStatement>();
 			select->node = relation->GetQueryNode();
-			RunStatementInternal(*lock, query, std::move(select), false);
+			RunStatementInternal(lock, query, std::move(select), false);
 		}
 	}
-	auto &expected_columns = relation->Columns();
+
 	auto relation_stmt = make_unique<RelationStatement>(relation);
+	PendingQueryParameters parameters;
+	parameters.allow_stream_result = allow_stream_result;
+	return PendingQueryInternal(lock, std::move(relation_stmt), parameters);
+}
+
+unique_ptr<PendingQueryResult> ClientContext::PendingQuery(const shared_ptr<Relation> &relation,
+                                                           bool allow_stream_result) {
+	auto lock = LockContext();
+	return PendingQueryInternal(*lock, relation, allow_stream_result);
+}
+
+unique_ptr<QueryResult> ClientContext::Execute(const shared_ptr<Relation> &relation) {
+	auto lock = LockContext();
+	auto &expected_columns = relation->Columns();
+	auto pending = PendingQueryInternal(*lock, relation, false);
+	if (!pending->success) {
+		return make_unique<MaterializedQueryResult>(pending->GetErrorObject());
+	}
 
 	unique_ptr<QueryResult> result;
-	result = RunStatementInternal(*lock, query, std::move(relation_stmt), false);
+	result = ExecutePendingQueryInternal(*lock, *pending);
 	if (result->HasError()) {
 		return result;
 	}
@@ -1129,6 +1155,13 @@ ClientProperties ClientContext::GetClientProperties() const {
 	ClientProperties properties;
 	properties.timezone = ClientConfig::GetConfig(*this).ExtractTimezone();
 	return properties;
+}
+
+bool ClientContext::ExecutionIsFinished() {
+	if (!active_query || !active_query->executor) {
+		return false;
+	}
+	return active_query->executor->ExecutionIsFinished();
 }
 
 } // namespace duckdb

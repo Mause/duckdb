@@ -62,7 +62,7 @@ void DataChunk::InitializeEmpty(vector<LogicalType>::const_iterator begin, vecto
 	D_ASSERT(data.empty());                   // can only be initialized once
 	D_ASSERT(std::distance(begin, end) != 0); // empty chunk not allowed
 	for (; begin != end; begin++) {
-		data.emplace_back(Vector(*begin, nullptr));
+		data.emplace_back(*begin, nullptr);
 	}
 }
 
@@ -304,6 +304,16 @@ void DataChunk::Hash(Vector &result) {
 	VectorOperations::Hash(data[0], result, size());
 	for (idx_t i = 1; i < ColumnCount(); i++) {
 		VectorOperations::CombineHash(result, data[i], size());
+	}
+}
+
+void DataChunk::Hash(vector<idx_t> &column_ids, Vector &result) {
+	D_ASSERT(result.GetType().id() == LogicalType::HASH);
+	D_ASSERT(column_ids.size() > 0);
+
+	VectorOperations::Hash(data[column_ids[0]], result, size());
+	for (idx_t i = 1; i < column_ids.size(); i++) {
+		VectorOperations::CombineHash(result, data[column_ids[i]], size());
 	}
 }
 

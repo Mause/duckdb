@@ -23,6 +23,7 @@ class ConnectionManager;
 class FileSystem;
 class TaskScheduler;
 class ObjectCache;
+struct AttachInfo;
 
 class DatabaseInstance : public std::enable_shared_from_this<DatabaseInstance> {
 	friend class DuckDB;
@@ -34,6 +35,7 @@ public:
 	DBConfig config;
 
 public:
+	BufferPool &GetBufferPool();
 	DUCKDB_API BufferManager &GetBufferManager();
 	DUCKDB_API DatabaseManager &GetDatabaseManager();
 	DUCKDB_API FileSystem &GetFileSystem();
@@ -48,8 +50,13 @@ public:
 	DUCKDB_API static DatabaseInstance &GetDatabase(ClientContext &context);
 
 	DUCKDB_API const unordered_set<std::string> &LoadedExtensions();
+	DUCKDB_API bool ExtensionIsLoaded(const std::string &name);
 
 	DUCKDB_API bool TryGetCurrentSetting(const std::string &key, Value &result);
+
+	//! Get the database extension type from a given path
+	string ExtractDatabaseType(string &path);
+	unique_ptr<AttachedDatabase> CreateAttachedDatabase(AttachInfo &info, const string &type, AccessMode access_mode);
 
 private:
 	void Initialize(const char *path, DBConfig *config);

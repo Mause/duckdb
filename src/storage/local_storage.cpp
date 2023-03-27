@@ -4,13 +4,14 @@
 #include "duckdb/storage/write_ahead_log.hpp"
 #include "duckdb/common/vector_operations/vector_operations.hpp"
 #include "duckdb/storage/table/row_group.hpp"
-#include "duckdb/transaction/transaction.hpp"
+#include "duckdb/transaction/duck_transaction.hpp"
 #include "duckdb/planner/table_filter.hpp"
 #include "duckdb/storage/partial_block_manager.hpp"
 
 #include "duckdb/storage/table/column_checkpoint_state.hpp"
 #include "duckdb/storage/table/column_segment.hpp"
 #include "duckdb/storage/table_io_manager.hpp"
+#include "duckdb/storage/table/scan_state.hpp"
 
 namespace duckdb {
 
@@ -127,7 +128,7 @@ LocalTableStorage::LocalTableStorage(DataTable &table)
 				unbound_expressions.push_back(expr->Copy());
 			}
 			indexes.AddIndex(make_unique<ART>(art.column_ids, art.table_io_manager, std::move(unbound_expressions),
-			                                  art.constraint_type, art.db));
+			                                  art.constraint_type, art.db, true));
 		}
 		return false;
 	});
@@ -197,16 +198,16 @@ void LocalTableStorage::FlushToDisk() {
 	optimistic_writer.FinalFlush();
 }
 
-bool LocalTableStorage::AppendToIndexes(Transaction &transaction, RowGroupCollection &source,
-                                        TableIndexList &index_list, const vector<LogicalType> &table_types,
-                                        row_t &start_row) {
+PreservedError LocalTableStorage::AppendToIndexes(DuckTransaction &transaction, RowGroupCollection &source,
+                                                  TableIndexList &index_list, const vector<LogicalType> &table_types,
+                                                  row_t &start_row) {
 	// only need to scan for index append
 	// figure out which columns we need to scan for the set of indexes
 	auto columns = index_list.GetRequiredColumns();
 	// create an empty mock chunk that contains all the correct types for the table
 	DataChunk mock_chunk;
 	mock_chunk.InitializeEmpty(table_types);
-	bool success = true;
+	PreservedError error;
 	source.Scan(transaction, columns, [&](DataChunk &chunk) -> bool {
 		// construct the mock chunk by referencing the required columns
 		for (idx_t i = 0; i < columns.size(); i++) {
@@ -214,28 +215,28 @@ bool LocalTableStorage::AppendToIndexes(Transaction &transaction, RowGroupCollec
 		}
 		mock_chunk.SetCardinality(chunk);
 		// append this chunk to the indexes of the table
-		if (!DataTable::AppendToIndexes(index_list, mock_chunk, start_row)) {
-			success = false;
+		error = DataTable::AppendToIndexes(index_list, mock_chunk, start_row);
+		if (error) {
 			return false;
 		}
 		start_row += chunk.size();
 		return true;
 	});
-	return success;
+	return error;
 }
 
-void LocalTableStorage::AppendToIndexes(Transaction &transaction, TableAppendState &append_state, idx_t append_count,
-                                        bool append_to_table) {
-	bool constraint_violated = false;
+void LocalTableStorage::AppendToIndexes(DuckTransaction &transaction, TableAppendState &append_state,
+                                        idx_t append_count, bool append_to_table) {
 	if (append_to_table) {
 		table->InitializeAppend(transaction, append_state, append_count);
 	}
+	PreservedError error;
 	if (append_to_table) {
 		// appending: need to scan entire
 		row_groups->Scan(transaction, [&](DataChunk &chunk) -> bool {
 			// append this chunk to the indexes of the table
-			if (!table->AppendToIndexes(chunk, append_state.current_row)) {
-				constraint_violated = true;
+			error = table->AppendToIndexes(chunk, append_state.current_row);
+			if (error) {
 				return false;
 			}
 			// append to base table
@@ -243,11 +244,10 @@ void LocalTableStorage::AppendToIndexes(Transaction &transaction, TableAppendSta
 			return true;
 		});
 	} else {
-		constraint_violated = !AppendToIndexes(transaction, *row_groups, table->info->indexes, table->GetTypes(),
-		                                       append_state.current_row);
+		error = AppendToIndexes(transaction, *row_groups, table->info->indexes, table->GetTypes(),
+		                        append_state.current_row);
 	}
-	if (constraint_violated) {
-		PreservedError error;
+	if (error) {
 		// need to revert the append
 		row_t current_row = append_state.row_start;
 		// remove the data from the indexes, if there are any indexes
@@ -273,10 +273,7 @@ void LocalTableStorage::AppendToIndexes(Transaction &transaction, TableAppendSta
 		if (append_to_table) {
 			table->RevertAppendInternal(append_state.row_start, append_count);
 		}
-		if (error) {
-			error.Throw();
-		}
-		throw ConstraintException("PRIMARY KEY or UNIQUE constraint violated: duplicated key");
+		error.Throw();
 	}
 }
 
@@ -355,16 +352,22 @@ void LocalTableManager::InsertEntry(DataTable *table, shared_ptr<LocalTableStora
 //===--------------------------------------------------------------------===//
 // LocalStorage
 //===--------------------------------------------------------------------===//
-LocalStorage::LocalStorage(ClientContext &context, Transaction &transaction)
+LocalStorage::LocalStorage(ClientContext &context, DuckTransaction &transaction)
     : context(context), transaction(transaction) {
 }
 
-LocalStorage &LocalStorage::Get(Transaction &transaction) {
+LocalStorage::CommitState::CommitState() {
+}
+
+LocalStorage::CommitState::~CommitState() {
+}
+
+LocalStorage &LocalStorage::Get(DuckTransaction &transaction) {
 	return transaction.GetLocalStorage();
 }
 
 LocalStorage &LocalStorage::Get(ClientContext &context, AttachedDatabase &db) {
-	return Transaction::Get(context, db).GetLocalStorage();
+	return DuckTransaction::Get(context, db).GetLocalStorage();
 }
 
 LocalStorage &LocalStorage::Get(ClientContext &context, Catalog &catalog) {
@@ -412,8 +415,9 @@ void LocalStorage::Append(LocalAppendState &state, DataChunk &chunk) {
 	// append to unique indices (if any)
 	auto storage = state.storage;
 	idx_t base_id = MAX_ROW_ID + storage->row_groups->GetTotalRows() + state.append_state.total_append_count;
-	if (!DataTable::AppendToIndexes(storage->indexes, chunk, base_id)) {
-		throw ConstraintException("PRIMARY KEY or UNIQUE constraint violated: duplicated key");
+	auto error = DataTable::AppendToIndexes(storage->indexes, chunk, base_id);
+	if (error) {
+		error.Throw();
 	}
 
 	//! Append the chunk to the local storage
@@ -434,9 +438,9 @@ void LocalStorage::LocalMerge(DataTable *table, RowGroupCollection &collection) 
 	if (!storage->indexes.Empty()) {
 		// append data to indexes if required
 		row_t base_id = MAX_ROW_ID + storage->row_groups->GetTotalRows();
-		bool success = storage->AppendToIndexes(transaction, collection, storage->indexes, table->GetTypes(), base_id);
-		if (!success) {
-			throw ConstraintException("PRIMARY KEY or UNIQUE constraint violated: duplicated key");
+		auto error = storage->AppendToIndexes(transaction, collection, storage->indexes, table->GetTypes(), base_id);
+		if (error) {
+			error.Throw();
 		}
 	}
 	storage->row_groups->MergeStorage(collection);
@@ -515,7 +519,7 @@ void LocalStorage::Flush(DataTable &table, LocalTableStorage &storage) {
 	transaction.PushAppend(&table, append_state.row_start, append_count);
 }
 
-void LocalStorage::Commit(LocalStorage::CommitState &commit_state, Transaction &transaction) {
+void LocalStorage::Commit(LocalStorage::CommitState &commit_state, DuckTransaction &transaction) {
 	// commit local storage
 	// iterate over all entries in the table storage map and commit them
 	// after this, the local storage is no longer required and can be cleared
@@ -596,20 +600,14 @@ void LocalStorage::ChangeType(DataTable *old_dt, DataTable *new_dt, idx_t change
 	table_manager.InsertEntry(new_dt, std::move(new_storage));
 }
 
-void LocalStorage::FetchChunk(DataTable *table, Vector &row_ids, idx_t count, DataChunk &verify_chunk) {
+void LocalStorage::FetchChunk(DataTable *table, Vector &row_ids, idx_t count, const vector<column_t> &col_ids,
+                              DataChunk &chunk, ColumnFetchState &fetch_state) {
 	auto storage = table_manager.GetStorage(table);
 	if (!storage) {
 		throw InternalException("LocalStorage::FetchChunk - local storage not found");
 	}
 
-	ColumnFetchState fetch_state;
-	vector<column_t> col_ids;
-	vector<LogicalType> types = storage->table->GetTypes();
-	for (idx_t i = 0; i < types.size(); i++) {
-		col_ids.push_back(i);
-	}
-	verify_chunk.Initialize(storage->allocator, types);
-	storage->row_groups->Fetch(transaction, verify_chunk, col_ids, row_ids, count, fetch_state);
+	storage->row_groups->Fetch(transaction, chunk, col_ids, row_ids, count, fetch_state);
 }
 
 TableIndexList &LocalStorage::GetIndexes(DataTable *table) {

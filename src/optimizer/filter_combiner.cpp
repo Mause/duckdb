@@ -2,21 +2,18 @@
 
 #include "duckdb/execution/expression_executor.hpp"
 #include "duckdb/planner/expression.hpp"
-#include "duckdb/planner/expression_iterator.hpp"
 #include "duckdb/planner/expression/bound_between_expression.hpp"
+#include "duckdb/planner/expression/bound_cast_expression.hpp"
 #include "duckdb/planner/expression/bound_columnref_expression.hpp"
 #include "duckdb/planner/expression/bound_comparison_expression.hpp"
 #include "duckdb/planner/expression/bound_conjunction_expression.hpp"
 #include "duckdb/planner/expression/bound_constant_expression.hpp"
 #include "duckdb/planner/expression/bound_function_expression.hpp"
-#include "duckdb/planner/operator/logical_empty_result.hpp"
-#include "duckdb/planner/operator/logical_filter.hpp"
+#include "duckdb/planner/expression/bound_operator_expression.hpp"
 #include "duckdb/planner/table_filter.hpp"
 #include "duckdb/planner/filter/constant_filter.hpp"
 #include "duckdb/planner/filter/null_filter.hpp"
 #include "duckdb/optimizer/optimizer.hpp"
-#include "duckdb/common/operator/cast_operators.hpp"
-#include "duckdb/planner/filter/conjunction_filter.hpp"
 
 namespace duckdb {
 
@@ -119,8 +116,10 @@ void FilterCombiner::GenerateFilters(const std::function<void(unique_ptr<Express
 				callback(std::move(comparison));
 			}
 			// for each entry also create a comparison with each constant
-			int lower_index = -1, upper_index = -1;
-			bool lower_inclusive, upper_inclusive;
+			int lower_index = -1;
+			int upper_index = -1;
+			bool lower_inclusive = false;
+			bool upper_inclusive = false;
 			for (idx_t k = 0; k < constant_list.size(); k++) {
 				auto &info = constant_list[k];
 				if (info.comparison_type == ExpressionType::COMPARE_GREATERTHAN ||
@@ -580,7 +579,7 @@ FilterResult FilterCombiner::AddBoundComparisonFilter(Expression *expr) {
 	    comparison.type != ExpressionType::COMPARE_GREATERTHAN &&
 	    comparison.type != ExpressionType::COMPARE_GREATERTHANOREQUALTO &&
 	    comparison.type != ExpressionType::COMPARE_EQUAL && comparison.type != ExpressionType::COMPARE_NOTEQUAL) {
-		// only support [>, >=, <, <=, ==] expressions
+		// only support [>, >=, <, <=, ==, !=] expressions
 		return FilterResult::UNSUPPORTED;
 	}
 	// check if one of the sides is a scalar value
@@ -602,12 +601,13 @@ FilterResult FilterCombiner::AddBoundComparisonFilter(Expression *expr) {
 
 		// create the ExpressionValueInformation
 		ExpressionValueInformation info;
-		info.comparison_type = left_is_scalar ? FlipComparisionExpression(comparison.type) : comparison.type;
+		info.comparison_type = left_is_scalar ? FlipComparisonExpression(comparison.type) : comparison.type;
 		info.constant = constant_value;
 
 		// get the current bucket of constant values
 		D_ASSERT(constant_values.find(equivalence_set) != constant_values.end());
 		auto &info_list = constant_values.find(equivalence_set)->second;
+		D_ASSERT(node->return_type == info.constant.type());
 		// check the existing constant comparisons to see if we can do any pruning
 		auto ret = AddConstantComparison(info_list, info);
 
@@ -793,7 +793,8 @@ FilterResult FilterCombiner::AddTransitiveFilters(BoundComparisonExpression &com
 			for (auto &stored_exp : stored_expressions) {
 				if (stored_exp.first->type == ExpressionType::BOUND_COLUMN_REF) {
 					auto &st_col_ref = (BoundColumnRefExpression &)*stored_exp.second;
-					if (st_col_ref.binding == col_ref.binding) {
+					if (st_col_ref.binding == col_ref.binding &&
+					    bound_cast_expr.return_type == stored_exp.second->return_type) {
 						bound_cast_expr.child = stored_exp.second->Copy();
 						right_node = GetNode(bound_cast_expr.child.get());
 						break;

@@ -10,6 +10,7 @@
 #include "duckdb/parser/parsed_expression_iterator.hpp"
 #include "duckdb/planner/binder.hpp"
 #include "duckdb/planner/expression/bound_columnref_expression.hpp"
+#include "duckdb/planner/expression/bound_lambdaref_expression.hpp"
 #include "duckdb/planner/expression/bound_constant_expression.hpp"
 #include "duckdb/planner/expression_binder.hpp"
 #include "duckdb/planner/expression_binder/where_binder.hpp"
@@ -174,11 +175,12 @@ unique_ptr<ParsedExpression> ExpressionBinder::CreateStructPack(ColumnRefExpress
 		}
 	}
 	// We found the table, now create the struct_pack expression
-	vector<unique_ptr<ParsedExpression>> child_exprs;
+	vector<unique_ptr<ParsedExpression>> child_expressions;
+	child_expressions.reserve(binding->names.size());
 	for (const auto &column_name : binding->names) {
-		child_exprs.push_back(make_unique<ColumnRefExpression>(column_name, table_name));
+		child_expressions.push_back(make_unique<ColumnRefExpression>(column_name, table_name));
 	}
-	return make_unique<FunctionExpression>("struct_pack", std::move(child_exprs));
+	return make_unique<FunctionExpression>("struct_pack", std::move(child_expressions));
 }
 
 unique_ptr<ParsedExpression> ExpressionBinder::QualifyColumnName(ColumnRefExpression &colref, string &error_message) {
@@ -317,7 +319,7 @@ BindResult ExpressionBinder::BindExpression(ColumnRefExpression &colref_p, idx_t
 	if (lambda_bindings) {
 		for (idx_t i = 0; i < lambda_bindings->size(); i++) {
 			if (table_name == (*lambda_bindings)[i].alias) {
-				result = (*lambda_bindings)[i].Bind(colref, depth);
+				result = (*lambda_bindings)[i].Bind(colref, i, depth);
 				found_lambda_binding = true;
 				break;
 			}

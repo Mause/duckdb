@@ -18,7 +18,7 @@
 #include "duckdb/function/compression/compression.hpp"
 #include "duckdb/main/config.hpp"
 #include "duckdb/storage/buffer_manager.hpp"
-#include "duckdb/storage/statistics/numeric_statistics.hpp"
+
 #include "duckdb/storage/table/column_data_checkpointer.hpp"
 #include "duckdb/storage/table/column_segment.hpp"
 #include "duckdb/common/operator/subtract.hpp"
@@ -149,8 +149,8 @@ public:
 		current_segment->count++;
 
 		if (is_valid) {
-			T floating_point_value = *(T *)(&value);
-			NumericStatistics::Update<T>(current_segment->stats, floating_point_value);
+			T floating_point_value = Load<T>((const_data_ptr_t)&value);
+			NumericStats::Update<T>(current_segment->stats.statistics, floating_point_value);
 		} else {
 			//! FIXME: find a cheaper alternative to storing a NULL
 			// store this as "value_identical", only using 9 bits for a NULL
