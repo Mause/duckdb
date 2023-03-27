@@ -47,5 +47,6 @@ public:
 	}
 	//! Create a copy of this SelectStatement
 	DUCKDB_API virtual unique_ptr<SQLStatement> Copy() const = 0;
+	DUCKDB_API virtual void FormatSerialize(FormatSerializer &serializer) const = 0;
 };
 } // namespace duckdb
