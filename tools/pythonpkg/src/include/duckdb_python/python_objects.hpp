@@ -188,6 +188,29 @@ public:
 	}
 };
 
+static bool any(vector<bool> data) {
+	bool valid = false;
+
+	for (const auto &item : data) {
+		valid = valid || item;
+	}
+
+	return valid;
+}
+
+template <typename... ARGS>
+class Union : public py::object {
+public:
+	Union(const py::object &o) : py::object(o, borrowed_t {}) {
+	}
+	using py::object::object;
+
+public:
+	static bool check_(const py::handle &object) {
+		return any({py::isinstance<ARGS>(object)...});
+	}
+};
+
 class FileLikeObject : public py::object {
 public:
 	FileLikeObject(const py::object &o) : py::object(o, borrowed_t {}) {
@@ -207,6 +230,10 @@ namespace detail {
 template <typename T>
 struct handle_type_name<duckdb::Optional<T>> {
 	static constexpr auto name = const_name("typing.Optional[") + concat(make_caster<T>::name) + const_name("]");
+};
+template <typename... ARGS>
+struct handle_type_name<duckdb::Union<ARGS...>> {
+	static constexpr auto name = const_name("typing.Union[") + concat(make_caster<ARGS>::name...) + const_name("]");
 };
 } // namespace detail
 } // namespace pybind11
