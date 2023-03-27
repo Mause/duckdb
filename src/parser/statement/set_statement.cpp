@@ -13,10 +13,9 @@ unique_ptr<SQLStatement> SetStatement::Copy() const {
 
 void SetStatement::FormatSerialize(FormatSerializer &serializer) const {
 	SQLStatement::FormatSerialize(serializer);
-	const string &lname = name;
 
 	serializer.WriteProperty("class", "SET_STATEMENT");
-	serializer.WriteProperty("name", lname);
+	serializer.WriteProperty("name", name);
 }
 
 // Set Variable
