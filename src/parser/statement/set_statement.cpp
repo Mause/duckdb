@@ -1,4 +1,5 @@
 #include "duckdb/parser/statement/set_statement.hpp"
+#include "duckdb/common/serializer/format_serializer.hpp"
 
 namespace duckdb {
 
@@ -8,6 +9,13 @@ SetStatement::SetStatement(std::string name_p, SetScope scope_p, SetType type_p)
 
 unique_ptr<SQLStatement> SetStatement::Copy() const {
 	return unique_ptr<SetStatement>(new SetStatement(*this));
+}
+
+void SetStatement::FormatSerialize(FormatSerializer &serializer) const {
+	SQLStatement::FormatSerialize(serializer);
+	const string &lname = name;
+
+	serializer.WriteProperty("name", lname);
 }
 
 // Set Variable

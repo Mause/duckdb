@@ -12,6 +12,7 @@
 #include "duckdb/common/enums/set_type.hpp"
 #include "duckdb/parser/sql_statement.hpp"
 #include "duckdb/common/types/value.hpp"
+#include "duckdb/common/serializer/format_serializer.hpp"
 
 namespace duckdb {
 
@@ -22,6 +23,7 @@ protected:
 
 public:
 	unique_ptr<SQLStatement> Copy() const override;
+	void FormatSerialize(FormatSerializer &serializer) const override;
 
 public:
 	std::string name;
