@@ -24,6 +24,13 @@ void CreateTableInfo::SerializeInternal(Serializer &serializer) const {
 	writer.WriteOptional(query);
 	writer.Finalize();
 }
+void CreateTableInfo::FormatSerialize(FormatSerializer &serializer) const {
+	CreateInfo::FormatSerialize(serializer);
+	serializer.WriteProperty("table", table);
+	//    serializer.WriteProperty("columns", columns);
+	// serializer.WriteProperty("constraints", constraints);
+	serializer.WriteProperty("query", query);
+}
 
 unique_ptr<CreateTableInfo> CreateTableInfo::Deserialize(Deserializer &deserializer) {
 	auto result = make_unique<CreateTableInfo>();

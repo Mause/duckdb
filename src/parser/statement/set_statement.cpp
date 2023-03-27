@@ -16,6 +16,8 @@ void SetStatement::FormatSerialize(FormatSerializer &serializer) const {
 
 	serializer.WriteProperty("class", "SET_STATEMENT");
 	serializer.WriteProperty("name", name);
+	//        serializer.WriteProperty("scope", scope);
+	//      serializer.WriteProperty("set_type", set_type);
 }
 
 // Set Variable

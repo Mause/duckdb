@@ -38,6 +38,7 @@ protected:
 
 public:
 	DUCKDB_API static unique_ptr<CreateTableInfo> Deserialize(Deserializer &deserializer);
+	void FormatSerialize(FormatSerializer &serializer) const;
 
 	DUCKDB_API unique_ptr<CreateInfo> Copy() const override;
 };
