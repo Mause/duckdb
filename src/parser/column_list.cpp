@@ -1,6 +1,7 @@
 #include "duckdb/parser/column_list.hpp"
 #include "duckdb/common/string.hpp"
 #include "duckdb/common/to_string.hpp"
+#include "duckdb/common/serializer/format_serializer.hpp"
 
 namespace duckdb {
 
@@ -152,6 +153,10 @@ ColumnList ColumnList::Copy() const {
 
 void ColumnList::Serialize(FieldWriter &writer) const {
 	writer.WriteRegularSerializableList(columns);
+}
+
+void ColumnList::FormatSerialize(FormatSerializer &serializer) const {
+	serializer.WriteProperty("columns", columns);
 }
 
 ColumnList ColumnList::Deserialize(FieldReader &reader) {

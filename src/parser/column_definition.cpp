@@ -4,6 +4,7 @@
 #include "duckdb/parser/expression/columnref_expression.hpp"
 #include "duckdb/parser/parsed_data/alter_table_info.hpp"
 #include "duckdb/parser/expression/cast_expression.hpp"
+#include "duckdb/common/serializer/format_serializer.hpp"
 
 namespace duckdb {
 
@@ -51,6 +52,18 @@ void ColumnDefinition::Serialize(Serializer &serializer) const {
 	}
 	writer.WriteField<TableColumnType>(category);
 	writer.Finalize();
+}
+
+void ColumnDefinition::FormatSerialize(FormatSerializer &serializer) const {
+	serializer.WriteProperty("name", name);
+
+	// writer.WriteSerializable(type);
+	// if (Generated()) {
+	// 	writer.WriteOptional(generated_expression);
+	// } else {
+	// 	writer.WriteOptional(default_value);
+	// }
+	// writer.WriteField<TableColumnType>(category);
 }
 
 ColumnDefinition ColumnDefinition::Deserialize(Deserializer &source) {

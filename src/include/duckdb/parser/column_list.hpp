@@ -51,6 +51,7 @@ public:
 
 	ColumnList Copy() const;
 	void Serialize(FieldWriter &writer) const;
+	void FormatSerialize(FormatSerializer &serializer) const;
 	static ColumnList Deserialize(FieldReader &reader);
 
 	DUCKDB_API ColumnListIterator Logical() const;
