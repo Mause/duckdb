@@ -52,12 +52,11 @@ HTTPParams HTTPParams::ReadFrom(FileOpener *opener) {
 	if (FileOpener::TryGetCurrentSetting(opener, "http_retry_backoff", value)) {
 		retry_backoff = value.GetValue<float>();
 	}
-
-	if (opener->TryGetCurrentSetting("http_proxy", value)) {
+	if (FileOpener::TryGetCurrentSetting(opener, "http_proxy", value)) {
 		proxy = ProxyUri::FromString(value.GetValue<string>());
 	}
 
-	return {timeout, retries, retry_wait_ms, retry_backoff, force_download, proxy};
+	return {timeout, retries, retry_wait_ms, retry_backoff, proxy, force_download};
 }
 
 void HTTPFileSystem::ParseUrl(string &url, string &path_out, string &proto_host_port_out) {
