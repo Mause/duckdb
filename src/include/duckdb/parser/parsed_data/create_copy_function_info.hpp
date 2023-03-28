@@ -23,6 +23,7 @@ struct CreateCopyFunctionInfo : public CreateInfo {
 
 protected:
 	void SerializeInternal(Serializer &) const override;
+	void FormatSerializeInternal(FormatSerializer &) const override;
 
 public:
 	unique_ptr<CreateInfo> Copy() const override;

@@ -51,6 +51,13 @@ void CreateViewInfo::SerializeInternal(Serializer &serializer) const {
 	writer.Finalize();
 }
 
+void CreateViewInfo::FormatSerializeInternal(FormatSerializer &serializer) const {
+	serializer.WriteProperty("view_name", view_name);
+	serializer.WriteProperty("aliases", aliases);
+	serializer.WriteProperty("types", types);
+	serializer.WriteProperty("query", query);
+}
+
 unique_ptr<CreateViewInfo> CreateViewInfo::FromSelect(ClientContext &context, unique_ptr<CreateViewInfo> info) {
 	D_ASSERT(info);
 	D_ASSERT(!info->view_name.empty());

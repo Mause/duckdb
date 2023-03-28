@@ -27,6 +27,9 @@ protected:
 	void SerializeInternal(Serializer &serializer) const override {
 		serializer.WriteString(name);
 	}
+	void FormatSerializeInternal(FormatSerializer &serializer) const override {
+		serializer.WriteProperty("name", name);
+	}
 };
 
 } // namespace duckdb

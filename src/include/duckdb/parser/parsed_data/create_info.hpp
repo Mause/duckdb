@@ -12,6 +12,7 @@
 #include "duckdb/common/field_writer.hpp"
 #include "duckdb/parser/parsed_data/parse_info.hpp"
 #include "duckdb/planner/plan_serialization.hpp"
+#include "duckdb/common/serializer/format_serializer.hpp"
 
 namespace duckdb {
 struct AlterInfo;
@@ -52,6 +53,7 @@ struct CreateInfo : public ParseInfo {
 
 protected:
 	virtual void SerializeInternal(Serializer &) const = 0;
+	virtual void FormatSerializeInternal(FormatSerializer &) const = 0;
 
 	void DeserializeBase(Deserializer &deserializer);
 

@@ -12,6 +12,10 @@ void CreateCopyFunctionInfo::SerializeInternal(Serializer &) const {
 	throw NotImplementedException("Cannot serialize '%s'", CatalogTypeToString(type));
 }
 
+void CreateCopyFunctionInfo::FormatSerializeInternal(FormatSerializer &) const {
+	throw NotImplementedException("Cannot serialize '%s'", CatalogTypeToString(type));
+}
+
 unique_ptr<CreateInfo> CreateCopyFunctionInfo::Copy() const {
 	auto result = make_unique<CreateCopyFunctionInfo>(function);
 	CopyProperties(*result);

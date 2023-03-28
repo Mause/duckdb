@@ -35,6 +35,7 @@ void CreateInfo::FormatSerialize(FormatSerializer &serializer) const {
 	serializer.WriteProperty("temporary", temporary);
 	serializer.WriteProperty("internal", internal);
 	serializer.WriteProperty("sql", sql);
+	FormatSerializeInternal(serializer);
 }
 
 unique_ptr<CreateInfo> CreateInfo::Deserialize(Deserializer &deserializer) {

@@ -32,6 +32,8 @@ public:
 protected:
 	void SerializeInternal(Serializer &) const override {
 	}
+	void FormatSerializeInternal(FormatSerializer &) const override {
+	}
 };
 
 } // namespace duckdb

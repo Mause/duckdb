@@ -14,6 +14,10 @@ void CreateCollationInfo::SerializeInternal(Serializer &) const {
 	throw NotImplementedException("Cannot serialize '%s'", CatalogTypeToString(type));
 }
 
+void CreateCollationInfo::FormatSerializeInternal(FormatSerializer &) const {
+	throw NotImplementedException("Cannot serialize '%s'", CatalogTypeToString(type));
+}
+
 unique_ptr<CreateInfo> CreateCollationInfo::Copy() const {
 	auto result = make_unique<CreateCollationInfo>(name, function, combinable, not_required_for_equality);
 	CopyProperties(*result);

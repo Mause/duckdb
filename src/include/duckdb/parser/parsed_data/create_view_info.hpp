@@ -40,6 +40,7 @@ public:
 
 protected:
 	void SerializeInternal(Serializer &serializer) const override;
+	void FormatSerializeInternal(FormatSerializer &serializer) const override;
 };
 
 } // namespace duckdb

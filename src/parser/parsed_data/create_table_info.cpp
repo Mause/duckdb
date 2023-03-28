@@ -24,8 +24,7 @@ void CreateTableInfo::SerializeInternal(Serializer &serializer) const {
 	writer.WriteOptional(query);
 	writer.Finalize();
 }
-void CreateTableInfo::FormatSerialize(FormatSerializer &serializer) const {
-	CreateInfo::FormatSerialize(serializer);
+void CreateTableInfo::FormatSerializeInternal(FormatSerializer &serializer) const {
 	serializer.WriteProperty("table", table);
 	//    serializer.WriteProperty("columns", columns);
 	// serializer.WriteProperty("constraints", constraints);

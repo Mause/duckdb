@@ -43,6 +43,19 @@ void CreateIndexInfo::SerializeInternal(Serializer &serializer) const {
 	writer.Finalize();
 }
 
+void CreateIndexInfo::FormatSerializeInternal(FormatSerializer &serializer) const {
+	serializer.WriteProperty("index_type", index_type);
+	serializer.WriteProperty("index_name", index_name);
+	serializer.WriteProperty("constraint_type", constraint_type);
+
+	serializer.WriteProperty("expressions", expressions);
+	serializer.WriteProperty("parsed_expressions", parsed_expressions);
+
+	serializer.WriteProperty("scan_types", scan_types);
+	serializer.WriteProperty("names", names);
+	serializer.WriteProperty("column_ids", column_ids);
+}
+
 unique_ptr<CreateIndexInfo> CreateIndexInfo::Deserialize(Deserializer &deserializer) {
 
 	auto result = make_unique<CreateIndexInfo>();

@@ -42,6 +42,7 @@ struct CreateIndexInfo : public CreateInfo {
 
 protected:
 	void SerializeInternal(Serializer &serializer) const override;
+	void FormatSerializeInternal(FormatSerializer &serializer) const override;
 
 public:
 	DUCKDB_API unique_ptr<CreateInfo> Copy() const override;

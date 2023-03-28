@@ -16,6 +16,7 @@
 #include "duckdb/parser/query_node.hpp"
 #include "duckdb/parser/expression/window_expression.hpp"
 #include "duckdb/parser/parsed_data/sample_options.hpp"
+#include "duckdb/common/enums/index_type.hpp"
 
 namespace duckdb {
 
@@ -1111,6 +1112,36 @@ const char *EnumSerializer::EnumToString(OnCreateConflict value) {
 		return "REPLACE_ON_CONFLICT";
 	case OnCreateConflict::ALTER_ON_CONFLICT:
 		return "ALTER_ON_CONFLICT";
+	default:
+		return "Unknown";
+	}
+}
+
+template <>
+const char *EnumSerializer::EnumToString(IndexType value) {
+	switch (value) {
+	case IndexType::INVALID:
+		return "INVALID";
+	case IndexType::ART:
+		return "ART";
+	default:
+		return "Unknown";
+	}
+}
+
+template <>
+const char *EnumSerializer::EnumToString(IndexConstraintType value) {
+	switch (value) {
+	case IndexConstraintType::NONE:
+		return "NONE";
+	case IndexConstraintType::UNIQUE:
+		return "UNIQUE";
+	case IndexConstraintType::PRIMARY:
+		return "PRIMARY";
+	case IndexConstraintType::FOREIGN:
+		return "FOREIGN";
+	default:
+		return "Unknown";
 	}
 }
 
