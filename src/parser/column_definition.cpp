@@ -57,13 +57,13 @@ void ColumnDefinition::Serialize(Serializer &serializer) const {
 void ColumnDefinition::FormatSerialize(FormatSerializer &serializer) const {
 	serializer.WriteProperty("name", name);
 
-	// writer.WriteSerializable(type);
-	// if (Generated()) {
-	// 	writer.WriteOptional(generated_expression);
-	// } else {
-	// 	writer.WriteOptional(default_value);
-	// }
-	// writer.WriteField<TableColumnType>(category);
+	serializer.WriteProperty("type", type);
+	if (Generated()) {
+		serializer.WriteProperty("generated_expression", generated_expression);
+	} else {
+		serializer.WriteProperty("default_value", default_value);
+	}
+	serializer.WriteProperty("category", category);
 }
 
 ColumnDefinition ColumnDefinition::Deserialize(Deserializer &source) {

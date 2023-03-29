@@ -17,6 +17,7 @@
 #include "duckdb/parser/expression/window_expression.hpp"
 #include "duckdb/parser/parsed_data/sample_options.hpp"
 #include "duckdb/common/enums/index_type.hpp"
+#include "duckdb/catalog/catalog_entry/table_column_type.hpp"
 
 namespace duckdb {
 
@@ -1142,6 +1143,16 @@ const char *EnumSerializer::EnumToString(IndexConstraintType value) {
 		return "FOREIGN";
 	default:
 		return "Unknown";
+	}
+}
+
+template <>
+const char *EnumSerializer::EnumToString(TableColumnType value) {
+	switch (value) {
+	case TableColumnType::STANDARD:
+		return "STANDARD";
+	case TableColumnType::GENERATED:
+		return "GENERATED";
 	}
 }
 

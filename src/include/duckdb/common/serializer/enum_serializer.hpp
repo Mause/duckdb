@@ -33,11 +33,14 @@ enum class OnCreateConflict : uint8_t;
 enum class CatalogType : uint8_t;
 enum class IndexType : uint8_t;
 enum IndexConstraintType : uint8_t;
+enum class TableColumnType : uint8_t;
 
 template <>
 const char *EnumSerializer::EnumToString<IndexType>(IndexType value);
 template <>
 const char *EnumSerializer::EnumToString<IndexConstraintType>(IndexConstraintType value);
+template <>
+const char *EnumSerializer::EnumToString<TableColumnType>(TableColumnType value);
 
 template <>
 OrderType EnumSerializer::StringToEnum<OrderType>(const char *value);
