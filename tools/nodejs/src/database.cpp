@@ -69,18 +69,13 @@ struct OpenTask : public Task {
 
 	void Callback() override {
 		auto &database = Get<Database>();
-		Napi::Env env = database.Env();
+		Napi::HandleScope scope(database.Env());
 
-		std::vector<napi_value> args;
 		if (!success) {
-			args.push_back(Utils::CreateError(env, error));
+			Reject(database.Value(), error);
 		} else {
-			args.push_back(env.Null());
+			Resolve(database.Value(), database.Value());
 		}
-
-		Napi::HandleScope scope(env);
-
-		callback.Value().MakeCallback(database.Value(), args);
 	}
 
 	std::string filename;
@@ -127,12 +122,14 @@ Database::~Database() {
 	Napi::MemoryManagement::AdjustExternalMemory(env, -bytes_allocated);
 }
 
-void Database::Schedule(Napi::Env env, std::unique_ptr<Task> task) {
+Napi::Promise Database::Schedule(Napi::Env env, std::unique_ptr<Task> task) {
+	auto promise = task->Promise();
 	{
 		std::lock_guard<std::mutex> lock(task_mutex);
 		task_queue.push(std::move(task));
 	}
 	Process(env);
+	return promise;
 }
 
 static void TaskExecuteCallback(napi_env e, void *data) {
@@ -216,8 +213,7 @@ struct WaitTask : public Task {
 };
 
 Napi::Value Database::Wait(const Napi::CallbackInfo &info) {
-	Schedule(info.Env(), duckdb::make_unique<WaitTask>(*this, info[0].As<Napi::Function>()));
-	return info.This();
+	return Schedule(info.Env(), duckdb::make_unique<WaitTask>(*this, info[0].As<Napi::Function>()));
 }
 
 struct CloseTask : public Task {
@@ -239,12 +235,11 @@ struct CloseTask : public Task {
 		auto env = database.Env();
 		Napi::HandleScope scope(env);
 
-		auto cb = callback.Value();
-		if (!success) {
-			cb.MakeCallback(database.Value(), {Utils::CreateError(env, "Database was already closed")});
-			return;
+		if (success) {
+			Resolve(database.Value(), database.Value());
+		} else {
+			Reject(database.Value(), "Database was already closed");
 		}
-		cb.MakeCallback(database.Value(), {env.Null(), database.Value()});
 	}
 
 	bool success = false;
@@ -256,9 +251,7 @@ Napi::Value Database::Close(const Napi::CallbackInfo &info) {
 		callback = info[0].As<Napi::Function>();
 	}
 
-	Schedule(info.Env(), duckdb::make_unique<CloseTask>(*this, callback));
-
-	return info.This();
+	return Schedule(info.Env(), duckdb::make_unique<CloseTask>(*this, callback));
 }
 
 Napi::Value Database::Interrupt(const Napi::CallbackInfo &info) {

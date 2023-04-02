@@ -8,14 +8,30 @@
 
 namespace node_duckdb {
 
+class Utils {
+public:
+	static Napi::Object CreateError(Napi::Env env, duckdb::PreservedError &e);
+	static Napi::Object CreateError(Napi::Env env, std::string msg);
+	static bool OtherIsInt(Napi::Number source);
+
+	template <class T>
+	static T *NewUnwrap(std::vector<napi_value> args) {
+		auto obj = T::constructor.New(args);
+		return Napi::ObjectWrap<T>::Unwrap(obj);
+	}
+	static duckdb::Value BindParameter(const Napi::Value source);
+};
+
 struct Task {
-	Task(Napi::Reference<Napi::Object> &object, Napi::Function cb) : object(object) {
+	Task(Napi::Reference<Napi::Object> &object, Napi::Function cb)
+	    : object(object), deferred(Napi::Promise::Deferred::New(object.Env())) {
 		if (!cb.IsUndefined() && cb.IsFunction()) {
 			callback = Persistent(cb); // TODO not sure what this does
 		}
 		object.Ref();
 	}
-	explicit Task(Napi::Reference<Napi::Object> &object) : object(object) {
+	explicit Task(Napi::Reference<Napi::Object> &object)
+	    : object(object), deferred(Napi::Promise::Deferred::New(object.Env())) {
 		object.Ref();
 	}
 
@@ -29,16 +45,14 @@ struct Task {
 		auto env = object.Env();
 		Napi::HandleScope scope(env);
 
-		if (!callback.Value().IsUndefined()) {
-			Callback();
-		}
+		Callback();
 	}
 
 	// Called on the event loop thread by DoCallback (see above)
 	virtual void Callback() {
 		auto env = object.Env();
 		Napi::HandleScope scope(env);
-		callback.Value().MakeCallback(object.Value(), {env.Null()});
+		Resolve(object.Value(), object.Value());
 	};
 
 	virtual ~Task() {
@@ -50,8 +64,36 @@ struct Task {
 		return (T &)object;
 	}
 
+	Napi::Promise Promise() {
+		return deferred.Promise();
+	}
+	void Resolve(Napi::Value value) {
+		deferred.Resolve(value);
+	}
+	void Reject(std::string message) {
+		Reject(Napi::String::New(object.Env(), message));
+	}
+	void Reject(Napi::Value message) {
+		deferred.Reject(message);
+	}
+	void Resolve(Napi::Value thisValue, Napi::Value value) {
+		Resolve(value);
+
+		if (!callback.Value().IsUndefined()) {
+			callback.Value().MakeCallback(thisValue, {object.Env().Null(), value});
+		}
+	}
+	void Reject(Napi::Value thisValue, std::string message) {
+		Reject(message);
+
+		if (!callback.Value().IsUndefined()) {
+			callback.Value().MakeCallback(thisValue, {Utils::CreateError(object.Env(), message)});
+		}
+	}
+
 	Napi::FunctionReference callback;
 	Napi::Reference<Napi::Object> &object;
+	Napi::Promise::Deferred deferred;
 };
 
 class Connection;
@@ -69,7 +111,7 @@ public:
 	void Process(Napi::Env env);
 	void TaskComplete(Napi::Env env);
 
-	void Schedule(Napi::Env env, std::unique_ptr<Task> task);
+	Napi::Promise Schedule(Napi::Env env, std::unique_ptr<Task> task);
 
 	static bool HasInstance(Napi::Value val) {
 		Napi::Env env = val.Env();
@@ -141,6 +183,7 @@ public:
 	Database *database_ref;
 	std::unordered_map<std::string, duckdb_node_udf_function_t> udfs;
 	std::unordered_map<std::string, Napi::Reference<Napi::Array>> array_references;
+	Napi::Value reject(Napi::Env &env, const std::string &message) const;
 };
 
 struct StatementParam;
@@ -194,20 +237,6 @@ struct TaskHolder {
 	std::unique_ptr<Task> task;
 	napi_async_work request;
 	Database *db;
-};
-
-class Utils {
-public:
-	static Napi::Object CreateError(Napi::Env env, duckdb::PreservedError &e);
-	static Napi::Object CreateError(Napi::Env env, std::string msg);
-	static bool OtherIsInt(Napi::Number source);
-
-	template <class T>
-	static T *NewUnwrap(std::vector<napi_value> args) {
-		auto obj = T::constructor.New(args);
-		return Napi::ObjectWrap<T>::Unwrap(obj);
-	}
-	static duckdb::Value BindParameter(const Napi::Value source);
 };
 
 Napi::Array EncodeDataChunk(Napi::Env env, duckdb::DataChunk &chunk, bool with_types, bool with_data);

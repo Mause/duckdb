@@ -4,12 +4,13 @@ src/duckdb/src/include/duckdb.hpp:
 	./configure
 
 ./node_modules:
-	npm install --build-from-source
+	npm install --ignore-scripts
+	./node_modules/.bin/node-pre-gyp configure
 
-build: ./node_modules src/duckdb/src/include/duckdb.hpp
+build: src/duckdb/src/include/duckdb.hpp ./node_modules
 	./node_modules/.bin/node-pre-gyp build -j max --loglevel=silent
 
-debug: ./node_modules src/duckdb/src/include/duckdb.hpp
+debug: src/duckdb/src/include/duckdb.hpp ./node_modules
 	./node_modules/.bin/node-pre-gyp build -j max --debug --verbose
 
 clean:

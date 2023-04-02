@@ -17,6 +17,12 @@ describe('exec', function() {
         });
     });
 
+    it('exec promise', async () => {
+        const res = await db.connect().exec('select 1');
+
+        assert.equal(res, [1]);
+    })
+
     it('retrieve database structure', function(done) {
         db.all("SELECT type, name FROM sqlite_master ORDER BY type, name", function(err: null | Error, rows: TableData) {
             if (err) throw err;
