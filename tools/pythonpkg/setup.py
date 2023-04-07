@@ -131,7 +131,6 @@ for i in range(len(sys.argv)):
     else:
         new_sys_args.append(sys.argv[i])
 sys.argv = new_sys_args
-toolchain_args.append('-DDUCKDB_PYTHON_LIB_NAME=' + lib_name)
 
 if platform.system() == 'Darwin':
     toolchain_args.extend(['-stdlib=libc++', '-mmacosx-version-min=10.7'])
@@ -263,7 +262,6 @@ setup(
     url="https://www.duckdb.org",
     long_description='See here for an introduction: https://duckdb.org/docs/api/python/overview',
     license='MIT',
-    data_files=[('', extra_files + header_files)],
     packages=['duckdb'],
     package_dir={'duckdb': 'pyduckdb'},
     include_package_data=True,
