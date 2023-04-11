@@ -120,6 +120,7 @@ endif()
 
 option(FORCE_WARN_UNUSED "Unused code objects lead to compiler warnings." FALSE)
 
+option(WASM_LOADABLE_EXTENSIONS "WebAssembly build with loadable extensions." FALSE)
 option(ENABLE_SANITIZER "Enable address sanitizer." TRUE)
 option(ENABLE_THREAD_SANITIZER "Enable thread sanitizer." FALSE)
 option(ENABLE_UBSAN "Enable undefined behavior sanitizer." TRUE)
@@ -302,6 +303,7 @@ option(BUILD_INET_EXTENSION "Build the inet extension." FALSE)
 option(BUILD_BENCHMARKS "Enable building of the benchmark suite." FALSE)
 option(BUILD_SQLSMITH_EXTENSION "Enable building of the SQLSmith extension." FALSE)
 option(BUILD_TPCE "Enable building of the TPC-E tool." FALSE)
+option(BUILD_AUTOCOMPLETE_EXTENSION "Enable building of the autocomplete extension" FALSE)
 option(DISABLE_BUILTIN_EXTENSIONS "Disable linking extensions." FALSE)
 option(JDBC_DRIVER "Build the DuckDB JDBC driver" FALSE)
 option(BUILD_ODBC_DRIVER "Build the DuckDB ODBC driver" FALSE)
@@ -387,6 +389,10 @@ endif()
 
 if(DEBUG_MOVE)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DDUCKDB_DEBUG_MOVE")
+endif()
+
+if (CLANG_TIDY)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DDUCKDB_CLANG_TIDY")
 endif()
 
 if(FORCE_ASSERT)
@@ -619,6 +625,11 @@ function(add_extension_definitions)
     add_definitions(-DBUILD_INET_EXTENSION=${BUILD_INET_EXTENSION})
   endif()
 
+  if(${BUILD_AUTOCOMPLETE_EXTENSION})
+    include_directories(${PROJECT_SOURCE_DIR}/extension/autocomplete/include)
+    add_definitions(-DBUILD_AUTOCOMPLETE_EXTENSION=${BUILD_AUTOCOMPLETE_EXTENSION})
+  endif()
+
   # Include paths for any registered out-of-tree extensions
   foreach(OOTE_NAME IN LISTS DUCKDB_OOT_EXTENSION_NAMES)
     string(TOUPPER ${OOTE_NAME} OOTE_NAME_UPPERCASE)
@@ -741,6 +752,10 @@ function(link_extension_libraries LIBRARY)
     target_link_libraries(${LIBRARY} inet_extension)
   endif()
 
+  if(${BUILD_AUTOCOMPLETE_EXTENSION})
+    target_link_libraries(${LIBRARY} autocomplete_extension)
+  endif()
+
   # Now link against any registered out-of-tree extensions
   foreach(OOTE_NAME IN LISTS DUCKDB_OOT_EXTENSION_NAMES)
     string(TOUPPER ${OOTE_NAME} OOTE_NAME_UPPERCASE)
@@ -778,7 +793,6 @@ function(build_loadable_extension_directory NAME OUTPUT_DIRECTORY PARAMETERS)
   # parse parameters
   string(FIND "${PARAMETERS}" "-no-warnings" IGNORE_WARNINGS)
 
-
   add_library(${TARGET_NAME} SHARED ${FILES})
   # this disables the -Dsome_target_EXPORTS define being added by cmake which otherwise trips clang-tidy (yay)
   set_target_properties(${TARGET_NAME} PROPERTIES DEFINE_SYMBOL "")
@@ -796,7 +810,9 @@ function(build_loadable_extension_directory NAME OUTPUT_DIRECTORY PARAMETERS)
   #    The DuckDB symbols required by the loadable extensions are left unresolved. This will reduce the size of the binaries
   #    and works well when running the DuckDB cli directly. For windows this uses delay loading. For MacOS and linux the
   #    dynamic loader will look up the missing symbols when the extension is dlopen-ed.
-  if (EXTENSION_STATIC_BUILD)
+  if(WASM_LOADABLE_EXTENSIONS)
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -sSIDE_MODULE=1 -DWASM_LOADABLE_EXTENSIONS")
+  elseif (EXTENSION_STATIC_BUILD)
     if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
       if (APPLE)
         set_target_properties(${TARGET_NAME} PROPERTIES CXX_VISIBILITY_PRESET hidden)
