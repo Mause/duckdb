@@ -52,6 +52,7 @@ jobs:
         with:
           fetch-depth: 0
       # - uses: ./.github/actions/ubuntu_16_setup
+      - run: sudo apt update
       - name: Setup Ccache
         uses: hendrikmuhs/ccache-action@main
         with:
