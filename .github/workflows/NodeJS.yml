@@ -59,7 +59,7 @@ jobs:
   linux-nodejs:
     name: node.js Linux
     runs-on: ubuntu-20.04
-    container: quay.io/pypa/manylinux_2_28_aarch64
+    container: quay.io/pypa/manylinux_2_24_x86_64
     needs: set-up-npm
     env:
       TARGET_ARCH: ${{ matrix.target_arch }}
