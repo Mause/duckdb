@@ -59,7 +59,7 @@ jobs:
   linux-nodejs:
     name: node.js Linux
     runs-on: ubuntu-20.04
-    container: node:alpine@${{ matrix.node }}
+    container: node:${{ matrix.node }}-alpine
     needs: set-up-npm
     env:
       TARGET_ARCH: ${{ matrix.target_arch }}
