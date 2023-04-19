@@ -14,6 +14,7 @@ runs:
   using: "composite"
   steps:
     - run: cat /etc/*-release
+      shell: bash
     - name: Install
       shell: bash
       run: |
