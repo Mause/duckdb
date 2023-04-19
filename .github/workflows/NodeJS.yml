@@ -121,7 +121,7 @@ jobs:
 
       - run: |
           uname -a
-          cat /etc/lsb-release
+          cat /etc/*-release
           dnf update
           dnf install epel-release
           dnf module list nodejs
