@@ -94,6 +94,7 @@ runs:
       shell: bash
       run: |
         git config --global --add safe.directory /__w/duckdb/duckdb
+        ls $(which /usr/bin/python3)*
         ldd --version ldd
         python3.7 --version
         git --version
