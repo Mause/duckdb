@@ -119,7 +119,9 @@ jobs:
           key: ${{ github.job }}
           save: ${{ ( github.ref == 'refs/heads/master' || github.repository != 'duckdb/duckdb' ) && ( matrix.node == '19' ) }}
 
-      - run: ./scripts/install_node.sh ${{ matrix.node }}
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node }}
 
       - name: Build DuckDB
         shell: bash
