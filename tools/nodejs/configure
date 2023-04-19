@@ -6,4 +6,4 @@ set -x
 cd `dirname $0`
 
 ls $(which /usr/bin/python3)*
-python3.10 configure.py
+python3.8 configure.py
