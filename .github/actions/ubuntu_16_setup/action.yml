@@ -39,20 +39,20 @@ runs:
     #   with:
     #     fetch-depth: 0
 
-    - name: Install Python 2.7
-      if: ${{ inputs.python }} == 1
-      shell: bash
-      run: |
-        wget https://www.python.org/ftp/python/2.7.18/Python-2.7.18.tgz
-        tar xvf Python-2.7.18.tgz
-        cd Python-2.7.18
-        mkdir -p pythonbin
-        ./configure --with-ensurepip=install
-        make -j
-        make install
-        python2.7 --version
-        python2.7 -m pip install pip
-        python2.7 -m pip install requests awscli
+    # - name: Install Python 2.7
+    #   if: ${{ inputs.python }} == 1
+    #   shell: bash
+    #   run: |
+    #     wget https://www.python.org/ftp/python/2.7.18/Python-2.7.18.tgz
+    #     tar xvf Python-2.7.18.tgz
+    #     cd Python-2.7.18
+    #     mkdir -p pythonbin
+    #     ./configure --with-ensurepip=install
+    #     make -j
+    #     make install
+    #     python2.7 --version
+    #     python2.7 -m pip install pip
+    #     python2.7 -m pip install requests awscli
 
     # - name: Install CMake 3.21
     #   shell: bash
