@@ -37,7 +37,7 @@ elif 'DUCKDB_NODE_BINDIR' in os.environ:
             fpath = os.path.join(libdir, fname)
             if os.path.isfile(fpath) and package_build.file_is_lib(fname, libname):
                 return fpath
-        raise Exception(f"Failed to find library {libname} in {libdir}")
+        raise Exception("Failed to find library {libname} in {libdir}".format_map(locals()))
     # existing build
     existing_duckdb_dir = os.environ['DUCKDB_NODE_BINDIR']
     cflags = os.environ['DUCKDB_NODE_CFLAGS']
