@@ -119,7 +119,11 @@ jobs:
           key: ${{ github.job }}
           save: ${{ ( github.ref == 'refs/heads/master' || github.repository != 'duckdb/duckdb' ) && ( matrix.node == '19' ) }}
 
-      - run: ./scripts/install_node.sh ${{ matrix.node }}
+      - run: |
+          dnf update
+          dnf install epel-release
+          dnf module list nodejs
+          dnf module install nodejs:${{ matrix.node }}
 
       - name: Build DuckDB
         shell: bash
