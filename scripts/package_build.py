@@ -74,7 +74,7 @@ def get_libraries(binary_dir, libraries, extensions):
             return
         libdir = find_library_recursive(binary_dir, libname)
         if libdir is None and required:
-            raise Exception(f"Failed to locate required library {libname} in {binary_dir}")
+            raise Exception("Failed to locate required library {libname} in {binary_dir}".format_map(locals()))
 
         result_libs += [(libdir, libname)]
 
