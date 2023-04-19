@@ -120,6 +120,8 @@ jobs:
           save: ${{ ( github.ref == 'refs/heads/master' || github.repository != 'duckdb/duckdb' ) && ( matrix.node == '19' ) }}
 
       - run: |
+          uname -a
+          cat /etc/lsb-release
           dnf update
           dnf install epel-release
           dnf module list nodejs
