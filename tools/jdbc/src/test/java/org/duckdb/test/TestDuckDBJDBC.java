@@ -680,7 +680,7 @@ public class TestDuckDBJDBC {
             assertEquals(meta.getColumnCount(), 1);
             assertEquals(meta.getColumnName(1), "struct");
             assertEquals(meta.getColumnTypeName(1), "STRUCT(i INTEGER, j VARCHAR)");
-            assertEquals(meta.getColumnType(1), Types.JAVA_OBJECT);
+            assertEquals(meta.getColumnType(1), Types.STRUCT);
         }
     }
 
@@ -4221,6 +4221,31 @@ public class TestDuckDBJDBC {
                 assertTrue(rs.next());
                 assertTrue(rs.getString(1).matches("duckdb/.*(.*) jdbc CUSTOM_STRING"));
             }
+        }
+    }
+
+    public static void scroll_until(ResultSet rs, String type_name) throws Exception {
+        while (!type_name.equals(rs.getString("TYPE_NAME"))) {
+            assertTrue(rs.next());
+        }
+    }
+
+    public static void test_get_type_info() throws Exception {
+        try (Connection conn = DriverManager.getConnection("jdbc:duckdb:");
+             ResultSet rs = conn.getMetaData().getTypeInfo()) {
+            assertTrue(rs.next());
+
+            scroll_until(rs, "bigint");
+
+            assertEquals(rs.getString("TYPE_NAME"), "bigint");
+            assertEquals(rs.getInt("DATA_TYPE"), Types.BIGINT);
+            assertEquals(rs.getInt("MAXIMUM_SCALE"), 8);
+            assertEquals(rs.getInt("SEARCHABLE"), DatabaseMetaData.typePredNone);
+
+            scroll_until(rs, "varchar");
+
+            assertEquals(rs.getInt("DATA_TYPE"), Types.VARCHAR);
+            assertEquals(rs.getInt("SEARCHABLE"), DatabaseMetaData.typeSearchable);
         }
     }
 
