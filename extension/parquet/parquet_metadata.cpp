@@ -124,6 +124,9 @@ void ParquetMetaDataOperatorData::BindMetaData(vector<LogicalType> &return_types
 
 	names.emplace_back("total_uncompressed_size");
 	return_types.emplace_back(LogicalType::BIGINT);
+
+	names.emplace_back("keyvalue_metadata");
+	return_types.emplace_back(LogicalType::MAP(LogicalType::VARCHAR));
 }
 
 Value ConvertParquetStats(const LogicalType &type, const duckdb_parquet::format::SchemaElement &schema_ele,
@@ -247,6 +250,11 @@ void ParquetMetaDataOperatorData::LoadFileMetaData(ClientContext &context, const
 
 			// total_uncompressed_size, LogicalType::BIGINT
 			current_chunk.SetValue(22, count, Value::BIGINT(col_meta.total_uncompressed_size));
+
+			vector<Value> things;
+			for (auto const &item : col_meta.key_value_metadata)
+				things.push_back(Value::STRUCT({{item.key, Value(item.value)}}));
+			current_chunk.SetValue(23, count, Value::MAP(LogicalTypeId::VARCHAR, things));
 
 			count++;
 			if (count >= STANDARD_VECTOR_SIZE) {
