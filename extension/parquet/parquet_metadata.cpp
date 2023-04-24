@@ -39,6 +39,7 @@ public:
 
 	void LoadFileMetaData(ClientContext &context, const vector<LogicalType> &return_types, const string &file_path);
 	void LoadSchemaData(ClientContext &context, const vector<LogicalType> &return_types, const string &file_path);
+	static LogicalType GetType();
 };
 
 template <class T>
@@ -125,8 +126,8 @@ void ParquetMetaDataOperatorData::BindMetaData(vector<LogicalType> &return_types
 	names.emplace_back("total_uncompressed_size");
 	return_types.emplace_back(LogicalType::BIGINT);
 
-	names.emplace_back("keyvalue_metadata");
-	return_types.emplace_back(LogicalType::MAP(LogicalType::VARCHAR));
+	names.emplace_back("key_value_metadata");
+	return_types.emplace_back(GetType());
 }
 
 Value ConvertParquetStats(const LogicalType &type, const duckdb_parquet::format::SchemaElement &schema_ele,
@@ -252,9 +253,10 @@ void ParquetMetaDataOperatorData::LoadFileMetaData(ClientContext &context, const
 			current_chunk.SetValue(22, count, Value::BIGINT(col_meta.total_uncompressed_size));
 
 			vector<Value> things;
-			for (auto const &item : col_meta.key_value_metadata)
-				things.push_back(Value::STRUCT({{item.key, Value(item.value)}}));
-			current_chunk.SetValue(23, count, Value::MAP(LogicalTypeId::VARCHAR, things));
+			for (auto const &item : meta_data->key_value_metadata) {
+				things.emplace_back(Value::KEY_VALUE(item.key, item.value));
+			}
+			current_chunk.SetValue(23, count, Value::MAP(ListType::GetChildType(GetType()), things));
 
 			count++;
 			if (count >= STANDARD_VECTOR_SIZE) {
@@ -270,6 +272,9 @@ void ParquetMetaDataOperatorData::LoadFileMetaData(ClientContext &context, const
 	collection.Append(current_chunk);
 
 	collection.InitializeScan(scan_state);
+}
+LogicalType ParquetMetaDataOperatorData::GetType() {
+	return LogicalType::MAP(LogicalTypeId::VARCHAR, LogicalTypeId::VARCHAR);
 }
 
 void ParquetMetaDataOperatorData::BindSchema(vector<LogicalType> &return_types, vector<string> &names) {
