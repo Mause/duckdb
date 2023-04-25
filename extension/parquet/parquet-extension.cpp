@@ -702,6 +702,9 @@ void ParquetExtension::Load(DuckDB &db) {
 	ParquetSchemaFunction schema_fun;
 	CreateTableFunctionInfo schema_cinfo(MultiFileReader::CreateFunctionSet(schema_fun));
 
+	ParquetFileMetadataFunction meta_file_fun;
+	CreateTableFunctionInfo meta_file_cinfo(MultiFileReader::CreateFunctionSet(meta_file_fun));
+
 	CopyFunction function("parquet");
 	function.copy_to_bind = ParquetWriteBind;
 	function.copy_to_initialize_global = ParquetWriteInitializeGlobal;
@@ -731,6 +734,7 @@ void ParquetExtension::Load(DuckDB &db) {
 	catalog.CreateTableFunction(context, pq_scan);
 	catalog.CreateTableFunction(context, meta_cinfo);
 	catalog.CreateTableFunction(context, schema_cinfo);
+	catalog.CreateTableFunction(context, &meta_file_cinfo);
 	con.Commit();
 
 	auto &config = DBConfig::GetConfig(*db.instance);
