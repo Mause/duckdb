@@ -254,7 +254,7 @@ void ParquetMetaDataOperatorData::LoadFileMetaData(ClientContext &context, const
 
 			vector<Value> things;
 			for (auto const &item : meta_data->key_value_metadata) {
-				things.emplace_back(Value::KEY_VALUE(item.key, item.value));
+				things.emplace_back(Value::KEYVALUE(item.key, item.value));
 			}
 			current_chunk.SetValue(23, count, Value::MAP(ListType::GetChildType(GetType()), things));
 

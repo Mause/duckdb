@@ -644,7 +644,7 @@ Value Value::TIMESTAMP(int32_t year, int32_t month, int32_t day, int32_t hour, i
 	return val;
 }
 
-Value Value::KEY_VALUE(Value key, Value value) {
+Value Value::KEYVALUE(const Value &key, const Value &value) {
 	return Value::STRUCT({{"key", key}, {"value", value}});
 }
 
