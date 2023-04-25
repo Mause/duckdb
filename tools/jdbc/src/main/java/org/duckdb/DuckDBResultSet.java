@@ -26,8 +26,14 @@ import java.sql.SQLXML;
 import java.sql.Statement;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
+import java.time.format.TextStyle;
+import java.time.temporal.ChronoField;
 import java.time.OffsetTime;
 import java.util.Arrays;
 import java.util.Calendar;
@@ -39,6 +45,19 @@ public class DuckDBResultSet implements ResultSet {
 
 	// Constant to construct BigDecimals from hugeint_t
 	private final static BigDecimal ULONG_MULTIPLIER = new BigDecimal("18446744073709551616");
+	public static final DateTimeFormatter FORMATTER = new DateTimeFormatterBuilder()
+			.appendValue(ChronoField.YEAR_OF_ERA)
+			.appendLiteral("-")
+			.appendValue(ChronoField.MONTH_OF_YEAR)
+			.appendLiteral("-")
+			.appendValue(ChronoField.DAY_OF_MONTH)
+			.appendOptional(
+					new DateTimeFormatterBuilder()
+							.appendLiteral(" (")
+							.appendText(ChronoField.ERA, TextStyle.SHORT)
+							.appendLiteral(")")
+							.toFormatter()
+			).toFormatter();
 
 	private final DuckDBPreparedStatement stmt;
 	private final DuckDBResultSetMetaData meta;
@@ -191,11 +210,11 @@ public class DuckDBResultSet implements ResultSet {
 		case DECIMAL:
 			return getBigDecimal(columnIndex);
 		case TIME:
-			return getTime(columnIndex);
+			return getLocalTime(columnIndex);
 		case TIME_WITH_TIME_ZONE:
 			return getOffsetTime(columnIndex);
 		case DATE:
-			return getDate(columnIndex);
+			return getLocalDate(columnIndex);
 		case TIMESTAMP:
 		case TIMESTAMP_NS:
 		case TIMESTAMP_S:
@@ -213,6 +232,24 @@ public class DuckDBResultSet implements ResultSet {
 			return getLazyString(columnIndex);
 		}
 
+	}
+
+	public LocalTime getLocalTime(int columnIndex) throws SQLException {
+		return LocalTime.parse(getLazyString(columnIndex));
+	}
+
+	public LocalDate getLocalDate(int columnIndex) throws SQLException {
+//		if (isType(columnIndex, DuckDBColumnType.DATE)) {
+//			throw new SQLFeatureNotSupportedException();
+//		}
+
+		String lazyString = getLazyString(columnIndex);
+
+		return LocalDate.from(FORMATTER.parse(lazyString));
+//		return LocalDate.parse(lazyString.split(" ")[0]).with(
+//			ChronoField.ERA,
+//			(lazyString.startsWith(" (BC)") ? IsoEra.BCE : IsoEra.CE).getValue()
+//		);
 	}
 
 	public OffsetTime getOffsetTime(int columnIndex) throws SQLException {
@@ -520,8 +557,7 @@ public class DuckDBResultSet implements ResultSet {
 			return null;
 		}
 		try {
-
-			return Time.valueOf(getLazyString(columnIndex));
+			return Time.valueOf(string_value);
 		} catch (Exception e) {
 			return null;
 		}

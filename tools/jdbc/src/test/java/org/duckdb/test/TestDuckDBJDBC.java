@@ -3,7 +3,6 @@ package org.duckdb.test;
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -30,6 +29,7 @@ import java.util.List;
 import java.util.Properties;
 import java.util.TimeZone;
 import java.util.UUID;
+import java.util.*;
 import javax.sql.rowset.RowSetProvider;
 import javax.sql.rowset.CachedRowSet;
 
@@ -43,6 +43,8 @@ import org.duckdb.DuckDBResultSetMetaData;
 import org.duckdb.DuckDBNative;
 import org.duckdb.JsonNode;
 
+import static java.util.Collections.emptyList;
+
 public class TestDuckDBJDBC {
 
 	private static void assertTrue(boolean val) throws Exception {
@@ -51,7 +53,7 @@ public class TestDuckDBJDBC {
 
 	private static void assertTrue(boolean val, String message) throws Exception {
 		if (!val) {
-			throw new Exception(message);
+			fail(message);
 		}
 	}
 
@@ -59,11 +61,12 @@ public class TestDuckDBJDBC {
 		assertTrue(!val);
 	}
 
-	private static void assertEquals(Object a, Object b) throws Exception {
-		if (a == null && b == null) {
-			return;
-		}
-		assertTrue(a.equals(b), String.format("\"%s\" should equal \"%s\"", a, b));
+	private static void assertEquals(Object actual, Object expected) throws Exception {
+		assertTrue(Objects.equals(actual, expected), String.format("\"%s\" (of %s) should equal \"%s\" (of %s)", actual, getClass(actual), expected, getClass(expected)));
+	}
+
+	private static String getClass(Object a) {
+		return a == null ? "null" : a.getClass().toString();
 	}
 
 	private static void assertNull(Object a) throws Exception {
@@ -91,6 +94,18 @@ public class TestDuckDBJDBC {
 			assertEquals(e.getClass(), exception);
 			return e.getMessage();
 		}
+	}
+
+	private static void assertNotNull(Object object, String message) throws Exception {
+		assertFalse(object == null, message);
+	}
+
+	private static void assertNotNull(Object object) throws Exception {
+		assertNotNull(object == null, "Should not be null");
+	}
+
+	private static void assertFalse(boolean b, String message) throws Exception {
+		assertTrue(!b, message);
 	}
 
 	static {
@@ -1857,8 +1872,7 @@ public class TestDuckDBJDBC {
 		// verify that the catalog argument is supported and does not throw
 		try {
 			resultSet = databaseMetaData.getTables(currentCatalog, null, "%", null);
-		}
-		catch (SQLException ex) {
+		} catch (SQLException ex) {
 			assertFalse(ex.getMessage().startsWith("Actual catalog argument is not supported"));
 		}
 		assertTrue(resultSet.next(), "getTables should return exactly 1 table");
@@ -1997,11 +2011,9 @@ public class TestDuckDBJDBC {
 					"The catalog " + outputCatalog + " from getSchemas should equal the argument catalog " + inputCatalog
 				);
 			} while (resultSet.next());
-		}
-		catch (SQLException ex) {
+		} catch (SQLException ex) {
 			assertFalse(ex.getMessage().startsWith("catalog argument is not supported"));
-		}
-		finally {
+		} finally {
 			if (resultSet != null ) {
 				resultSet.close();
 			}
@@ -2034,11 +2046,9 @@ public class TestDuckDBJDBC {
 					"schema " + schema1 + " from getSchemas with % should equal " + schema2 + " from getSchemas with null"
 				);
 			} while (resultSet.next() && resultSetWithNullSchema.next());
-		}
-		catch (SQLException ex) {
+		} catch (SQLException ex) {
 			assertFalse(ex.getMessage().startsWith("catalog argument is not supported"));
-		}
-		finally {
+		} finally {
 			if (resultSet != null ) {
 				resultSet.close();
 			}
@@ -2049,11 +2059,9 @@ public class TestDuckDBJDBC {
 		try {
 			resultSet = databaseMetaData.getSchemas("", null);
 			assertTrue(resultSet.next() == false, "Expected 0 schemas, got > 0");
-		}
-		catch (SQLException ex) {
+		} catch (SQLException ex) {
 			assertFalse(ex.getMessage().startsWith("catalog argument is not supported"));
-		}
-		finally {
+		} finally {
 			if (resultSet != null ) {
 				resultSet.close();
 			}
@@ -2906,8 +2914,7 @@ public class TestDuckDBJDBC {
 				}
 			}
 			*/
-		}
-		catch(Exception e) {
+		} catch(Exception e) {
 			e.printStackTrace();
 			throw e;
 		}
@@ -2971,8 +2978,7 @@ public class TestDuckDBJDBC {
 		final String TABLE_NAME = "t1";
 		final String IS_TablesQuery = "SELECT * FROM information_schema.tables "+
 			String.format("WHERE table_catalog = '%s' ", CATALOG_NAME)+
-			String.format("AND table_name = '%s'", TABLE_NAME)
-		;
+				String.format("AND table_name = '%s'", TABLE_NAME);
 		final String QUALIFIED_TABLE_NAME = CATALOG_NAME + "." + TABLE_NAME;
 		ResultSet resultSet = null;
 		try (
@@ -2985,8 +2991,7 @@ public class TestDuckDBJDBC {
 			final boolean supportsCatalogsInTableDefinitions = databaseMetaData.supportsCatalogsInTableDefinitions();
 			try {
 				statement.execute(String.format("CREATE TABLE %s (id int)", QUALIFIED_TABLE_NAME));
-			}
-			catch (SQLException ex) {
+			} catch (SQLException ex) {
 				if (supportsCatalogsInTableDefinitions) {
 					fail(
 						"supportsCatalogsInTableDefinitions is true but CREATE TABLE in attached database is not allowed. "+
@@ -3002,8 +3007,7 @@ public class TestDuckDBJDBC {
 
 			try {
 				statement.execute(String.format("DROP TABLE %s", QUALIFIED_TABLE_NAME));
-			}
-			catch (SQLException ex) {
+			} catch (SQLException ex) {
 				if (supportsCatalogsInTableDefinitions) {
 					fail(
 						"supportsCatalogsInTableDefinitions is true but DROP TABLE in attached database is not allowed. " + 
@@ -3042,8 +3046,7 @@ public class TestDuckDBJDBC {
 				assertTrue(resultSet.next(), "Expected exactly 1 row from " + QUALIFIED_TABLE_NAME + ", got 0");
 				assertTrue(resultSet.getInt(COLUMN_NAME) == 1, "Value for " + COLUMN_NAME + " should be 1");
 				resultSet.close();
-			}
-			catch (SQLException ex) {
+			} catch (SQLException ex) {
 				if (supportsCatalogsInDataManipulation) {
 					fail(
 						"supportsCatalogsInDataManipulation is true but INSERT in " + QUALIFIED_TABLE_NAME + " is not allowed." + 
@@ -3059,8 +3062,7 @@ public class TestDuckDBJDBC {
 				assertTrue(resultSet.next(), "Expected exactly 1 row from " + QUALIFIED_TABLE_NAME + ", got 0");
 				assertTrue(resultSet.getInt(COLUMN_NAME) == 2, "Value for " + COLUMN_NAME + " should be 2");
 				resultSet.close();
-			}
-			catch (SQLException ex) {
+			} catch (SQLException ex) {
 				if (supportsCatalogsInDataManipulation) {
 					fail(
 						"supportsCatalogsInDataManipulation is true but UPDATE of " + QUALIFIED_TABLE_NAME + " is not allowed. "+
@@ -3075,8 +3077,7 @@ public class TestDuckDBJDBC {
 				resultSet = statement.executeQuery(String.format("SELECT * FROM %s", QUALIFIED_TABLE_NAME));
 				assertTrue(resultSet.next() == false, "Expected 0 rows from " + QUALIFIED_TABLE_NAME + ", got > 0");
 				resultSet.close();
-			}
-			catch (SQLException ex) {
+			} catch (SQLException ex) {
 				if (supportsCatalogsInDataManipulation) {
 					fail(
 						"supportsCatalogsInDataManipulation is true but UPDATE of " + QUALIFIED_TABLE_NAME + " is not allowed. "+
@@ -3118,8 +3119,7 @@ public class TestDuckDBJDBC {
 				);
 				assertTrue(resultSet.next(), "Expected exactly 1 row from duckdb_indexes(), got 0");
 				resultSet.close();
-			}
-			catch (SQLException ex) {
+			} catch (SQLException ex) {
 				if (supportsCatalogsInIndexDefinitions) {
 					fail(
 						"supportsCatalogsInIndexDefinitions is true but " +
@@ -3141,8 +3141,7 @@ public class TestDuckDBJDBC {
 				);
 				assertFalse(resultSet.next());
 				resultSet.close();
-			}
-			catch (SQLException ex) {
+			} catch (SQLException ex) {
 				if (supportsCatalogsInIndexDefinitions) {
 					fail(
 						"supportsCatalogsInIndexDefinitions is true but DROP of " + QUALIFIED_INDEX_NAME + " is not allowed." +
@@ -3232,6 +3231,98 @@ public class TestDuckDBJDBC {
 		}
 	}
 
+	static <T> List<T> of(T... items) {
+		if (items.length == 0) return emptyList();
+		return Arrays.asList(items);
+	}
+
+	static LocalTime time(int hours, int minutes) {
+		return LocalTime.of(hours, minutes);
+	}
+
+	static LocalDate date(int year, int month, int second) {
+		return LocalDate.of(year, month, second);
+	}
+
+	static Map<String, List<Object>> correct_answer_map = new HashMap<>();
+
+	static {
+		correct_answer_map.put("bool", of(false, true, null));
+		correct_answer_map.put("tinyint", of((byte) -128, (byte) 127, null));
+		correct_answer_map.put("smallint", of((short)-32768, (short)32767, null));
+		correct_answer_map.put("int", of(-2147483648, 2147483647, null));
+		correct_answer_map.put("bigint", of(-9223372036854775808L, 9223372036854775807L, null));
+		correct_answer_map.put("hugeint", of(new BigInteger("-170141183460469231731687303715884105727"), new BigInteger("170141183460469231731687303715884105727"), null));
+		correct_answer_map.put("utinyint",  of((short)0, (short)255, null));
+		correct_answer_map.put("usmallint", of(0, 65535, null));
+//		correct_answer_map.put("uint", of(0), of(4294967295), null));
+//		correct_answer_map.put("ubigint", of(0), of(18446744073709551615), null));
+		correct_answer_map.put("time", of(time(0, 0), LocalTime.of(23, 59, 59, 999999), null));
+		correct_answer_map.put("float", of(-3.4028234663852886e+38, 3.4028234663852886e+38, null));
+		correct_answer_map.put("double", of(-1.7976931348623157e+308, 1.7976931348623157e+308, null));
+		correct_answer_map.put("dec_4_1", of(new BigDecimal("-999.9"), (new BigDecimal("999.9")), null));
+		correct_answer_map.put("dec_9_4", of(new BigDecimal("-99999.9999"), (new BigDecimal("99999.9999")), null));
+		correct_answer_map.put("dec_18_6", of(new BigDecimal("-999999999999.999999"), (new BigDecimal("999999999999.999999")), null));
+		correct_answer_map.put("dec38_10", of(new BigDecimal("-9999999999999999999999999999.9999999999"), (new BigDecimal("9999999999999999999999999999.9999999999")), null));
+		correct_answer_map.put("uuid", of(UUID.fromString("00000000-0000-0000-0000-000000000001"), (UUID.fromString("ffffffff-ffff-ffff-ffff-ffffffffffff")), null));
+		correct_answer_map.put("varchar", of("🦆🦆🦆🦆🦆🦆", "goo\u0000se", null));
+		correct_answer_map.put("json", of("🦆🦆🦆🦆🦆", "goose", null));
+		correct_answer_map.put("blob", of("thisisalongblob\u0000withnullbytes", "\u0000\u0000\u0000a", null));
+		correct_answer_map.put("bit", of(("0010001001011100010101011010111"), "10101", null));
+		correct_answer_map.put("small_enum", of("DUCK_DUCK_ENUM", "GOOSE", null));
+		correct_answer_map.put("medium_enum", of("enum_0", "enum_299", null));
+		correct_answer_map.put("large_enum", of("enum_0", "enum_69999", null));
+		correct_answer_map.put("date_array", of(of(of(), of(date(1970, 1, 1), null, LocalDate.MIN, LocalDate.MAX), null)));
+		correct_answer_map.put("timestamp_array", of(of(of(), of(LocalDate.of(1970, 1, 1), null, LocalDateTime.MIN, LocalDateTime.MAX), null)));
+		correct_answer_map.put("timestamptz_array", of(of(of(), of(LocalDate.of(1970, 1, 1), null, LocalDateTime.MIN, LocalDateTime.MAX), null)));
+		correct_answer_map.put("int_array", of(of(), of(of(42, 999, null, null, -42)), null));
+		correct_answer_map.put("varchar_array", of(of(of(), of(of("🦆🦆🦆🦆🦆🦆", "goose", null, "")), null)));
+		correct_answer_map.put("double_array",  of(of(of(), of(of(42.0, Float.NaN, Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY, null, -42.0)), null)));
+		correct_answer_map.put("nested_int_array", of(of(), of(of(of(), of(42, 999, null, null, -42), null, of(), of(42, 999, null, null, -42))), null));
+//		correct_answer_map.put("struct", [({"a": null, "b": null},), ({"a": 42, "b": "🦆🦆🦆🦆🦆🦆"},), null));
+//		correct_answer_map.put("struct_of_arrays",  [({"a": null, "b": null},), ({"a": [42, 999, null, null, -42], "b": ["🦆🦆🦆🦆🦆🦆", "goose", null, ""]},), null));
+//		correct_answer_map.put("array_of_structs",  [(of(),), ([{"a": null, "b": null}, {"a": 42, "b": "🦆🦆🦆🦆🦆🦆"}, null],), null], "map":[({"key": of(), "value": of()},), ({"key": ["key1", "key2"], "value": ["🦆🦆🦆🦆🦆🦆", "goose"]},), null));		correct_answer_map.put("time_tz", [(time(0, 0),), (time(23, 59, 59, 999999),), null], "interval": [(timedelta(0),), (timedelta(days=30969, seconds=999, microseconds=999999),), null));
+		correct_answer_map.put("timestamp", of(LocalDateTime.of(1990, 1, 1, 0, 0)));
+		correct_answer_map.put("date", of(date(1990, 1, 1)));
+		correct_answer_map.put("timestamp_s",  of(LocalDateTime.of(1990, 1, 1, 0, 0)));
+		correct_answer_map.put("timestamp_ns", of(LocalDateTime.of(1990, 1, 1, 0, 0)));
+		correct_answer_map.put("timestamp_ms", of(LocalDateTime.of(1990, 1, 1, 0, 0)));
+		correct_answer_map.put("timestamp_tz", of(LocalDateTime.of(1990, 1, 1, 0, 0)));
+	}
+	public static void test_all_types() throws Exception {
+		try (Connection conn = DriverManager.getConnection("jdbc:duckdb:");
+			 PreparedStatement stmt = conn.prepareStatement("select * from test_all_types()")) {
+
+			try (ResultSet rs = stmt.executeQuery()) {
+				ResultSetMetaData metaData = rs.getMetaData();
+
+				int rowIdx = 0;
+				while (rs.next()) {
+					for (int i=1; i<=metaData.getColumnCount(); i++) {
+						String columnName = metaData.getColumnName(i);
+						List<Object> objects = correct_answer_map.get(columnName);
+						Object expected;
+						try {
+							expected = objects.get(rowIdx);
+						} catch (ArrayIndexOutOfBoundsException | NullPointerException e) {
+							continue;
+						}
+
+						try {
+							Object actual = rs.getObject(i);
+
+							assertEquals(actual, expected);
+						} catch (Throwable e) {
+							e.printStackTrace();
+						}
+					}
+
+					rowIdx++;
+				}
+			}
+		}
+	}
+
 	public static void main(String[] args) throws Exception {
 		// Woo I can do reflection too, take this, JUnit!
 		Method[] methods = TestDuckDBJDBC.class.getMethods();
@@ -3247,6 +3338,7 @@ public class TestDuckDBJDBC {
 		if (args.length >= 1) {
 			specific_test = args[0];
 		}
+		specific_test = "all_types";
 
 		boolean anySucceeded = false;
 		boolean anyFailed = false;
