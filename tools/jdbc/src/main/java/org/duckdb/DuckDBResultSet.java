@@ -1511,4 +1511,7 @@ public class DuckDBResultSet implements ResultSet {
 		return iface.isInstance(this);
 	}
 
+	boolean isFinished() {
+		return finished;
+	}
 }
