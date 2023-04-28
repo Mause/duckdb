@@ -3261,7 +3261,7 @@ public class TestDuckDBJDBC {
 		correct_answer_map.put("usmallint", of(0, 65535, null));
 		correct_answer_map.put("uint", of(0L, 4294967295L, null));
 		correct_answer_map.put("ubigint", of(BigInteger.ZERO, new BigInteger("18446744073709551615"), null));
-		correct_answer_map.put("time", of(LocalTime.of(0, 0), LocalTime.of(23, 59, 59, 999999), null));
+		correct_answer_map.put("time", of(LocalTime.of(0, 0), LocalTime.of(23, 59, 59, hack(999999)), null));
 		correct_answer_map.put("float", of(-3.4028234663852886e+38f, 3.4028234663852886e+38f, null));
 		correct_answer_map.put("double", of(-1.7976931348623157e+308d, 1.7976931348623157e+308d, null));
 		correct_answer_map.put("dec_4_1", of(new BigDecimal("-999.9"), (new BigDecimal("999.9")), null));
@@ -3288,7 +3288,7 @@ public class TestDuckDBJDBC {
 //		correct_answer_map.put("array_of_structs",  [(of(),), ([{"a": null, "b": null}, {"a": 42, "b": "🦆🦆🦆🦆🦆🦆"}, null],), null], "map":[({"key": of(), "value": of()},), ({"key": ["key1", "key2"], "value": ["🦆🦆🦆🦆🦆🦆", "goose"]},), null));		correct_answer_map.put("time_tz", [(time(0, 0),), (time(23, 59, 59, 999999),), null], "interval": [(timedelta(0),), (timedelta(days=30969, seconds=999, microseconds=999999),), null));
 		correct_answer_map.put("timestamp", of(
 			LocalDateTime.of(-290308, 12, 22, 0, 0, 0, 0),
-			LocalDateTime.of(294247, 1, 10, 4, 0, 54, 775806),
+			LocalDateTime.of(294247, 1, 10, 4, 0, 54, hack(775806)),
 				null
 		));
 		correct_answer_map.put("date", of(
@@ -3301,15 +3301,27 @@ public class TestDuckDBJDBC {
 			LocalDateTime.of(294247,1,10,4,0, 54),
 			null
 		));
-		correct_answer_map.put("timestamp_ns", of(LocalDateTime.of(1677, 9, 21, 0, 12, 43, 145225),
-				LocalDateTime.of(2262, 4, 11, 23, 47, 16, 854775)));
-		correct_answer_map.put("timestamp_ms", of(LocalDateTime.of(-290308, 12, 22, 0, 0, 0), LocalDateTime.of(294247, 1, 10, 4, 0,54,775), null));
+		correct_answer_map.put("timestamp_ns", of(
+			LocalDateTime.of(1677, 9, 21, 0, 12, 43, hack(145225)),
+			LocalDateTime.of(2262, 4, 11, 23, 47, 16, hack(854775)),
+			null
+		));
+		correct_answer_map.put("timestamp_ms", of(
+			LocalDateTime.of(-290308, 12, 22, 0, 0, 0),
+			LocalDateTime.of(294247, 1, 10, 4, 0,54,hack(hack(775))),
+			null
+		));
 		correct_answer_map.put("timestamp_tz", of(
 			OffsetDateTime.of(-290303, 12, 11, 0, 0, 0, 0, ZoneOffset.UTC),
-			OffsetDateTime.of(294247,1,10, 4, 0, 54, 776806, ZoneOffset.UTC),
+			OffsetDateTime.of(294247,1,10, 4, 0, 54, hack(776806), ZoneOffset.UTC),
 			null
 		));
 	}
+
+	private static int hack(int i) {
+		return i * 1000;
+	}
+
 	public static void test_all_types() throws Exception {
 		try (Connection conn = DriverManager.getConnection("jdbc:duckdb:");
 			 PreparedStatement stmt = conn.prepareStatement("select * from test_all_types()")) {
