@@ -3276,12 +3276,12 @@ public class TestDuckDBJDBC {
 		correct_answer_map.put("small_enum", of("DUCK_DUCK_ENUM", "GOOSE", null));
 		correct_answer_map.put("medium_enum", of("enum_0", "enum_299", null));
 		correct_answer_map.put("large_enum", of("enum_0", "enum_69999", null));
-		correct_answer_map.put("date_array", of(of(of(), of(LocalDate.of(1970, 1, 1), null, LocalDate.MIN, LocalDate.MAX), null)));
-		correct_answer_map.put("timestamp_array", of(of(of(), of(LocalDate.of(1970, 1, 1), null, LocalDateTime.MIN, LocalDateTime.MAX), null)));
-		correct_answer_map.put("timestamptz_array", of(of(of(), of(LocalDate.of(1970, 1, 1), null, LocalDateTime.MIN, LocalDateTime.MAX), null)));
+		correct_answer_map.put("date_array", of(of(), of(LocalDate.of(1970, 1, 1), null, LocalDate.MIN, LocalDate.MAX), null));
+		correct_answer_map.put("timestamp_array", of(of(), of(LocalDate.of(1970, 1, 1), null, LocalDateTime.MIN, LocalDateTime.MAX), null));
+		correct_answer_map.put("timestamptz_array", of(of(), of(LocalDate.of(1970, 1, 1), null, LocalDateTime.MIN, LocalDateTime.MAX), null));
 		correct_answer_map.put("int_array", of(of(), of(42, 999, null, null, -42), null));
-		correct_answer_map.put("varchar_array", of(of(of(), of("🦆🦆🦆🦆🦆🦆", "goose", null, ""), null)));
-		correct_answer_map.put("double_array",  of(of(of(), of(42.0, Float.NaN, Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY, null, -42.0), null)));
+		correct_answer_map.put("varchar_array", of(of(), of("🦆🦆🦆🦆🦆🦆", "goose", null, ""), null));
+		correct_answer_map.put("double_array",  of(of(), of(42.0, Float.NaN, Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY, null, -42.0), null));
 		correct_answer_map.put("nested_int_array", of(of(), of(of(), of(42, 999, null, null, -42), null, of(), of(42, 999, null, null, -42)), null));
 //		correct_answer_map.put("struct", [({"a": null, "b": null},), ({"a": 42, "b": "🦆🦆🦆🦆🦆🦆"},), null));
 //		correct_answer_map.put("struct_of_arrays",  [({"a": null, "b": null},), ({"a": [42, 999, null, null, -42], "b": ["🦆🦆🦆🦆🦆🦆", "goose", null, ""]},), null));
@@ -3329,6 +3329,10 @@ public class TestDuckDBJDBC {
 							expected = objects.get(rowIdx);
 						} catch (ArrayIndexOutOfBoundsException | NullPointerException e) {
 							continue;
+						}
+
+						if (expected instanceof Collection) {
+							expected = expected.toString().replaceAll("null", "NULL");
 						}
 
 						Object actual = null;
