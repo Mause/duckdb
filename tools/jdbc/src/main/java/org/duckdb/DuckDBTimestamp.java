@@ -45,9 +45,12 @@ public class DuckDBTimestamp {
 	}
 
 	public static Timestamp toSqlTimestampNanos(long timeNanos) {
-		return Timestamp.valueOf(
-				LocalDateTime.ofEpochSecond(nanos2seconds(timeNanos)
-						, nanosPartNanos(timeNanos), ZoneOffset.UTC));
+		return Timestamp.valueOf(toLocalDateTimeNanos(timeNanos));
+	}
+
+	static LocalDateTime toLocalDateTimeNanos(long timeNanos) {
+		return LocalDateTime.ofEpochSecond(nanos2seconds(timeNanos)
+				, nanosPartNanos(timeNanos), ZoneOffset.UTC);
 	}
 
 	public static LocalDateTime toLocalDateTime(long timeMicros) {

@@ -219,7 +219,7 @@ public class DuckDBResultSet implements ResultSet {
 		case TIMESTAMP_NS:
 		case TIMESTAMP_S:
 		case TIMESTAMP_MS:
-			return getTimestamp(columnIndex);
+			return getLocalDateTime(columnIndex);
 		case TIMESTAMP_WITH_TIME_ZONE:
 			return getOffsetDateTime(columnIndex);
 		case JSON:
@@ -589,6 +589,12 @@ public class DuckDBResultSet implements ResultSet {
 		}
 		if (isType(columnIndex, DuckDBColumnType.TIMESTAMP)) {
 			return DuckDBTimestamp.toLocalDateTime(getbuf(columnIndex, 8).getLong());
+		} else if (isType(columnIndex, DuckDBColumnType.TIMESTAMP_MS)) {
+			return DuckDBTimestamp.toLocalDateTime(getbuf(columnIndex, 8).getLong() * 1000);
+		} else if (isType(columnIndex, DuckDBColumnType.TIMESTAMP_NS)) {
+			return DuckDBTimestamp.toLocalDateTimeNanos(getbuf(columnIndex, 8).getLong());
+		} else if (isType(columnIndex, DuckDBColumnType.TIMESTAMP_S)) {
+			return DuckDBTimestamp.toLocalDateTime(getbuf(columnIndex, 8).getLong() * 1_000_000);
 		}
 		Object o = getObject(columnIndex);
 		return LocalDateTime.parse(o.toString());
@@ -622,7 +628,7 @@ public class DuckDBResultSet implements ResultSet {
 		return UUID.fromString(o.toString());
 	}
 
-	static class DuckDBBlobResult implements Blob {
+	public static class DuckDBBlobResult implements Blob {
 
 		static class ByteBufferBackedInputStream extends InputStream {
 
@@ -703,6 +709,26 @@ public class DuckDBResultSet implements ResultSet {
 		public int setBytes(long pos, byte[] bytes, int offset, int len) throws SQLException {
 			throw new SQLFeatureNotSupportedException("setBytes");
 
+		}
+
+		@Override
+		public String toString() {
+			return "DuckDBBlobResult{" +
+					"buffer=" + buffer +
+					'}';
+		}
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) return true;
+			if (o == null || getClass() != o.getClass()) return false;
+			DuckDBBlobResult that = (DuckDBBlobResult) o;
+			return Objects.equals(buffer, that.buffer);
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash(buffer);
 		}
 
 		private ByteBuffer buffer;
