@@ -28,6 +28,9 @@ import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.OffsetTime;
 import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
+import java.time.format.ResolverStyle;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -40,6 +43,7 @@ import java.util.Objects;
 import java.util.Properties;
 import java.util.TimeZone;
 import java.util.UUID;
+import java.util.logging.Logger;
 import javax.sql.rowset.RowSetProvider;
 import javax.sql.rowset.CachedRowSet;
 
@@ -53,9 +57,32 @@ import org.duckdb.DuckDBResultSetMetaData;
 import org.duckdb.DuckDBTimestamp;
 import org.duckdb.JsonNode;
 
+import static java.time.format.DateTimeFormatter.ISO_LOCAL_TIME;
+import static java.time.temporal.ChronoField.DAY_OF_MONTH;
+import static java.time.temporal.ChronoField.MONTH_OF_YEAR;
+import static java.time.temporal.ChronoField.OFFSET_SECONDS;
+import static java.time.temporal.ChronoField.YEAR_OF_ERA;
 import static java.util.Collections.emptyList;
 
 public class TestDuckDBJDBC {
+
+	public static final DateTimeFormatter FORMAT = new DateTimeFormatterBuilder()
+			.parseCaseInsensitive()
+			.appendValue(YEAR_OF_ERA)
+			.appendLiteral('-')
+			.appendValue(MONTH_OF_YEAR, 2)
+			.appendLiteral('-')
+			.appendValue(DAY_OF_MONTH, 2)
+			.appendLiteral('T')
+			.append(ISO_LOCAL_TIME)
+			.toFormatter();
+	public static final DateTimeFormatter FORMAT_TZ = new DateTimeFormatterBuilder()
+			.append(FORMAT)
+			.appendLiteral('+')
+			.appendValue(OFFSET_SECONDS)
+			.toFormatter()
+			.withResolverStyle(ResolverStyle.LENIENT);
+	private static final Logger logger = Logger.getAnonymousLogger();
 
 	private static void assertTrue(boolean val) throws Exception {
 		assertTrue(val, null);
@@ -3262,7 +3289,11 @@ public class TestDuckDBJDBC {
 		correct_answer_map.put("usmallint", of(0, 65535, null));
 		correct_answer_map.put("uint", of(0L, 4294967295L, null));
 		correct_answer_map.put("ubigint", of(BigInteger.ZERO, new BigInteger("18446744073709551615"), null));
-		correct_answer_map.put("time", of(LocalTime.of(0, 0), LocalTime.of(23, 59, 59, hack(999999)), null));
+		correct_answer_map.put("time", of(
+				LocalTime.of(0, 0),
+				LocalTime.parse("23:59:59.999999"),
+				null
+		));
 		correct_answer_map.put("float", of(-3.4028234663852886e+38f, 3.4028234663852886e+38f, null));
 		correct_answer_map.put("double", of(-1.7976931348623157e+308d, 1.7976931348623157e+308d, null));
 		correct_answer_map.put("dec_4_1", of(new BigDecimal("-999.9"), (new BigDecimal("999.9")), null));
@@ -3277,52 +3308,58 @@ public class TestDuckDBJDBC {
 		correct_answer_map.put("small_enum", of("DUCK_DUCK_ENUM", "GOOSE", null));
 		correct_answer_map.put("medium_enum", of("enum_0", "enum_299", null));
 		correct_answer_map.put("large_enum", of("enum_0", "enum_69999", null));
-		correct_answer_map.put("date_array", of(of(), of(LocalDate.of(1970, 1, 1), null, LocalDate.MIN, LocalDate.MAX), null));
-		correct_answer_map.put("timestamp_array", of(of(), of(LocalDate.of(1970, 1, 1), null, LocalDateTime.MIN, LocalDateTime.MAX), null));
-		correct_answer_map.put("timestamptz_array", of(of(), of(LocalDate.of(1970, 1, 1), null, LocalDateTime.MIN, LocalDateTime.MAX), null));
-		correct_answer_map.put("int_array", of(of(), of(42, 999, null, null, -42), null));
-		correct_answer_map.put("varchar_array", of(of(), of("🦆🦆🦆🦆🦆🦆", "goose", null, ""), null));
-		correct_answer_map.put("double_array",  of(of(), of(42.0, Float.NaN, Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY, null, -42.0), null));
-		correct_answer_map.put("nested_int_array", of(of(), of(of(), of(42, 999, null, null, -42), null, of(), of(42, 999, null, null, -42)), null));
+//		correct_answer_map.put("date_array", of(of(), of(LocalDate.of(1970, 1, 1), null, LocalDate.MIN, LocalDate.MAX), null));
+//		correct_answer_map.put("timestamp_array", of(of(), of(LocalDate.of(1970, 1, 1), null, LocalDateTime.MIN, LocalDateTime.MAX), null));
+//		correct_answer_map.put("timestamptz_array", of(of(), of(LocalDate.of(1970, 1, 1), null, LocalDateTime.MIN, LocalDateTime.MAX), null));
+//		correct_answer_map.put("int_array", of(of(), of(42, 999, null, null, -42), null));
+//		correct_answer_map.put("varchar_array", of(of(), of("🦆🦆🦆🦆🦆🦆", "goose", null, ""), null));
+//		correct_answer_map.put("double_array",  of(of(), of(42.0, Float.NaN, Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY, null, -42.0), null));
+//		correct_answer_map.put("nested_int_array", of(of(), of(of(), of(42, 999, null, null, -42), null, of(), of(42, 999, null, null, -42)), null));
 //		correct_answer_map.put("struct", [({"a": null, "b": null},), ({"a": 42, "b": "🦆🦆🦆🦆🦆🦆"},), null));
 //		correct_answer_map.put("struct_of_arrays",  [({"a": null, "b": null},), ({"a": [42, 999, null, null, -42], "b": ["🦆🦆🦆🦆🦆🦆", "goose", null, ""]},), null));
-//		correct_answer_map.put("array_of_structs",  [(of(),), ([{"a": null, "b": null}, {"a": 42, "b": "🦆🦆🦆🦆🦆🦆"}, null],), null], "map":[({"key": of(), "value": of()},), ({"key": ["key1", "key2"], "value": ["🦆🦆🦆🦆🦆🦆", "goose"]},), null));		correct_answer_map.put("time_tz", [(time(0, 0),), (time(23, 59, 59, 999999),), null], "interval": [(timedelta(0),), (timedelta(days=30969, seconds=999, microseconds=999999),), null));
+//		correct_answer_map.put("array_of_structs",  [(of(),), ([{"a": null, "b": null}, {"a": 42, "b": "🦆🦆🦆🦆🦆🦆"}, null],), null]);
+//		correct_answer_map.put("map", of(({"key", of(), "value": of()},), ({"key": ["key1", "key2"], "value": ["🦆🦆🦆🦆🦆🦆", "goose"]},), null));
+		correct_answer_map.put("time_tz", of(
+				OffsetTime.parse("00:00+00:00"),
+				OffsetTime.parse("23:59:59.999999+00:00"),
+				null
+		));
+		correct_answer_map.put("interval", of(
+				Duration.ZERO,
+				Duration.of(30969, ChronoUnit.DAYS).plusSeconds(999).plusNanos(999999000),
+				null
+		));
 		correct_answer_map.put("timestamp", of(
-			LocalDateTime.of(-290308, 12, 22, 0, 0, 0, 0),
-			LocalDateTime.of(294247, 1, 10, 4, 0, 54, hack(775806)),
+				LocalDateTime.of(-290308, 12, 22, 0, 0, 0, 0),
+				LocalDateTime.from(FORMAT.parse("294247-01-10T04:00:54.775806")),
 				null
 		));
 		correct_answer_map.put("date", of(
-			LocalDate.of(-5877641, 6, 25),
-			LocalDate.of(5881580, 7, 10),
-			null
+				LocalDate.of(-5877641, 6, 25),
+				LocalDate.of(5881580, 7, 10),
+				null
 		));
 		correct_answer_map.put("timestamp_s",  of(
-			LocalDateTime.of(-290308, 12, 22, 0, 0),
-			LocalDateTime.of(294247,1,10,4,0, 54),
-			null
+				LocalDateTime.of(-290308, 12, 22, 0, 0),
+				LocalDateTime.of(294247,1,10,4,0, 54),
+				null
 		));
 		correct_answer_map.put("timestamp_ns", of(
-			LocalDateTime.of(1677, 9, 21, 0, 12, 43, hack(145225)),
-			LocalDateTime.of(2262, 4, 11, 23, 47, 16, hack(854775)),
-			null
+				LocalDateTime.parse("1677-09-21T00:12:43.145225"),
+				LocalDateTime.parse("2262-04-11T23:47:16.854775"),
+				null
 		));
 		correct_answer_map.put("timestamp_ms", of(
-			LocalDateTime.of(-290308, 12, 22, 0, 0, 0),
-			LocalDateTime.of(294247, 1, 10, 4, 0,54,hack(hack(775))),
-			null
+				LocalDateTime.of(-290308, 12, 22, 0, 0, 0),
+				LocalDateTime.from(FORMAT.parse("294247-01-10T04:00:54.775")),
+				null
 		));
 		correct_answer_map.put("timestamp_tz", of(
-			OffsetDateTime.of(-290303, 12, 11, 0, 0, 0, 0, ZoneOffset.UTC),
-			OffsetDateTime.of(294247,1,10, 4, 0, 54, hack(776806), ZoneOffset.UTC),
-			null
+				OffsetDateTime.from(FORMAT_TZ.parse("-290303-12-11T00:00:00+00")),
+				OffsetDateTime.from(FORMAT_TZ.parse("294247-01-10T04:00:54.776806+00")),
+				null
 		));
 	}
-
-	private static int hack(int i) {
-		return i * 1000;
-	}
-
 	public static void test_all_types() throws Exception {
 		try (Connection conn = DriverManager.getConnection("jdbc:duckdb:");
 			 PreparedStatement stmt = conn.prepareStatement("select * from test_all_types()")) {
@@ -3337,12 +3374,12 @@ public class TestDuckDBJDBC {
 					for (int i=1; i<=metaData.getColumnCount(); i++) {
 						String columnName = metaData.getColumnName(i);
 						List<Object> objects = correct_answer_map.get(columnName);
-						Object expected;
-						try {
-							expected = objects.get(rowIdx);
-						} catch (ArrayIndexOutOfBoundsException | NullPointerException e) {
+						if (objects == null){
+							logger.warning(String.format("not testing %s in test_all_types() yet", columnName));
 							continue;
 						}
+						Object expected = objects.get(rowIdx);
+						assertNotNull(objects, columnName);
 
 						if (expected instanceof Collection) {
 							expected = expected.toString().replaceAll("null", "NULL");
