@@ -62,6 +62,7 @@ import static java.time.temporal.ChronoField.DAY_OF_MONTH;
 import static java.time.temporal.ChronoField.MONTH_OF_YEAR;
 import static java.time.temporal.ChronoField.OFFSET_SECONDS;
 import static java.time.temporal.ChronoField.YEAR_OF_ERA;
+import static java.time.temporal.ChronoUnit.DAYS;
 import static java.util.Collections.emptyList;
 
 public class TestDuckDBJDBC {
@@ -3326,7 +3327,7 @@ public class TestDuckDBJDBC {
 		));
 		correct_answer_map.put("interval", of(
 				Duration.ZERO,
-				Duration.of(30969, ChronoUnit.DAYS).plusSeconds(999).plusNanos(999999000),
+				Duration.of(30969, DAYS).plusSeconds(999).plusNanos(999999000),
 				null
 		));
 		correct_answer_map.put("timestamp", of(
