@@ -39,6 +39,7 @@ static jclass J_String;
 static jclass J_Timestamp;
 static jclass J_TimestampTZ;
 static jclass J_Decimal;
+static jclass J_ByteArray;
 
 static jmethodID J_Bool_booleanValue;
 static jmethodID J_Byte_byteValue;
@@ -132,6 +133,9 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {
 	env->DeleteLocalRef(tmpLocalRef);
 	tmpLocalRef = env->FindClass("java/math/BigDecimal");
 	J_Decimal = (jclass)env->NewGlobalRef(tmpLocalRef);
+	env->DeleteLocalRef(tmpLocalRef);
+	tmpLocalRef = env->FindClass("[B");
+	J_ByteArray = (jclass)env->NewGlobalRef(tmpLocalRef);
 	env->DeleteLocalRef(tmpLocalRef);
 
 	tmpLocalRef = env->FindClass("java/util/Map");
@@ -584,6 +588,8 @@ JNIEXPORT jobject JNICALL Java_org_duckdb_DuckDBNative_duckdb_1jdbc_1execute(JNI
 					return nullptr;
 				}
 				continue;
+			} else if (env->IsInstanceOf(param, J_ByteArray)) {
+				duckdb_params.push_back(Value::BLOB_RAW(byte_array_to_string(env, (jbyteArray)param)));
 			} else {
 				env->ThrowNew(J_SQLException, "Unsupported parameter type");
 				return nullptr;
