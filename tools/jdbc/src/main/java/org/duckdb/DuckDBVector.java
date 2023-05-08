@@ -21,6 +21,8 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.TextStyle;
 import java.time.temporal.ChronoField;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.Calendar;
 import java.util.UUID;
 
@@ -105,6 +107,8 @@ class DuckDBVector {
 				return getBlob(idx);
 			case UUID:
 				return getUuid(idx);
+                        case MAP:
+                                return getMap(idx);
 			case LIST:
 				return getArray(idx);
 			case STRUCT:
@@ -223,6 +227,28 @@ class DuckDBVector {
 		}
 		throw new SQLFeatureNotSupportedException("getArray");
 	}
+
+        Map<Object, Object> getMap(int idx) throws SQLException {
+                if (check_and_null(idx)) {
+                    return null;
+                }
+                if (!isType(DuckDBColumnType.MAP)) {
+                    throw new SQLFeatureNotSupportedException("getMap");
+                }
+
+                Object[] entries = (Object[])(((Array) varlen_data[idx]).getArray());
+                Map<Object, Object> result = new HashMap<>();
+
+                for (Object entry : entries) {
+                    Object[] entry_val = ((Struct) entry).getAttributes();
+                    result.put(
+                            entry_val[0],
+                            entry_val[1]
+                    );
+                }
+
+                return result;
+        }
 
 	Blob getBlob(int idx) throws SQLException {
 		if (check_and_null(idx)) {
