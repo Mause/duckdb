@@ -9,6 +9,7 @@ import java.sql.Blob;
 import java.sql.Date;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
+import java.sql.Struct;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.time.LocalDate;
@@ -106,6 +107,8 @@ class DuckDBVector {
 				return getUuid(idx);
 			case LIST:
 				return getArray(idx);
+			case STRUCT:
+				return getStruct(idx);
 			default:
 				return getLazyString(idx);
 		}
@@ -493,5 +496,9 @@ class DuckDBVector {
 		}
 		Object o = getObject(idx);
 		return LocalDateTime.parse(o.toString());
+	}
+
+	Struct getStruct(int idx) {
+		return check_and_null(idx) ? null : (Struct) varlen_data[idx];
 	}
 }

@@ -7,6 +7,7 @@ import org.duckdb.DuckDBDriver;
 import org.duckdb.DuckDBNative;
 import org.duckdb.DuckDBResultSet;
 import org.duckdb.DuckDBResultSetMetaData;
+import org.duckdb.DuckDBStruct;
 import org.duckdb.DuckDBTimestamp;
 import org.duckdb.JsonNode;
 
@@ -32,6 +33,7 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Struct;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.sql.Types;
@@ -77,6 +79,7 @@ import static java.time.temporal.ChronoField.YEAR_OF_ERA;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
+import static java.util.stream.Collectors.toMap;
 
 public class TestDuckDBJDBC {
 
@@ -3234,7 +3237,7 @@ public class TestDuckDBJDBC {
 			 PreparedStatement statement = connection.prepareStatement("select {\"a\": 1}")) {
 			ResultSet resultSet = statement.executeQuery();
 			assertTrue(resultSet.next());
-			assertEquals(resultSet.getObject(1), "{'a': 1}");
+			assertEquals(toJavaObject(resultSet.getObject(1)), mapOf("a", 1));
 		}
 	}
 
@@ -3284,18 +3287,29 @@ public class TestDuckDBJDBC {
 		}
 	}
 
-	private static <T> List<T> arrayToList(Array actual) throws SQLException {
-		@SuppressWarnings("unchecked")
-		T[] array = (T[]) actual.getArray();
-		List<Object> out = new ArrayList<>();
-		for (T t : array) {
-			if (t instanceof Array) {
-				out.add(arrayToList((Array) t));
-			} else {
-				out.add(t);
-			}
+	private static <T> List<T> arrayToList(Array array) throws SQLException {
+		return arrayToList((T[]) array.getArray());
+	}
+
+	private static <T> List<T> arrayToList(T[] array) throws SQLException {
+		List<T> out = new ArrayList<>();
+		for (Object t : array) {
+			out.add((T) toJavaObject(t));
 		}
-		return (List<T>) out;
+		return out;
+	}
+
+	private static Object toJavaObject(Object t) {
+		try {
+			if (t instanceof Array) {
+				t = arrayToList((Array) t);
+			} else if (t instanceof Struct) {
+				t = structToMap((DuckDBStruct) t);
+			}
+			return t;
+		} catch (SQLException e) {
+			throw new RuntimeException(e);
+		}
 	}
 
 	public static void test_map() throws Exception {
@@ -3412,6 +3426,15 @@ public class TestDuckDBJDBC {
 			.toFormatter()
 			.withResolverStyle(ResolverStyle.LENIENT);
 
+
+	static Map<String, Object> mapOf(Object... pairs) {
+		Map<String, Object> result = new HashMap<>(pairs.length / 2);
+		for (int i=0; i<pairs.length - 1; i+=2) {
+			result.put((String) pairs[i], pairs[i+1]);
+		}
+		return result;
+	}
+
 	static Map<String, List<Object>> correct_answer_map = new HashMap<>();
 	static {
 		correct_answer_map.put("int_array", trio(
@@ -3455,10 +3478,10 @@ public class TestDuckDBJDBC {
 				asList(42, 999, null, null, -42)
 		));
 		correct_answer_map.put("struct_of_arrays", asList(
-				"{'a': NULL, 'b': NULL}", "{'a': [42, 999, NULL, NULL, -42], 'b': [🦆🦆🦆🦆🦆🦆, goose, NULL, ]}", null
+				mapOf("a", null, "b", null), mapOf("a", asList(42, 999, null, null, -42), "b", asList("🦆🦆🦆🦆🦆🦆", "goose", null, "")), null
 		));
 		correct_answer_map.put("array_of_structs", trio(
-				"{'a': NULL, 'b': NULL}", "{'a': 42, 'b': 🦆🦆🦆🦆🦆🦆}", null
+				mapOf("a", null, "b", null), mapOf("a", 42, "b", "🦆🦆🦆🦆🦆🦆"), null
 		));
 		correct_answer_map.put("bool", asList(false, true, null));
 		correct_answer_map.put("tinyint", asList((byte) -128, (byte) 127, null));
@@ -3485,7 +3508,7 @@ public class TestDuckDBJDBC {
 		correct_answer_map.put("small_enum", asList("DUCK_DUCK_ENUM", "GOOSE", null));
 		correct_answer_map.put("medium_enum", asList("enum_0", "enum_299", null));
 		correct_answer_map.put("large_enum", asList("enum_0", "enum_69999", null));
-		correct_answer_map.put("struct", asList("{'a': NULL, 'b': NULL}", "{'a': 42, 'b': 🦆🦆🦆🦆🦆🦆}", null));
+		correct_answer_map.put("struct", asList(mapOf("a", null, "b", null), mapOf("a", 42, "b", "🦆🦆🦆🦆🦆🦆"), null));
 		correct_answer_map.put("map", asList("{}", "{key1=🦆🦆🦆🦆🦆🦆, key2=goose}", null));
 		correct_answer_map.put("time_tz", asList(OffsetTime.parse("00:00+00:00"), OffsetTime.parse("23:59:59.999999+00:00"), null));
 		correct_answer_map.put("interval", asList("00:00:00", "83 years 3 months 999 days 00:16:39.999999", null));
@@ -3530,10 +3553,7 @@ public class TestDuckDBJDBC {
 						List<Object> answers = correct_answer_map.get(columnName);
 						Object expected = answers.get(rowIdx);
 
-						Object actual = rs.getObject(i + 1);
-						if (actual instanceof Array) {
-							actual = arrayToList((Array) actual);
-						}
+						Object actual = toJavaObject(rs.getObject(i + 1));
 
 						if (actual instanceof Timestamp && expected instanceof Timestamp) {
 							assertEquals(((Timestamp) actual).getTime(), ((Timestamp) expected).getTime(), 500);
@@ -3549,6 +3569,13 @@ public class TestDuckDBJDBC {
 				}
 			}
 		}
+	}
+
+	private static Map<String, Object> structToMap(DuckDBStruct actual) throws SQLException {
+		Map<String, Object> map = actual.getMap();
+		Map<String, Object> result = new HashMap<>();
+		map.forEach((key, value) -> result.put(key, toJavaObject(value)));
+		return result;
 	}
 
 	private static <T> void assertListsEqual(List<T> actual, List<T> expected) throws Exception {
