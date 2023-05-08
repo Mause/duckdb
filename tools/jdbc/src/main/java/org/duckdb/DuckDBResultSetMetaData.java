@@ -184,6 +184,10 @@ public class DuckDBResultSetMetaData implements ResultSetMetaData {
 			return UUID.class.getName();
 		case LIST:
 			return DuckDBArray.class.getName();
+		case MAP:
+			return Map.class.getName();
+		case STRUCT:
+			return DuckDBStruct.class.getName();
 		default:
 			return String.class.getName();
 		}
