@@ -215,7 +215,7 @@ class DuckDBVector {
 		if (check_and_null(idx)) {
 			return null;
 		}
-		return (String) varlen_data[idx];
+		return varlen_data[idx].toString();
 	}
 
 	Array getArray(int idx) throws SQLException {
