@@ -24,6 +24,7 @@ import java.sql.SQLFeatureNotSupportedException;
 import java.sql.SQLWarning;
 import java.sql.SQLXML;
 import java.sql.Statement;
+import java.sql.Struct;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
@@ -160,12 +161,16 @@ public class DuckDBResultSet implements ResultSet {
         return current_chunk[columnIndex - 1].getObject(chunk_idx - 1);
     }
 
-    public OffsetTime getOffsetTime(int columnIndex) throws SQLException {
-        if (check_and_null(columnIndex)) {
-            return null;
-        }
-        return current_chunk[columnIndex - 1].getOffsetTime(chunk_idx - 1);
-    }
+    public Struct getStruct(int columnIndex) throws SQLException {
+		return check_and_null(columnIndex) ? null : current_chunk[columnIndex - 1].getStruct(chunk_idx - 1);
+	}
+
+	public OffsetTime getOffsetTime(int columnIndex) throws SQLException {
+		if (check_and_null(columnIndex)) {
+			return null;
+		}
+		return current_chunk[columnIndex - 1].getOffsetTime(chunk_idx - 1);
+	}
 
     public boolean wasNull() throws SQLException {
         if (isClosed()) {
