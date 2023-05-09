@@ -219,7 +219,7 @@ jobs:
 
        - run: |
           sudo add-apt-repository ppa:deadsnakes/ppa --yes
-          sudo apt install python${{matrix.python_build}}-full python${{matrix.python_build}}-dev python3-pip --yes
+          sudo apt install python${{matrix.python_build}}-full python${{matrix.python_build}}-dev python3-pip python3-distutils --yes
 
        - name: Install
          shell: bash
