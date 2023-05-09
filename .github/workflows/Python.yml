@@ -224,6 +224,7 @@ jobs:
        - name: Install
          shell: bash
          run: |
+          curl -sS https://bootstrap.pypa.io/get-pip.py | python${{matrix.python_build}}
           python${{matrix.python_build}} -m pip install twine build
 
        - name: Setup Ccache
