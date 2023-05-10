@@ -226,7 +226,10 @@ jobs:
          run: |
           curl -sS https://bootstrap.pypa.io/get-pip.py | python${{matrix.python_build}}
           python${{matrix.python_build}} -m pip install twine build
-
+       - uses: pypa/cibuildwheel@v2.12.3
+         with:
+           package-dir: tools/pythonpkg
+           config-file: tools/pythonpkg/cibw.toml
        - name: Setup Ccache
          uses: hendrikmuhs/ccache-action@main
          with:
