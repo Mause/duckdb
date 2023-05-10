@@ -238,7 +238,7 @@ jobs:
          run: |
           export DISTUTILS_C_COMPILER_LAUNCHER=ccache
 
-          cibuildwheel .
+          cibuildwheel . --config-file cibw.toml
 
        - run: |
           python${{matrix.python_build}} -m pip install dist/*.whl pytest pandas pyarrow psutil
