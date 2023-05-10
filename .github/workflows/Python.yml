@@ -232,11 +232,15 @@ jobs:
          with:
            key: ${{ github.job }}-${{ matrix.arch }}-${{ matrix.python_build }}
 
-       - name: Build
+       - name: Prebuild
          shell: bash
          working-directory: tools/pythonpkg
          run: |
           python${{matrix.python_build}} setup.py sdist
+       - name: Build
+         shell: bash
+         working-directory: tools/pythonpkg
+         run: |
           export DISTUTILS_C_COMPILER_LAUNCHER=ccache
 
           cibuildwheel . --config-file cibw.toml
