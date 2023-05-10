@@ -236,6 +236,7 @@ jobs:
          shell: bash
          working-directory: tools/pythonpkg
          run: |
+          python${{matrix.python_build}} setup.py sdist
           export DISTUTILS_C_COMPILER_LAUNCHER=ccache
 
           cibuildwheel . --config-file cibw.toml
