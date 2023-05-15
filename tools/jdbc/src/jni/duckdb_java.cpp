@@ -673,6 +673,8 @@ static jobject execute(JNIEnv *env, StatementHolder *stmt_ref, jobjectArray para
 				duckdb_params.push_back(Value::STRUCT(std::move(values)));
 			} else if (env->IsInstanceOf(param, J_Array)) {
 				auto typeName = jstring_to_string(env, (jstring)env->CallObjectMethod(param, J_Array_getBaseTypeName));
+				auto jvalues = (jobjectArray)env->CallObjectMethod(param, J_Array_getArray);
+				int size = env->GetArrayLength(jvalues);
 
 				auto &context = stmt_ref->stmt->context;
 				LogicalType type = TransformStringToLogicalType(typeName, *context);
