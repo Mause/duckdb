@@ -679,7 +679,14 @@ static jobject execute(JNIEnv *env, StatementHolder *stmt_ref, jobjectArray para
 				auto &context = stmt_ref->stmt->context;
 				LogicalType type = TransformStringToLogicalType(typeName, *context);
 
-				D_ASSERT(0);
+				duckdb::vector<Value> values;
+				for (int i = 0; i < size; i++) {
+					auto value = env->GetObjectArrayElement(jvalues, i);
+					auto value_string = env->CallObjectMethod(value, J_Object_toString);
+					values.emplace_back(jstring_to_string(env, (jstring)value_string));
+				}
+
+				duckdb_params.push_back(Value::LIST(type, values));
 
 			} else {
 				env->ThrowNew(J_SQLException, "Unsupported parameter type");
