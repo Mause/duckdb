@@ -92,7 +92,7 @@ static jmethodID J_Entry_getValue;
 
 static duckdb::vector<jclass> toFree;
 
-static jclass GetClassRef(JNIEnv *env, const string& name) {
+static jclass GetClassRef(JNIEnv *env, const string &name) {
 	jclass tmpLocalRef;
 	tmpLocalRef = env->FindClass(name.c_str());
 	jclass globalRef = (jclass)env->NewGlobalRef(tmpLocalRef);
