@@ -661,7 +661,7 @@ static jobject execute(JNIEnv *env, StatementHolder *stmt_ref, jobjectArray para
 
 				child_list_t<Value> values;
 
-				for (int i=0; i<size; i++) {
+				for (int i = 0; i < size; i++) {
 					auto name = StructType::GetChildName(type, i);
 
 					auto value = env->GetObjectArrayElement(jvalues, i);
