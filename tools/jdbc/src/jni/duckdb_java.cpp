@@ -558,7 +558,7 @@ JNIEXPORT jobject JNICALL Java_org_duckdb_DuckDBNative_duckdb_1jdbc_1execute(JNI
 
 	try {
 		return execute(env, stmt_ref, params);
-	} catch (const exception& e) {
+	} catch (const exception &e) {
 		env->ThrowNew(J_SQLException, e.what());
 		return nullptr;
 	}
