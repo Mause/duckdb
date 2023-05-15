@@ -334,7 +334,20 @@ public final class DuckDBConnection implements java.sql.Connection {
 	}
 
 	public Struct createStruct(String typeName, Object[] attributes) throws SQLException {
-		throw new SQLFeatureNotSupportedException("createStruct");
+		return new Struct() {
+			@Override
+			public String getSQLTypeName() {
+				return typeName;
+			}
+			@Override
+			public Object[] getAttributes() {
+				return attributes;
+			}
+			@Override
+			public Object[] getAttributes(Map<String, Class<?>> map) {
+				return attributes;
+			}
+		};
 	}
 
 	public void setNetworkTimeout(Executor executor, int milliseconds) throws SQLException {
