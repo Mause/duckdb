@@ -667,7 +667,7 @@ static jobject execute(JNIEnv *env, StatementHolder *stmt_ref, jobjectArray para
 					auto value = env->GetObjectArrayElement(jvalues, i);
 					auto value_string = env->CallObjectMethod(value, J_Object_toString);
 
-					values.emplace_back(name, Value(jstring_to_string(env, (jstring) value_string)));
+					values.emplace_back(name, Value(jstring_to_string(env, (jstring)value_string)));
 				}
 
 				duckdb_params.push_back(Value::STRUCT(std::move(values)));
