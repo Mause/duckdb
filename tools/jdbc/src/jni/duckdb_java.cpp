@@ -655,7 +655,7 @@ static jobject execute(JNIEnv *env, StatementHolder *stmt_ref, jobjectArray para
 				LogicalType type;
 				context->RunFunctionInTransaction([&]() { type = TransformStringToLogicalType(typeName, *context); });
 
-				auto jvalues = (jobjectArray) env->CallObjectMethod(param, J_Struct_getAttributes);
+				auto jvalues = (jobjectArray)env->CallObjectMethod(param, J_Struct_getAttributes);
 
 				int size = env->GetArrayLength(jvalues);
 
