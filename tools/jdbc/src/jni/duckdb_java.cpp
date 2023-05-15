@@ -653,9 +653,7 @@ static jobject execute(JNIEnv *env, StatementHolder *stmt_ref, jobjectArray para
 
 				auto &context = stmt_ref->stmt->context;
 				LogicalType type;
-				context->RunFunctionInTransaction([&]() {
-					type = TransformStringToLogicalType(typeName, *context);
-				});
+				context->RunFunctionInTransaction([&]() { type = TransformStringToLogicalType(typeName, *context); });
 
 				auto jvalues = (jobjectArray) env->CallObjectMethod(param, J_Struct_getAttributes);
 
