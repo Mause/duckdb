@@ -3314,7 +3314,7 @@ public class TestDuckDBJDBC {
 
 				try (ResultSet rs = stmt.executeQuery()) {
 					assertTrue(rs.next());
-					assertTrue(arrayToList(rs.getArray(1)).isEmpty());
+					assertEquals(singletonList(1), arrayToList(rs.getArray(1)));
 				}
 			}
 		}
