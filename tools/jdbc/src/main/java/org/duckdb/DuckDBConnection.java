@@ -330,7 +330,50 @@ public final class DuckDBConnection implements java.sql.Connection {
 	}
 
 	public Array createArrayOf(String typeName, Object[] elements) throws SQLException {
-		throw new SQLFeatureNotSupportedException("createArrayOf");
+		return new Array() {
+			@Override
+			public String getBaseTypeName() {
+				return typeName;
+			}
+			@Override
+			public int getBaseType() {
+				return 0;
+			}
+			@Override
+			public Object getArray() {
+				return elements;
+			}
+			@Override
+			public Object getArray(Map<String,Class<?>> map) {
+				return elements;
+			}
+			@Override
+			public Object getArray(long idx, int length, Map<String,Class<?>> map) {
+				return elements;
+			}
+			@Override
+			public Object getArray(long idx, int length) {
+				return elements;
+			}
+			@Override
+			public void free() {}
+			@Override
+			public ResultSet getResultSet() throws SQLException {
+				throw new SQLFeatureNotSupportedException("getResultSet");
+			}
+			@Override
+			public ResultSet getResultSet(long idx, int length) throws SQLException {
+				throw new SQLFeatureNotSupportedException("getResultSet");
+			}
+			@Override
+			public ResultSet getResultSet(Map<String,Class<?>> a) throws SQLException {
+				throw new SQLFeatureNotSupportedException("getResultSet");
+			}
+			@Override
+			public ResultSet getResultSet(long idx, int length, Map<String,Class<?>> a) throws SQLException {
+				throw new SQLFeatureNotSupportedException("getResultSet");
+			}
+		};
 	}
 
 	public Struct createStruct(String typeName, Object[] attributes) throws SQLException {

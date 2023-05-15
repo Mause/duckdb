@@ -3307,6 +3307,16 @@ public class TestDuckDBJDBC {
 				assertTrue(rs.next());
 				assertTrue(arrayToList(rs.getArray(1)).isEmpty());
 			}
+			try (PreparedStatement stmt = connection.prepareStatement("select ?")) {
+				Array array = connection.createArrayOf("INTEGER", new Object[] { 1 });
+				
+				stmt.setObject(1, array);
+
+				try (ResultSet rs = stmt.executeQuery()) {
+					assertTrue(rs.next());
+					assertTrue(arrayToList(rs.getArray(1)).isEmpty());
+				}
+			}
 		}
 	}
 
