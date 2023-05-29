@@ -115,6 +115,8 @@ class DuckDBVector {
 				return getArray(idx);
 			case STRUCT:
 				return getStruct(idx);
+			case UNION:
+				return getUnion(idx);
 			default:
 				return getLazyString(idx);
 		}
@@ -529,5 +531,17 @@ class DuckDBVector {
 
 	Struct getStruct(int idx) {
 		return check_and_null(idx) ? null : (Struct) varlen_data[idx];
+	}
+
+	Object getUnion(int idx) throws SQLException {
+		if (check_and_null(idx)) return null;
+
+		Struct struct = getStruct(idx);
+
+		Object[] attributes = struct.getAttributes();
+
+		byte tag = (byte) attributes[0];
+
+		return attributes[1 + tag];
 	}
 }
