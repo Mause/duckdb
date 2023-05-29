@@ -14,17 +14,6 @@ function get_all_types(): Promise<string[]> {
   });
 }
 
-function datetime(
-  year: number,
-  month: number,
-  day: number,
-  hour?: number,
-  minute?: number,
-  seconds?: number
-) {
-  return new Date(year, month, day);
-}
-
 function timedelta(obj: { days: number; micros: number; months: number }) {
   return obj;
 }
@@ -33,7 +22,7 @@ function date(year: number, month: number, day: number) {
   return new Date(year, month, day);
 }
 
-// We replace these values since the extreme ranges are not supported in native-python.
+// We replace these values since the extreme ranges are not supported in native-node.
 const replacement_values: Record<string, string> = {
   //   timestamp: "'1990-01-01 00:00:00'::TIMESTAMP",
   //   timestamp_s: "'1990-01-01 00:00:00'::TIMESTAMP_S",
@@ -41,12 +30,12 @@ const replacement_values: Record<string, string> = {
   //   timestamp_ms: "'1990-01-01 00:00:00'::TIMESTAMP_MS",
   //   timestamp_tz: "'1990-01-01 00:00:00Z'::TIMESTAMPTZ",
   //   date: "'1990-01-01'::DATE",
-  //   date_array:
-  //     "[], ['1970-01-01'::DATE, NULL, '0001-01-01'::DATE, '9999-12-31'::DATE,], [NULL::DATE,]",
-  //   timestamp_array:
-  //     "[], ['1970-01-01'::TIMESTAMP, NULL, '0001-01-01'::TIMESTAMP, '9999-12-31 23:59:59.999999'::TIMESTAMP,], [NULL::TIMESTAMP,]",
-  //   timestamptz_array:
-  //     "[], ['1970-01-01 00:00:00Z'::TIMESTAMPTZ, NULL, '0001-01-01 00:00:00Z'::TIMESTAMPTZ, '9999-12-31 23:59:59.999999Z'::TIMESTAMPTZ,], [NULL::TIMESTAMPTZ,]",
+  date_array:
+    "[], ['1970-01-01'::DATE, NULL, '0001-01-01'::DATE, '9999-12-31'::DATE,], [NULL::DATE,]",
+  timestamp_array:
+    "[], ['1970-01-01'::TIMESTAMP, NULL, '0001-01-01'::TIMESTAMP, '9999-12-31 23:59:59.999999'::TIMESTAMP,], [NULL::TIMESTAMP,]",
+  timestamptz_array:
+    "[], ['1970-01-01 00:00:00Z'::TIMESTAMPTZ, NULL, '0001-01-01 00:00:00Z'::TIMESTAMPTZ, '9999-12-31 23:59:59.999999Z'::TIMESTAMPTZ,], [NULL::TIMESTAMPTZ,]",
 };
 
 const correct_answer_map: Record<string, any[]> = {
@@ -68,7 +57,7 @@ const correct_answer_map: Record<string, any[]> = {
   usmallint: [0, 65535, null],
 
   uint: [0, 4294967295, null],
-  ubigint: [0, BigInt("18446744073709551615"), null],
+  ubigint: [BigInt(0), BigInt("18446744073709551615"), null],
 
   time: ["00:00:00", "23:59:59.999999", null],
 
@@ -99,27 +88,36 @@ const correct_answer_map: Record<string, any[]> = {
   small_enum: ["DUCK_DUCK_ENUM", "GOOSE", null],
   medium_enum: ["enum_0", "enum_299", null],
   large_enum: ["enum_0", "enum_69999", null],
-  date_array: [[], [new Date(1970, 1, 1), null, "Date.min", "Date.max"], null],
+  date_array: [
+    [],
+    [
+      new Date(1970, 0, 1),
+      null,
+      new Date("0001-01-01T00:00:00.000Z"),
+      new Date("9999-12-31T00:00:00.000Z"),
+    ],
+    [null],
+  ],
   timestamp_array: [
     [],
     [
-      datetime(1970, 1, 1),
+      new Date(1970, 0, 1),
       null,
-      "datetime.datetime.min",
-      "datetime.datetime.max",
+      new Date("0001-01-01T00:00:00.000Z"),
+      new Date("9999-12-31T23:59:59.999Z"),
     ],
-    null,
+    [null],
   ],
 
   timestamptz_array: [
     [],
     [
-      datetime(1970, 1, 1),
+      new Date(1970, 0, 1),
       null,
-      "datetime.datetime.min",
-      "datetime.datetime.max",
+      new Date("0001-01-01T00:00:00.000Z"),
+      new Date("9999-12-31T23:59:59.999Z"),
     ],
-    null,
+    [null],
   ],
 
   int_array: [[], [42, 999, null, null, -42], null],
@@ -172,13 +170,21 @@ const correct_answer_map: Record<string, any[]> = {
     null,
   ],
 
-  timestamp: [datetime(1990, 1, 1, 0, 0)],
-  date: [date(1990, 1, 1)],
-  timestamp_s: [datetime(1990, 1, 1, 0, 0)],
+  timestamp: [new Date(1990, 0, 1, 0, 0), new Date(1990, 0, 1, 0, 0), null],
+  date: [date(1990, 1, 1), date(1990, 1, 1), null],
+  timestamp_s: ["290309-12-22 (BC) 00:00:00", "294247-01-10 04:00:54", null],
 
-  timestamp_ns: [datetime(1990, 1, 1, 0, 0)],
-  timestamp_ms: [datetime(1990, 1, 1, 0, 0)],
-  timestamp_tz: [datetime(1990, 1, 1, 0, 0)],
+  timestamp_ns: [
+    "1677-09-21 00:12:43.145225",
+    "2262-04-11 23:47:16.854775",
+    null,
+  ],
+  timestamp_ms: [
+    "290309-12-22 (BC) 00:00:00",
+    "294247-01-10 04:00:54.775",
+    null,
+  ],
+  timestamp_tz: [new Date(1990, 0, 1, 0, 0), null, null],
 };
 
 const suite = describe("test_all_types", () => {
@@ -192,7 +198,7 @@ const suite = describe("test_all_types", () => {
 
           let query: string;
           if (cur_type in replacement_values) {
-            query = `select ${replacement_values[cur_type]}`;
+            query = `select UNNEST([${replacement_values[cur_type]}]) AS ${cur_type}`;
           } else {
             query = `select "${cur_type}" from test_all_types()`;
           }

@@ -1,3 +1,4 @@
+#define NAPI_VERSION 6
 #include "duckdb.hpp"
 #include "duckdb_node.hpp"
 #include "napi.h"
@@ -145,7 +146,7 @@ static Napi::Value convert_col_val(Napi::Env &env, duckdb::Value dval, duckdb::L
 		value = Napi::Number::New(env, duckdb::IntegerValue::Get(dval));
 	} break;
 	case duckdb::LogicalTypeId::BIGINT: {
-		value = Napi::Number::New(env, duckdb::BigIntValue::Get(dval));
+		value = Napi::BigInt::New(env, duckdb::BigIntValue::Get(dval));
 	} break;
 	case duckdb::LogicalTypeId::UTINYINT: {
 		value = Napi::Number::New(env, duckdb::UTinyIntValue::Get(dval));
@@ -157,7 +158,7 @@ static Napi::Value convert_col_val(Napi::Env &env, duckdb::Value dval, duckdb::L
 		value = Napi::Number::New(env, duckdb::UIntegerValue::Get(dval));
 	} break;
 	case duckdb::LogicalTypeId::UBIGINT: {
-		value = Napi::Number::New(env, duckdb::UBigIntValue::Get(dval));
+		value = Napi::BigInt::New(env, duckdb::UBigIntValue::Get(dval));
 	} break;
 	case duckdb::LogicalTypeId::FLOAT: {
 		value = Napi::Number::New(env, duckdb::FloatValue::Get(dval));
@@ -166,10 +167,13 @@ static Napi::Value convert_col_val(Napi::Env &env, duckdb::Value dval, duckdb::L
 		value = Napi::Number::New(env, duckdb::DoubleValue::Get(dval));
 	} break;
 	case duckdb::LogicalTypeId::HUGEINT: {
-		value = Napi::Number::New(env, dval.GetValue<double>());
+		auto val = duckdb::HugeIntValue::Get(dval);
+		// TODO: fix sign
+		const uint64_t words[] = {static_cast<uint64_t>(val.upper), val.lower};
+		value = Napi::BigInt::New(env, val.upper > 0, 2, words);
 	} break;
 	case duckdb::LogicalTypeId::DECIMAL: {
-		value = Napi::Number::New(env, dval.GetValue<double>());
+		value = Napi::Number::New(env, (int64_t)dval.GetValue<double>());
 	} break;
 	case duckdb::LogicalTypeId::INTERVAL: {
 		auto interval = duckdb::IntervalValue::Get(dval);
