@@ -1,0 +1,217 @@
+import { expect } from "chai";
+import duckdb, { DuckDbError, TableData } from "..";
+
+function get_all_types(): Promise<string[]> {
+  return new Promise((resolve, reject) => {
+    const conn = new duckdb.Database(":memory:");
+    conn.all(
+      "describe select * from test_all_types()",
+      (error: DuckDbError | null, data: TableData) => {
+        if (error) reject(error);
+        resolve(data.map((row) => row.column_name));
+      }
+    );
+  });
+}
+
+function datetime(
+  year: number,
+  month: number,
+  day: number,
+  hour?: number,
+  minute?: number,
+  seconds?: number
+) {
+  return new Date(year, month, day);
+}
+
+function timedelta(obj: { days: number; micros: number; months: number }) {
+  return obj;
+}
+
+function date(year: number, month: number, day: number) {
+  return new Date(year, month, day);
+}
+
+// We replace these values since the extreme ranges are not supported in native-python.
+const replacement_values: Record<string, string> = {
+  //   timestamp: "'1990-01-01 00:00:00'::TIMESTAMP",
+  //   timestamp_s: "'1990-01-01 00:00:00'::TIMESTAMP_S",
+  //   timestamp_ns: "'1990-01-01 00:00:00'::TIMESTAMP_NS",
+  //   timestamp_ms: "'1990-01-01 00:00:00'::TIMESTAMP_MS",
+  //   timestamp_tz: "'1990-01-01 00:00:00Z'::TIMESTAMPTZ",
+  //   date: "'1990-01-01'::DATE",
+  //   date_array:
+  //     "[], ['1970-01-01'::DATE, NULL, '0001-01-01'::DATE, '9999-12-31'::DATE,], [NULL::DATE,]",
+  //   timestamp_array:
+  //     "[], ['1970-01-01'::TIMESTAMP, NULL, '0001-01-01'::TIMESTAMP, '9999-12-31 23:59:59.999999'::TIMESTAMP,], [NULL::TIMESTAMP,]",
+  //   timestamptz_array:
+  //     "[], ['1970-01-01 00:00:00Z'::TIMESTAMPTZ, NULL, '0001-01-01 00:00:00Z'::TIMESTAMPTZ, '9999-12-31 23:59:59.999999Z'::TIMESTAMPTZ,], [NULL::TIMESTAMPTZ,]",
+};
+
+const correct_answer_map: Record<string, any[]> = {
+  bool: [false, true, null],
+
+  tinyint: [-128, 127, null],
+  smallint: [-32768, 32767, null],
+
+  int: [-2147483648, 2147483647, null],
+  bigint: [BigInt("-9223372036854775808"), BigInt("9223372036854775807"), null],
+
+  hugeint: [
+    BigInt("-170141183460469231731687303715884105727"),
+    BigInt("170141183460469231731687303715884105727"),
+    null,
+  ],
+
+  utinyint: [0, 255, null],
+  usmallint: [0, 65535, null],
+
+  uint: [0, 4294967295, null],
+  ubigint: [0, BigInt("18446744073709551615"), null],
+
+  time: ["00:00:00", "23:59:59.999999", null],
+
+  float: [-3.4028234663852886e38, 3.4028234663852886e38, null],
+  double: [-1.7976931348623157e308, 1.7976931348623157e308, null],
+
+  dec_4_1: [-999.9, 999.9, null],
+  dec_9_4: [-99999.9999, 99999.9999, null],
+  dec_18_6: ["-999999999999.999999", "999999999999.999999", null],
+  dec38_10: [
+    "-9999999999999999999999999999.9999999999",
+    "9999999999999999999999999999.9999999999",
+    null,
+  ],
+  uuid: [
+    "00000000-0000-0000-0000-000000000001",
+    "ffffffff-ffff-ffff-ffff-ffffffffffff",
+    null,
+  ],
+  varchar: ["🦆🦆🦆🦆🦆🦆", "goo\0se", null],
+  json: ["🦆🦆🦆🦆🦆🦆", "goose", null],
+  blob: [
+    Buffer.from("thisisalongblob\x00withnullbytes"),
+    Buffer.from("\x00\x00\x00a"),
+    null,
+  ],
+  bit: ["0010001001011100010101011010111", "10101", null],
+  small_enum: ["DUCK_DUCK_ENUM", "GOOSE", null],
+  medium_enum: ["enum_0", "enum_299", null],
+  large_enum: ["enum_0", "enum_69999", null],
+  date_array: [[], [new Date(1970, 1, 1), null, "Date.min", "Date.max"], null],
+  timestamp_array: [
+    [],
+    [
+      datetime(1970, 1, 1),
+      null,
+      "datetime.datetime.min",
+      "datetime.datetime.max",
+    ],
+    null,
+  ],
+
+  timestamptz_array: [
+    [],
+    [
+      datetime(1970, 1, 1),
+      null,
+      "datetime.datetime.min",
+      "datetime.datetime.max",
+    ],
+    null,
+  ],
+
+  int_array: [[], [42, 999, null, null, -42], null],
+  varchar_array: [[], ["🦆🦆🦆🦆🦆🦆", "goose", null, ""], null],
+
+  double_array: [
+    [],
+    [
+      42.0,
+      Number.NaN,
+      Number.POSITIVE_INFINITY,
+      Number.NEGATIVE_INFINITY,
+      null,
+      -42.0,
+    ],
+    null,
+  ],
+
+  nested_int_array: [
+    [],
+    [[], [42, 999, null, null, -42], null, [], [42, 999, null, null, -42]],
+    null,
+  ],
+  struct: [{ a: null, b: null }, { a: 42, b: "🦆🦆🦆🦆🦆🦆" }, null],
+
+  struct_of_arrays: [
+    { a: null, b: null },
+    {
+      a: [42, 999, null, null, -42],
+      b: ["🦆🦆🦆🦆🦆🦆", "goose", null, ""],
+    },
+    null,
+  ],
+
+  array_of_structs: [
+    [],
+    [{ a: null, b: null }, { a: 42, b: "🦆🦆🦆🦆🦆🦆" }, null],
+    null,
+  ],
+  map: ["{}", "{key1=🦆🦆🦆🦆🦆🦆, key2=goose}", null],
+
+  time_tz: ["00:00:00+00", "23:59:59.999999+00", null],
+  interval: [
+    timedelta({
+      days: 0,
+      months: 0,
+      micros: 0,
+    }),
+    timedelta({ days: 999, months: 999, micros: 999999999 }),
+    null,
+  ],
+
+  timestamp: [datetime(1990, 1, 1, 0, 0)],
+  date: [date(1990, 1, 1)],
+  timestamp_s: [datetime(1990, 1, 1, 0, 0)],
+
+  timestamp_ns: [datetime(1990, 1, 1, 0, 0)],
+  timestamp_ms: [datetime(1990, 1, 1, 0, 0)],
+  timestamp_tz: [datetime(1990, 1, 1, 0, 0)],
+};
+
+const suite = describe("test_all_types", () => {
+  before(async function () {
+    const all_types = await get_all_types();
+
+    for (const cur_type of all_types) {
+      suite.addTest(
+        it(cur_type, async () => {
+          const conn = new duckdb.Database(":memory:");
+
+          let query: string;
+          if (cur_type in replacement_values) {
+            query = `select ${replacement_values[cur_type]}`;
+          } else {
+            query = `select "${cur_type}" from test_all_types()`;
+          }
+
+          let result = await new Promise<any[]>((resolve, reject) =>
+            conn.all(query, (err: DuckDbError | null, data: TableData) =>
+              err ? reject(err) : resolve(data)
+            )
+          );
+
+          result = result.map((row) => row[cur_type]); // pluck values
+
+          const correct_result = correct_answer_map[cur_type];
+
+          expect(result).deep.eq(correct_result);
+        })
+      );
+    }
+  });
+
+  it("dummy", () => {});
+});
