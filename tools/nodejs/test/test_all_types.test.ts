@@ -18,18 +18,16 @@ function timedelta(obj: { days: number; micros: number; months: number }) {
   return obj;
 }
 
-function date(year: number, month: number, day: number) {
-  return new Date(year, month, day);
-}
-
 // We replace these values since the extreme ranges are not supported in native-node.
 const replacement_values: Record<string, string> = {
-  //   timestamp: "'1990-01-01 00:00:00'::TIMESTAMP",
+  timestamp:
+    "'1990-01-01 00:00:00'::TIMESTAMP, '9999-12-31 23:59:59'::TIMESTAMP, NULL::TIMESTAMP",
   //   timestamp_s: "'1990-01-01 00:00:00'::TIMESTAMP_S",
   //   timestamp_ns: "'1990-01-01 00:00:00'::TIMESTAMP_NS",
   //   timestamp_ms: "'1990-01-01 00:00:00'::TIMESTAMP_MS",
-  //   timestamp_tz: "'1990-01-01 00:00:00Z'::TIMESTAMPTZ",
-  //   date: "'1990-01-01'::DATE",
+  timestamp_tz:
+    "'1990-01-01 00:00:00Z'::TIMESTAMPTZ, '9999-12-31 23:59:59.999999Z'::TIMESTAMPTZ, NULL::TIMESTAMPTZ",
+  date: "'1990-01-01'::DATE, '9999-12-31'::DATE, NULL::DATE",
   date_array:
     "[], ['1970-01-01'::DATE, NULL, '0001-01-01'::DATE, '9999-12-31'::DATE,], [NULL::DATE,]",
   timestamp_array:
@@ -170,8 +168,12 @@ const correct_answer_map: Record<string, any[]> = {
     null,
   ],
 
-  timestamp: [new Date(1990, 0, 1, 0, 0), new Date(1990, 0, 1, 0, 0), null],
-  date: [date(1990, 1, 1), date(1990, 1, 1), null],
+  timestamp: [
+    new Date("1990-01-01T00:00"),
+    new Date("9999-12-31T23:59:59.000Z"),
+    null,
+  ],
+  date: [new Date("1990-01-01"), new Date("9999-12-31"), null],
   timestamp_s: ["290309-12-22 (BC) 00:00:00", "294247-01-10 04:00:54", null],
 
   timestamp_ns: [
@@ -184,7 +186,11 @@ const correct_answer_map: Record<string, any[]> = {
     "294247-01-10 04:00:54.775",
     null,
   ],
-  timestamp_tz: [new Date(1990, 0, 1, 0, 0), null, null],
+  timestamp_tz: [
+    new Date("1990-01-01T00:00:00.000Z"),
+    new Date("9999-12-31T23:59:59.999Z"),
+    null,
+  ],
 };
 
 const suite = describe("test_all_types", () => {
