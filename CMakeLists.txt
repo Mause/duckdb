@@ -117,8 +117,8 @@ endif()
 if(UNIX AND NOT APPLE)
   set(OS_NAME "linux") # sorry BSD
 endif()
-
 if (ANDROID)
+  set(OS_NAME "android")
   link_libraries("-llog")
 endif()
 
