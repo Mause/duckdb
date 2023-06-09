@@ -118,6 +118,10 @@ if(UNIX AND NOT APPLE)
   set(OS_NAME "linux") # sorry BSD
 endif()
 
+if (ANDROID)
+  link_libraries("-llog")
+endif()
+
 option(FORCE_WARN_UNUSED "Unused code objects lead to compiler warnings." FALSE)
 
 option(WASM_LOADABLE_EXTENSIONS "WebAssembly build with loadable extensions." FALSE)
