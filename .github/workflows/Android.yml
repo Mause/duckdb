@@ -24,6 +24,8 @@ jobs:
         add-to-path: true
         local-cache: true
 
+    - run: echo $NDK
+
     - name: Build
       run: |
         mkdir build/android -p
