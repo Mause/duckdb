@@ -1,3 +1,4 @@
+name: Android
 on: push
 
 jobs:
@@ -49,7 +50,7 @@ jobs:
           -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
           -DCMAKE_SYSTEM_NAME=Android \
           -DCMAKE_SYSTEM_VERSION=$ANDROID_VERSION \
-          -DBUILD_JDBC=1 \
+          -DJDBC_DRIVER=1 \
           ../..
         cmake --build .
     - run: ls build/android/tools/jdbc
