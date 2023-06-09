@@ -9,7 +9,7 @@ jobs:
       ABI: armeabi-v7a
       ANDROID_VERSION: 23
       MINSDKVERSION: 23
-      NDK_APPLICATION_MK: /home/runner/work/duckdb/duckdb/tools/jdbc
+      NDK_APPLICATION_MK: /home/runner/work/duckdb/duckdb/tools/jdbc/Android.mk
 
     steps:
     - uses: actions/checkout@v3
