@@ -33,17 +33,16 @@ jobs:
         add-to-path: true
         local-cache: true
     - name: Setup Ccache
-
       uses: hendrikmuhs/ccache-action@main
-
       with:  
-
         key: ${{ github.job }}
-
   
     - run: |
         echo "ANDROID_NDK_HOME=${{ steps.setup-ndk.outputs.ndk-path }}" >> "$GITHUB_ENV"
         echo "NDK=${{ steps.setup-ndk.outputs.ndk-path }}" >> "$GITHUB_ENV"
+    - run: |
+        gradle
+      working-directory: tools/jdbc
 
     - name: Build
       run: |
