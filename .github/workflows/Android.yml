@@ -9,7 +9,8 @@ jobs:
       ABI: armeabi-v7a
       ANDROID_VERSION: 23
       MINSDKVERSION: 23
-    
+      LDFLAGS: " -llog"
+
     steps:
     - uses: actions/checkout@v3
 
