@@ -37,4 +37,3 @@ dependencyResolutionManagement {
     }
 }
 rootProject.name = "duckdb_jdbc"
-include ':app'
