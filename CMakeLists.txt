@@ -287,7 +287,7 @@ if(WIN32)
 endif()
 
 set(JEMALLOC_DEFAULT_BUILD FALSE)
-if(NOT CLANG_TIDY AND OS_NAME STREQUAL "linux")
+if(NOT CLANG_TIDY AND OS_NAME STREQUAL "linux" AND NOT ANDROID)
   # build jemalloc by default for linux
   set(JEMALLOC_DEFAULT_BUILD TRUE)
 endif()
