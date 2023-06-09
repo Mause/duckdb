@@ -18,14 +18,16 @@ jobs:
       with:
         ndk-version: r21e
         add-to-path: true
+        local-cache: true
 
-    - name: Build SampleApplication
+    - name: Build
       run: |
-        mkdir build/android
+        mkdir build/android -p
         cd build/android
         cmake -G Ninja \
           -DCMAKE_TOOLCHAIN_FILE=$NDK/build/cmake/android.toolchain.cmake \
           -DANDROID_ABI=$ABI \
           -DANDROID_PLATFORM=android-$MINSDKVERSION \
+          -DBUILD_JDBC=1 \
           ..
         ninja
