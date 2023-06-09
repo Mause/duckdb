@@ -13,7 +13,9 @@ jobs:
         java-version: 8.0.372+7
         distribution: temurin
 
-    - run: sudo apt-get install -y ninja-build cmake
+    - run: |
+        sudo apt update
+        sudo apt install -y ninja-build cmake
 
     - uses: nttld/setup-ndk@v1
       id: setup-ndk
