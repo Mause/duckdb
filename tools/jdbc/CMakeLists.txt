@@ -16,7 +16,8 @@ file(GLOB JAVA_TEST_FILES src/test/java/org/duckdb/test/*.java)
 set(CMAKE_JAVA_COMPILE_FLAGS -source 1.8 -target 1.8 -encoding utf-8)
 
 if (ANDROID)
-add_custom_target(duckdb_jdbc COMMAND ndk-build DEPENDS ${JAVA_SRC_FILES} ${JAVA_TEST_FILES} META-INF/services/java.sql.Driver)
+add_jar(duckdb_jdbc_dummy ${JAVA_SRC_FILES} GENERATE_NATIVE_HEADERS duckdb-native)
+add_custom_target(duckdb_jdbc COMMAND ndk-build DEPENDS ${JAVA_SRC_FILES} ${JAVA_TEST_FILES} duckdb_jdbc_dummy META-INF/services/java.sql.Driver)
 else ()
 add_jar(duckdb_jdbc ${JAVA_SRC_FILES} ${JAVA_TEST_FILES}
         META-INF/services/java.sql.Driver GENERATE_NATIVE_HEADERS duckdb-native)
