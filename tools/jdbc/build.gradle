@@ -1,0 +1,9 @@
+buildFeatures {
+    prefabPublishing true
+}
+
+prefab {
+    duckdb {
+      headers "../../src/duckdb/include"
+    }
+}
