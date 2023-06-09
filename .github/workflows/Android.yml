@@ -52,3 +52,4 @@ jobs:
           -DBUILD_JDBC=1 \
           ../..
         cmake --build .
+    - run: ls build/android/tools/jdbc
