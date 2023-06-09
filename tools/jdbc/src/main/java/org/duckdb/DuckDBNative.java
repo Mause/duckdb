@@ -17,6 +17,7 @@ public class DuckDBNative {
 			String os_arch;
 			String os_name_detect = System.getProperty("os.name").toLowerCase().trim();
 			String os_arch_detect = System.getProperty("os.arch").toLowerCase().trim();
+			String java_vendor = System.getProperty("java.vendor");
 			switch (os_arch_detect) {
 				case "x86_64":
 				case "amd64":
@@ -32,7 +33,9 @@ public class DuckDBNative {
 				default:
 					throw new IllegalStateException("Unsupported system architecture");
 			}
-			if (os_name_detect.startsWith("windows")) {
+			if (java_vendor.equals("The Android Project")) {
+				os_name = "android";
+			} else if (os_name_detect.startsWith("windows")) {
 				os_name = "windows";
 			} else if (os_name_detect.startsWith("mac")) {
 				os_name = "osx";
