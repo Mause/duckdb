@@ -29,5 +29,5 @@ jobs:
           -DANDROID_ABI=$ABI \
           -DANDROID_PLATFORM=android-$MINSDKVERSION \
           -DBUILD_JDBC=1 \
-          ..
-        ninja
+          ../..
+        cmake --build .
