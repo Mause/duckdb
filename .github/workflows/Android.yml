@@ -4,6 +4,11 @@ jobs:
   android:
     runs-on: ubuntu-latest
     
+    env:
+      ABI: armeabi-v7a
+      ANDROID_VERSION: 23
+      MINSDKVERSION: 23
+    
     steps:
     - uses: actions/checkout@v3
 
@@ -28,10 +33,6 @@ jobs:
         echo "ANDROID_NDK_HOME=${{ steps.setup-ndk.outputs.ndk-path }}" >> "$GITHUB_ENV"
         echo "NDK=${{ steps.setup-ndk.outputs.ndk-path }}" >> "$GITHUB_ENV"
 
-    - run: |
-        echo $NDK
-        ninja --version
-
     - name: Build
       run: |
         mkdir build/android -p
@@ -40,6 +41,14 @@ jobs:
           -DCMAKE_TOOLCHAIN_FILE=$NDK/build/cmake/android.toolchain.cmake \
           -DANDROID_ABI=$ABI \
           -DANDROID_PLATFORM=android-$MINSDKVERSION \
+          -DCMAKE_BUILD_TYPE=Debug \
+          -DANDROID_NDK=$NDK \
+          -DANDROID_PLATFORM=android-$ANDROID_VERSION \
+          -DCMAKE_ANDROID_ARCH_ABI=$ABI \
+          -DCMAKE_ANDROID_NDK=$NDK \
+          -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+          -DCMAKE_SYSTEM_NAME=Android \
+          -DCMAKE_SYSTEM_VERSION=$ANDROID_VERSION \
           -DBUILD_JDBC=1 \
           ../..
         cmake --build .
