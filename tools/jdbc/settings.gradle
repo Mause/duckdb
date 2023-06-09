@@ -36,5 +36,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "My Application"
-
+rootProject.name = "duckdb_jdbc"
+include ':app'
