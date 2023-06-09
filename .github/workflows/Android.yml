@@ -13,8 +13,11 @@ jobs:
         java-version: 8.0.372+7
         distribution: temurin
 
-    - name: Setup Android SDK
-      uses: android-actions/setup-android@v2
+    - uses: nttld/setup-ndk@v1
+      id: setup-ndk
+      with:
+        ndk-version: r21e
+        add-to-path: true
 
     - name: Build SampleApplication
       run: |
