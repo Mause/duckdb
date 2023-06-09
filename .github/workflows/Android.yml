@@ -41,7 +41,7 @@ jobs:
         echo "ANDROID_NDK_HOME=${{ steps.setup-ndk.outputs.ndk-path }}" >> "$GITHUB_ENV"
         echo "NDK=${{ steps.setup-ndk.outputs.ndk-path }}" >> "$GITHUB_ENV"
     - run: |
-        gradle
+        ./gradlew build
       working-directory: tools/jdbc
 
     - name: Build
