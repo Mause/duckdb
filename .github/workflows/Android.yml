@@ -54,6 +54,7 @@ jobs:
           -DJDBC_DRIVER=1 \
           -DEXTENSION_STATIC_BUILD=1 \
           -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
+          -DOVERRIDE_JDBC_OS_ARCH=arm64 \
           ../..
         cmake --build .
     - run: ls build/android/tools/jdbc
