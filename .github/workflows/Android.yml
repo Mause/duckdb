@@ -58,3 +58,9 @@ jobs:
           ../..
         cmake --build .
     - run: ls build/android/tools/jdbc
+    - uses: actions/upload-artifact@v3
+      with:
+        name: duckdb-android-aarch64
+        path: |
+          build/android/tools/jdbc/*.so
+          build/android/tools/jdbc/*.jar
