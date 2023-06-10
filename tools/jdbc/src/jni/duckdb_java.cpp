@@ -333,6 +333,20 @@ JNIEXPORT jobject JNICALL Java_org_duckdb_DuckDBNative_duckdb_1jdbc_1startup(JNI
 	return nullptr;
 }
 
+JNIEXPORT jstring JNICALL
+
+Java_org_duckdb_duckdb_1jdbc_MainActivity_stringFromJNI(
+
+        JNIEnv* env,
+
+        jobject /* this */) {
+
+    std::string hello = "Hello from DuckDB";
+
+    return env->NewStringUTF(hello.c_str());
+
+}
+
 JNIEXPORT jobject JNICALL Java_org_duckdb_DuckDBNative_duckdb_1jdbc_1connect(JNIEnv *env, jclass,
                                                                              jobject conn_ref_buf) {
 	auto conn_ref = (ConnectionHolder *)env->GetDirectBufferAddress(conn_ref_buf);
