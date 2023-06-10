@@ -4,7 +4,7 @@ plugins {
     id 'com.android.library' version '8.0.2' apply false
 }
 
-apply plugin: 'android'
+apply plugin: 'com.android.application'
 
 android {
     compileSdkVersion 23
