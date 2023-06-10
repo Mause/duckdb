@@ -40,7 +40,7 @@ jobs:
           ./gradlew buildEnvironment
         working-directory: tools/jdbc
 
-      - run: ./gradlew build
+      - run: ./gradlew assemble
         working-directory: tools/jdbc
         name: Build
       #
