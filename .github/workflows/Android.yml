@@ -41,7 +41,9 @@ jobs:
           echo "ANDROID_NDK_HOME=${{ steps.setup-ndk.outputs.ndk-path }}" >> "$GITHUB_ENV"
           echo "NDK=${{ steps.setup-ndk.outputs.ndk-path }}" >> "$GITHUB_ENV"
 
-      - run: ./gradlew configureCMakeBuild
+      - run: |
+          ./gradlew tasks
+          ./gradlew configureCMakeBuild
         working-directory: tools/jdbc
         name: Configure
 
