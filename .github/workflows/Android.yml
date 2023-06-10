@@ -10,66 +10,71 @@ jobs:
       ANDROID_VERSION: 23
       MINSDKVERSION: 23
       NDK_APPLICATION_MK: /home/runner/work/duckdb/duckdb/tools/jdbc/Android.mk
-      NDK_PROJECT_PATH:  /home/runner/work/duckdb/duckdb/tools/jdbc/
-      
+      NDK_PROJECT_PATH: /home/runner/work/duckdb/duckdb/tools/jdbc/
+
     steps:
-    - uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-    - name: Set up JDK
-      uses: actions/setup-java@v3
-      with:
-        java-version: 17
-        distribution: temurin
-        cache: gradle
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          java-version: 17
+          distribution: temurin
+          cache: gradle
 
-    - run: |
-        sudo apt update
-        sudo apt install -y ninja-build cmake
+      - run: |
+          sudo apt update
+          sudo apt install -y ninja-build cmake
 
-    - uses: nttld/setup-ndk@v1
-      id: setup-ndk
-      with:
-        ndk-version: r25c
-        add-to-path: true
-        local-cache: true
-    - name: Setup Ccache
-      uses: hendrikmuhs/ccache-action@main
-      with:  
-        key: ${{ github.job }}
-  
-    - run: |
-        echo "ANDROID_NDK_HOME=${{ steps.setup-ndk.outputs.ndk-path }}" >> "$GITHUB_ENV"
-        echo "NDK=${{ steps.setup-ndk.outputs.ndk-path }}" >> "$GITHUB_ENV"
-    - run: |
-        ./gradlew build --no-daemon
-      working-directory: tools/jdbc
+      - uses: nttld/setup-ndk@v1
+        id: setup-ndk
+        with:
+          ndk-version: r25c
+          add-to-path: true
+          local-cache: true
+      - name: Setup Ccache
+        uses: hendrikmuhs/ccache-action@main
+        with:
+          key: ${{ github.job }}
 
-    - name: Build
-      run: |
-        mkdir build/android -p
-        cd build/android
-        cmake -G Ninja \
-          -DCMAKE_TOOLCHAIN_FILE=$NDK/build/cmake/android.toolchain.cmake \
-          -DANDROID_ABI=$ABI \
-          -DANDROID_PLATFORM=android-$MINSDKVERSION \
-          -DCMAKE_BUILD_TYPE=Debug \
-          -DANDROID_NDK=$NDK \
-          -DANDROID_PLATFORM=android-$ANDROID_VERSION \
-          -DCMAKE_ANDROID_ARCH_ABI=$ABI \
-          -DCMAKE_ANDROID_NDK=$NDK \
-          -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-          -DCMAKE_SYSTEM_NAME=Android \
-          -DCMAKE_SYSTEM_VERSION=$ANDROID_VERSION \
-          -DJDBC_DRIVER=1 \
-          -DEXTENSION_STATIC_BUILD=1 \
-          -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
-          -DOVERRIDE_JDBC_OS_ARCH=arm64 \
-          ../..
-        cmake --build .
-    - run: ls build/android/tools/jdbc
-    - uses: actions/upload-artifact@v3
-      with:
-        name: duckdb-android-aarch64
-        path: |
-          build/android/tools/jdbc/*.so
-          build/android/tools/jdbc/*.jar
+      - run: |
+          echo "ANDROID_NDK_HOME=${{ steps.setup-ndk.outputs.ndk-path }}" >> "$GITHUB_ENV"
+          echo "NDK=${{ steps.setup-ndk.outputs.ndk-path }}" >> "$GITHUB_ENV"
+
+      - run: ./gradlew configureCMakeBuild
+        working-directory: tools/jdbc
+        name: Configure
+
+      - run: ./gradlew build
+        working-directory: tools/jdbc
+        name: Build
+
+      - name: Build
+        run: |
+          mkdir build/android -p
+          cd build/android
+          cmake -G Ninja \
+            -DCMAKE_TOOLCHAIN_FILE=$NDK/build/cmake/android.toolchain.cmake \
+            -DANDROID_ABI=$ABI \
+            -DANDROID_PLATFORM=android-$MINSDKVERSION \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DANDROID_NDK=$NDK \
+            -DANDROID_PLATFORM=android-$ANDROID_VERSION \
+            -DCMAKE_ANDROID_ARCH_ABI=$ABI \
+            -DCMAKE_ANDROID_NDK=$NDK \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            -DCMAKE_SYSTEM_NAME=Android \
+            -DCMAKE_SYSTEM_VERSION=$ANDROID_VERSION \
+            -DJDBC_DRIVER=1 \
+            -DEXTENSION_STATIC_BUILD=1 \
+            -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
+            -DOVERRIDE_JDBC_OS_ARCH=arm64 \
+            ../..
+          cmake --build .
+      - run: ls build/android/tools/jdbc
+      - uses: actions/upload-artifact@v3
+        with:
+          name: duckdb-android-aarch64
+          path: |
+            build/android/tools/jdbc/*.so
+            build/android/tools/jdbc/*.jar
