@@ -48,33 +48,35 @@ jobs:
       - run: ./gradlew build
         working-directory: tools/jdbc
         name: Build
-
-      - name: Build
-        run: |
-          mkdir build/android -p
-          cd build/android
-          cmake -G Ninja \
-            -DCMAKE_TOOLCHAIN_FILE=$NDK/build/cmake/android.toolchain.cmake \
-            -DANDROID_ABI=$ABI \
-            -DANDROID_PLATFORM=android-$MINSDKVERSION \
-            -DCMAKE_BUILD_TYPE=Debug \
-            -DANDROID_NDK=$NDK \
-            -DANDROID_PLATFORM=android-$ANDROID_VERSION \
-            -DCMAKE_ANDROID_ARCH_ABI=$ABI \
-            -DCMAKE_ANDROID_NDK=$NDK \
-            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-            -DCMAKE_SYSTEM_NAME=Android \
-            -DCMAKE_SYSTEM_VERSION=$ANDROID_VERSION \
-            -DJDBC_DRIVER=1 \
-            -DEXTENSION_STATIC_BUILD=1 \
-            -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
-            -DOVERRIDE_JDBC_OS_ARCH=arm64 \
-            ../..
-          cmake --build .
-      - run: ls build/android/tools/jdbc
+      #
+      #      - name: Build
+      #        run: |
+      #          mkdir build/android -p
+      #          cd build/android
+      #          cmake -G Ninja \
+      #            -DCMAKE_TOOLCHAIN_FILE=$NDK/build/cmake/android.toolchain.cmake \
+      #            -DANDROID_ABI=$ABI \
+      #            -DANDROID_PLATFORM=android-$MINSDKVERSION \
+      #            -DCMAKE_BUILD_TYPE=Debug \
+      #            -DANDROID_NDK=$NDK \
+      #            -DANDROID_PLATFORM=android-$ANDROID_VERSION \
+      #            -DCMAKE_ANDROID_ARCH_ABI=$ABI \
+      #            -DCMAKE_ANDROID_NDK=$NDK \
+      #            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+      #            -DCMAKE_SYSTEM_NAME=Android \
+      #            -DCMAKE_SYSTEM_VERSION=$ANDROID_VERSION \
+      #            -DJDBC_DRIVER=1 \
+      #            -DEXTENSION_STATIC_BUILD=1 \
+      #            -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
+      #            -DOVERRIDE_JDBC_OS_ARCH=arm64 \
+      #            ../..
+      #          cmake --build .
+      - run: ls tools/jdbc/build/
       - uses: actions/upload-artifact@v3
         with:
           name: duckdb-android-aarch64
           path: |
-            build/android/tools/jdbc/*.so
-            build/android/tools/jdbc/*.jar
+            tools/jdbc/build/**/*.so
+            tools/jdbc/build/**/*.aar
+            tools/jdbc/build/**/*.jar
+            tools/jdbc/build/**/*.apk
