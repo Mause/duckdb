@@ -4,11 +4,6 @@ on: push
 jobs:
   android:
     runs-on: ubuntu-latest
-    
-    env:
-      ABI: armeabi-v7a
-      ANDROID_VERSION: 23
-      MINSDKVERSION: 23
 
     steps:
       - uses: actions/checkout@v3
@@ -76,7 +71,5 @@ jobs:
         with:
           name: duckdb-android-aarch64
           path: |
-            tools/jdbc/app/build/**/*.so
-            tools/jdbc/app/build/**/*.aar
-            tools/jdbc/app/build/**/*.jar
-            tools/jdbc/app/build/**/*.apk
+            tools/jdbc/app/build/outputs/**/*.aar
+            tools/jdbc/app/build/outputs/**/*.apk
