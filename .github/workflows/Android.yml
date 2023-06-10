@@ -45,12 +45,6 @@ jobs:
           ./gradlew buildEnvironment
         working-directory: tools/jdbc
 
-      - run: |
-          ./gradlew tasks
-          ./gradlew configureCMakeBuild
-        working-directory: tools/jdbc
-        name: Configure
-
       - run: ./gradlew build
         working-directory: tools/jdbc
         name: Build
