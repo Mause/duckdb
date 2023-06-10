@@ -11,7 +11,6 @@ jobs:
       MINSDKVERSION: 23
       NDK_APPLICATION_MK: /home/runner/work/duckdb/duckdb/tools/jdbc/Android.mk
       NDK_PROJECT_PATH:  /home/runner/work/duckdb/duckdb/tools/jdbc/
-
       
     steps:
     - uses: actions/checkout@v3
@@ -21,6 +20,7 @@ jobs:
       with:
         java-version: 17
         distribution: temurin
+        cache: gradle
 
     - run: |
         sudo apt update
@@ -41,7 +41,7 @@ jobs:
         echo "ANDROID_NDK_HOME=${{ steps.setup-ndk.outputs.ndk-path }}" >> "$GITHUB_ENV"
         echo "NDK=${{ steps.setup-ndk.outputs.ndk-path }}" >> "$GITHUB_ENV"
     - run: |
-        ./gradlew build
+        ./gradlew build --no-daemon
       working-directory: tools/jdbc
 
     - name: Build
