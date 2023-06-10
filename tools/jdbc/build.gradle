@@ -9,6 +9,15 @@ android {
     compileSdkVersion 23
     namespace 'org.duckdb'
 
+    defaultConfig {
+        externalNativeBuild {
+            cmake {
+                arguments "-DJDBC_DRIVER=1", "-DEXTENSION_STATIC_BUILD=1", "-DOVERRIDE_JDBC_OS_ARCH=arm64"
+                targets "duckdb_jdbc"
+            }
+        }
+    }
+
     // Encapsulates your external native build configurations.
     externalNativeBuild {
 
