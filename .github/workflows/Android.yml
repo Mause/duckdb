@@ -66,7 +66,7 @@ jobs:
       #            -DOVERRIDE_JDBC_OS_ARCH=arm64 \
       #            ../..
       #          cmake --build .
-      - run: ls tools/jdbc/app/build/
+      - run: find tools/jdbc/app/build/outputs
       - uses: actions/upload-artifact@v3
         with:
           name: duckdb-android-aarch64
