@@ -20,4 +20,14 @@ android {
             path "../../CMakeLists.txt"
         }
     }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+    dependenciesInfo {
+        includeInApk true
+        includeInBundle true
+    }
+    ndkVersion '25.1.8937393'
+    buildToolsVersion '34.0.0'
 }
