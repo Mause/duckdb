@@ -40,6 +40,12 @@ jobs:
           echo "NDK=${{ steps.setup-ndk.outputs.ndk-path }}" >> "$GITHUB_ENV"
 
       - run: |
+          cat build.gradle
+          ./gradlew tasks
+          ./gradlew buildEnvironment
+        working-directory: tools/jdbc
+
+      - run: |
           ./gradlew tasks
           ./gradlew configureCMakeBuild
         working-directory: tools/jdbc
