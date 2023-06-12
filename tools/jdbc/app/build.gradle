@@ -16,7 +16,8 @@ android {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         externalNativeBuild {
             cmake {
-                arguments "-DJDBC_DRIVER=1", "-DEXTENSION_STATIC_BUILD=1", "-DOVERRIDE_JDBC_OS_ARCH=arm64"
+                arguments "-DJDBC_DRIVER=1", "-DEXTENSION_STATIC_BUILD=1", "-DOVERRIDE_JDBC_OS_ARCH=arm64", "-DANDROID_ARM_MODE=arm", "-DANDROID_STL=c++_shared"
+
 
                 targets "duckdb_java"
                 cppFlags '-std=c++11'
