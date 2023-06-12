@@ -4,7 +4,7 @@ public class JNIInterface {
 
     // Used to load the 'duckdb_jdbc' library on application startup.
     static {
-        System.loadLibrary("duckdb_jdbc");
+        System.loadLibrary("duckdb_java");
     }
 
     /**
