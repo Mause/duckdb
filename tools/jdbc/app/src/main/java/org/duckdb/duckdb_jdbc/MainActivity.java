@@ -23,7 +23,10 @@ public class MainActivity extends AppCompatActivity {
 
         String string;
         try {
-            string = new JNIInterface().stringFromJNI();
+            var cls = Class.forName("org.duckdb.duckdb_jdbc.JNIInterface");
+            var method = cls.getMethod("stringFromJNI");
+            var instance = cls.newInstance();
+            string = method.invoke(instance).toString();
         } catch (Throwable t) {
             string = t.toString();
         }
