@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<TableRow xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/result_item"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_marginStart="169dp"
+    android:layout_marginTop="117dp"
+    app:layout_constraintStart_toStartOf="parent"
+    app:layout_constraintTop_toTopOf="parent">
+
+    <TextView android:id="@+id/result_item_name" android:gravity="start"/>
+    <TextView android:id="@+id/result_item_installed" android:gravity="end"/>
+</TableRow>
