@@ -9,11 +9,6 @@ import org.duckdb.duckdb_jdbc.databinding.ActivityMainBinding;
 
 public class MainActivity extends AppCompatActivity {
 
-    // Used to load the 'duckdb_jdbc' library on application startup.
-    static {
-        System.loadLibrary("duckdb_jdbc");
-    }
-
     private ActivityMainBinding binding;
 
     @Override
@@ -25,12 +20,14 @@ public class MainActivity extends AppCompatActivity {
 
         // Example of a call to a native method
         TextView tv = binding.sampleText;
-        tv.setText(stringFromJNI());
-    }
 
-    /**
-     * A native method that is implemented by the 'duckdb_jdbc' native library,
-     * which is packaged with this application.
-     */
-    public native String stringFromJNI();
+        String string;
+        try {
+            string = JNIInterface.stringFromJNI()
+        } catch (Throwable t) {
+            string = t.toString();
+        }
+
+        tv.setText(t);
+    }
 }
