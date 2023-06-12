@@ -23,7 +23,7 @@ public class MainActivity extends AppCompatActivity {
 
         String string;
         try {
-            string = JNIInterface.stringFromJNI();
+            string = new JNIInterface().stringFromJNI();
         } catch (Throwable t) {
             string = t.toString();
         }
