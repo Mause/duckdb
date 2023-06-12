@@ -36,9 +36,11 @@ jobs:
 
       - uses: gradle/gradle-build-action@v2
 
-      - run: |
-          ./gradlew tasks --all
-          ./gradlew assembleDebug --info
+      - run: ./gradlew tasks --all
+        working-directory: tools/jdbc
+        name: Dump tasks
+
+      - run: ./gradlew assembleDebug --info --scan
         working-directory: tools/jdbc
         name: Build
 
