@@ -1,5 +1,7 @@
 package org.duckdb;
 
+import static org.duckdb.Compat.TIMESTAMP_WITH_TIMEZONE;
+
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.sql.ResultSetMetaData;
@@ -124,7 +126,7 @@ public class DuckDBResultSetMetaData implements ResultSetMetaData {
 		case TIMESTAMP_NS:
 			return Types.TIMESTAMP;
 		case TIMESTAMP_WITH_TIME_ZONE:
-			return Types.TIMESTAMP_WITH_TIMEZONE;
+			return TIMESTAMP_WITH_TIMEZONE;
 		case BLOB:
 			return Types.BLOB;
 		default:

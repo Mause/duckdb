@@ -1,5 +1,7 @@
 package org.duckdb;
 
+import static org.duckdb.Compat.TIMESTAMP_WITH_TIMEZONE;
+
 import java.io.InputStream;
 import java.io.Reader;
 import java.math.BigDecimal;
@@ -513,13 +515,11 @@ public class DuckDBPreparedStatement implements PreparedStatement {
 		throw new SQLFeatureNotSupportedException("isPoolable");
 	}
 
-	@Override
 	public void closeOnCompletion() throws SQLException {
 		if (isClosed()) throw new SQLException("Statement is closed");
 		closeOnCompletion = true;
 	}
 
-	@Override
 	public boolean isCloseOnCompletion() throws SQLException {
 		if (isClosed()) throw new SQLException("Statement is closed");
 		return closeOnCompletion;
@@ -690,7 +690,7 @@ public class DuckDBPreparedStatement implements PreparedStatement {
 			}
 			break;
 		case Types.TIMESTAMP:
-		case Types.TIMESTAMP_WITH_TIMEZONE:
+		case TIMESTAMP_WITH_TIMEZONE:
 			if (x instanceof Timestamp) {
 				setObject(parameterIndex, x);
 			} else if (x instanceof LocalDateTime) {

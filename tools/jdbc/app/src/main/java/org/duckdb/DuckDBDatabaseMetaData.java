@@ -626,7 +626,7 @@ public class DuckDBDatabaseMetaData implements DatabaseMetaData {
 
 	@Override
 	public ResultSet getCatalogs() throws SQLException {
-		Statement statement = conn.createStatement();
+		var statement = createStatement();
 		statement.closeOnCompletion();
 		return statement.executeQuery(
 				"SELECT DISTINCT catalog_name AS 'TABLE_CAT' FROM information_schema.schemata ORDER BY \"TABLE_CAT\"");
@@ -634,7 +634,7 @@ public class DuckDBDatabaseMetaData implements DatabaseMetaData {
 
 	@Override
 	public ResultSet getSchemas() throws SQLException {
-		Statement statement = conn.createStatement();
+		var statement = createStatement();
 		statement.closeOnCompletion();
 		return statement.executeQuery(
 				"SELECT schema_name AS 'TABLE_SCHEM', catalog_name AS 'TABLE_CATALOG' FROM information_schema.schemata ORDER BY \"TABLE_CATALOG\", \"TABLE_SCHEM\"");
@@ -675,7 +675,7 @@ public class DuckDBDatabaseMetaData implements DatabaseMetaData {
 		sb.append("ORDER BY \"TABLE_CATALOG\", \"TABLE_SCHEM\"");
 		sb.append(lineSeparator());
 		
-		PreparedStatement ps = conn.prepareStatement(sb.toString());
+		var ps = prepareStatement(sb.toString());
 		int paramIndex = 0;
 		if (catalog != null && !catalog.isEmpty()) {
 			ps.setString(++paramIndex, catalog);
@@ -685,6 +685,10 @@ public class DuckDBDatabaseMetaData implements DatabaseMetaData {
 		}
 		ps.closeOnCompletion();
 		return ps.executeQuery();
+	}
+
+	private DuckDBPreparedStatement prepareStatement(String sql) throws SQLException {
+		return (DuckDBPreparedStatement) conn.prepareStatement(sql);
 	}
 
 	@Override
@@ -705,7 +709,7 @@ public class DuckDBDatabaseMetaData implements DatabaseMetaData {
 			}
 		}
 		stringBuilder.append("\nORDER BY TABLE_TYPE");
-		Statement statement = conn.createStatement();
+		var statement = createStatement();
 		statement.closeOnCompletion();
 		return statement.executeQuery(stringBuilder.toString());
 	}
@@ -781,7 +785,7 @@ public class DuckDBDatabaseMetaData implements DatabaseMetaData {
 		str.append(", table_schema").append(lineSeparator());
 		str.append(", table_name").append(lineSeparator());
 
-		PreparedStatement ps = conn.prepareStatement(str.toString());
+		var ps = prepareStatement(str.toString());
 
 		int paramOffset = 1;
 		ps.setString(paramOffset++, tableNamePattern);
@@ -832,7 +836,7 @@ public class DuckDBDatabaseMetaData implements DatabaseMetaData {
 			}
 		}
 
-		PreparedStatement ps = conn.prepareStatement(
+		var ps = prepareStatement(
 				"SELECT table_catalog AS 'TABLE_CAT', table_schema AS 'TABLE_SCHEM', table_name AS 'TABLE_NAME', column_name as 'COLUMN_NAME', type_id AS 'DATA_TYPE', c.data_type AS 'TYPE_NAME', NULL AS 'COLUMN_SIZE', NULL AS 'BUFFER_LENGTH', numeric_precision AS 'DECIMAL_DIGITS', 10 AS 'NUM_PREC_RADIX', CASE WHEN is_nullable = 'YES' THEN 1 else 0 END AS 'NULLABLE', NULL as 'REMARKS', column_default AS 'COLUMN_DEF', NULL AS 'SQL_DATA_TYPE', NULL AS 'SQL_DATETIME_SUB', character_octet_length AS 'CHAR_OCTET_LENGTH', ordinal_position AS 'ORDINAL_POSITION', is_nullable AS 'IS_NULLABLE', NULL AS 'SCOPE_CATALOG', NULL AS 'SCOPE_SCHEMA', NULL AS 'SCOPE_TABLE', NULL AS 'SOURCE_DATA_TYPE', '' AS 'IS_AUTOINCREMENT', '' AS 'IS_GENERATEDCOLUMN'  FROM information_schema.columns c JOIN ("
 						+ values_str
 						+ ") t(type_name, type_id) ON c.data_type = t.type_name WHERE table_catalog LIKE ? AND table_schema LIKE ? AND table_name LIKE ? AND column_name LIKE ? ORDER BY \"TABLE_CAT\",\"TABLE_SCHEM\", \"TABLE_NAME\", \"ORDINAL_POSITION\"");
@@ -860,7 +864,7 @@ public class DuckDBDatabaseMetaData implements DatabaseMetaData {
 	@Override
 	public ResultSet getProcedures(String catalog, String schemaPattern, String procedureNamePattern)
 			throws SQLException {
-		Statement statement = conn.createStatement();
+		var statement = createStatement();
 		statement.closeOnCompletion();
 		return statement.executeQuery("SELECT NULL WHERE FALSE");
 	}
@@ -868,7 +872,7 @@ public class DuckDBDatabaseMetaData implements DatabaseMetaData {
 	@Override
 	public ResultSet getProcedureColumns(String catalog, String schemaPattern, String procedureNamePattern,
 			String columnNamePattern) throws SQLException {
-		Statement statement = conn.createStatement();
+		var statement = createStatement();
 		statement.closeOnCompletion();
 		return statement.executeQuery("SELECT NULL WHERE FALSE");
 	}
@@ -929,7 +933,7 @@ public class DuckDBDatabaseMetaData implements DatabaseMetaData {
 		pw.append("ORDER BY \"TABLE_CAT\", \"TABLE_SCHEM\", \"TABLE_NAME\", \"KEY_SEQ\"").append(lineSeparator());
 
 		int paramIndex = 1;
-		PreparedStatement ps = conn.prepareStatement(pw.toString());
+		var ps = prepareStatement(pw.toString());
 
 		if (catalog != null && !catalog.isEmpty()) {
 			ps.setString(paramIndex++, catalog);
@@ -1191,18 +1195,20 @@ public class DuckDBDatabaseMetaData implements DatabaseMetaData {
 	@Override
 	public ResultSet getFunctionColumns(String catalog, String schemaPattern, String functionNamePattern,
 			String columnNamePattern) throws SQLException {
-		Statement statement = conn.createStatement();
+		var statement = createStatement();
 		statement.closeOnCompletion();
 		return statement.executeQuery("SELECT NULL WHERE FALSE");
 	}
 
-	@Override
+	private DuckDBPreparedStatement createStatement() throws SQLException {
+		return (DuckDBPreparedStatement) conn.createStatement();
+	}
+
 	public ResultSet getPseudoColumns(String catalog, String schemaPattern, String tableNamePattern,
 			String columnNamePattern) throws SQLException {
 		throw new SQLFeatureNotSupportedException("getPseudoColumns");
 	}
 
-	@Override
 	public boolean generatedKeyAlwaysReturned() throws SQLException {
 		throw new SQLFeatureNotSupportedException("generatedKeyAlwaysReturned");
 	}
