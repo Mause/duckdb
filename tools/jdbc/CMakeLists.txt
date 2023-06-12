@@ -37,8 +37,10 @@ endif()
 if(OVERRIDE_JDBC_OS_ARCH)
   set(OS_ARCH ${OVERRIDE_JDBC_OS_ARCH})
 endif()
-string(JOIN "_" LIB_SUFFIX ".so" ${OS_NAME} ${OS_ARCH})
-set_target_properties(duckdb_java PROPERTIES SUFFIX ${LIB_SUFFIX})
+if (NOT ANDROID)
+  string(JOIN "_" LIB_SUFFIX ".so" ${OS_NAME} ${OS_ARCH})
+  set_target_properties(duckdb_java PROPERTIES SUFFIX ${LIB_SUFFIX})
+endif()
 set_target_properties(duckdb_java PROPERTIES PREFIX "lib")
 
 add_custom_command(
