@@ -28,6 +28,6 @@ public class MainActivity extends AppCompatActivity {
             string = t.toString();
         }
 
-        tv.setText(t);
+        tv.setText(string);
     }
 }
