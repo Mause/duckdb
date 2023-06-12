@@ -1,36 +1,45 @@
 package org.duckdb.duckdb_jdbc;
 
+import android.os.Bundle;
+import android.widget.Toast;
+
 import androidx.appcompat.app.AppCompatActivity;
 
-import android.os.Bundle;
-import android.widget.TextView;
-
+import org.duckdb.DuckDBDriver;
 import org.duckdb.duckdb_jdbc.databinding.ActivityMainBinding;
+
+import java.sql.SQLException;
 
 public class MainActivity extends AppCompatActivity {
 
-    private ActivityMainBinding binding;
+	@Override
+	protected void onCreate(Bundle savedInstanceState) {
+		super.onCreate(savedInstanceState);
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
+		var layoutInflater = getLayoutInflater();
+		var binding = ActivityMainBinding.inflate(layoutInflater);
+		setContentView(binding.getRoot());
 
-        binding = ActivityMainBinding.inflate(getLayoutInflater());
-        setContentView(binding.getRoot());
+		var adapter = new ExtensionArrayAdapter(this);
+		binding.results.setAdapter(adapter);
 
-        // Example of a call to a native method
-        TextView tv = binding.sampleText;
+		var duckDBDriver = new DuckDBDriver();
+		try (var connect = duckDBDriver.connect("jdbc:duckdb:", null)) {
+			try (var stmt = connect.prepareStatement("select concat('We are running DuckDB version ', version())");
+				 var resultSet = stmt.executeQuery()) {
+				if (resultSet.next()) {
+					binding.sampleText.setText(resultSet.getString(1));
+				}
+			}
 
-        String string;
-        try {
-            var cls = Class.forName("org.duckdb.duckdb_jdbc.JNIInterface");
-            var method = cls.getMethod("stringFromJNI");
-            var instance = cls.getConstructor().newInstance();
-            string = method.invoke(instance).toString();
-        } catch (Throwable t) {
-            string = t.toString();
-        }
-
-        tv.setText(string);
-    }
+			try (var stmt = connect.prepareStatement("select * from duckdb_extensions()");
+				 var resultSet = stmt.executeQuery()) {
+				while (resultSet.next()) {
+					adapter.add(new Extension(resultSet));
+				}
+			}
+		} catch (SQLException e) {
+			Toast.makeText(this, e.toString(), Toast.LENGTH_LONG).show();
+		}
+	}
 }

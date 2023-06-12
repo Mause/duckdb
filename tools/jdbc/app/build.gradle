@@ -4,12 +4,12 @@ plugins {
 
 android {
     namespace 'org.duckdb.duckdb_jdbc'
-    compileSdk 34
+    compileSdk 33
 
     defaultConfig {
         applicationId 'org.duckdb.duckdb_jdbc'
-        minSdk 26
-        targetSdk 34
+        minSdk 33
+        targetSdk 33
         versionCode 1
         versionName '1.0'
 
@@ -28,7 +28,7 @@ android {
 
                 targets 'duckdb_java'
                 cppFlags '-std=c++11'
-                // abiFilters 'arm64-v8a', 'x86_64'
+                abiFilters 'arm64-v8a'
             }
         }
     }
