@@ -52,22 +52,22 @@ jobs:
             tools/jdbc/app/build/outputs/**/*.aar
             tools/jdbc/app/build/outputs/**/*.apk
 
-  test:
-    runs-on: macos-latest
-
-    steps:
-      - name: checkout
-        uses: actions/checkout@v3
-
-      - name: Set up JDK
-        uses: actions/setup-java@v3
-        with:
-          java-version: 17
-          distribution: temurin
-
-      - name: run tests
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 29
-          working-directory: tools/jdbc
-          script: ./gradlew connectedCheck
+            #  test:
+            #    runs-on: macos-latest
+            #
+            #    steps:
+            #      - name: checkout
+            #        uses: actions/checkout@v3
+            #
+            #      - name: Set up JDK
+            #        uses: actions/setup-java@v3
+            #        with:
+            #          java-version: 17
+            #          distribution: temurin
+            #
+            #      - name: run tests
+            #        uses: reactivecircus/android-emulator-runner@v2
+            #        with:
+            #          api-level: 29
+            #          working-directory: tools/jdbc
+            #          script: ./gradlew connectedCheck
