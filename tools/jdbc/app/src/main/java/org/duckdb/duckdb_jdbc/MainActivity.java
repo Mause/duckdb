@@ -25,7 +25,7 @@ public class MainActivity extends AppCompatActivity {
         try {
             var cls = Class.forName("org.duckdb.duckdb_jdbc.JNIInterface");
             var method = cls.getMethod("stringFromJNI");
-            var instance = cls.newInstance();
+            var instance = cls.getConstructor().newInstance();
             string = method.invoke(instance).toString();
         } catch (Throwable t) {
             string = t.toString();
