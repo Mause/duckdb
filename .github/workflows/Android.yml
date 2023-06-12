@@ -13,7 +13,6 @@ jobs:
         with:
           java-version: 17
           distribution: temurin
-          cache: gradle
 
       - run: |
           sudo apt update
@@ -25,6 +24,7 @@ jobs:
           ndk-version: r25c
           add-to-path: true
           local-cache: true
+
       - name: Setup Ccache
         uses: hendrikmuhs/ccache-action@main
         with:
@@ -33,6 +33,8 @@ jobs:
       - run: |
           echo "ANDROID_NDK_HOME=${{ steps.setup-ndk.outputs.ndk-path }}" >> "$GITHUB_ENV"
           echo "NDK=${{ steps.setup-ndk.outputs.ndk-path }}" >> "$GITHUB_ENV"
+
+      - uses: gradle/gradle-build-action@v2
 
       - run: |
           ./gradlew tasks --all
