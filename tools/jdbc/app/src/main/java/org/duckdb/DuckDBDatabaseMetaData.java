@@ -1,8 +1,5 @@
 package org.duckdb;
 
-import javax.sql.rowset.CachedRowSet;
-import javax.sql.rowset.RowSetProvider;
-
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
@@ -1187,9 +1184,7 @@ public class DuckDBDatabaseMetaData implements DatabaseMetaData {
 			statement.setString(1, functionNamePattern);
 			statement.setString(2, schemaPattern);
 
-			CachedRowSet cachedRowSet = RowSetProvider.newFactory().createCachedRowSet();
-			cachedRowSet.populate(statement.executeQuery());
-			return cachedRowSet;
+			return statement.executeQuery();
 		}
 	}
 
