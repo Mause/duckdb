@@ -18,6 +18,10 @@ if(ANDROID)
   add_jar(duckdb_jdbc_dummy ${JAVA_SRC_FILES} GENERATE_NATIVE_HEADERS
           duckdb-native)
 else()
+  find_package(JNI)
+  if(NOT JNI_FOUND)
+    message(FATAL_ERROR "No compatible JNI found")
+  endif()
   add_jar(duckdb_jdbc ${JAVA_SRC_FILES} ${JAVA_TEST_FILES}
           META-INF/services/java.sql.Driver GENERATE_NATIVE_HEADERS
           duckdb-native)
