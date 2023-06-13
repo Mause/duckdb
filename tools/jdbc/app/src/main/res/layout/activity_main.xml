@@ -17,15 +17,52 @@
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintVertical_bias="0.0" />
 
+    <GridLayout
+        android:id="@+id/constraintLayout2"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:columnCount="7"
+        android:rowCount="1"
+        app:layout_constraintStart_toEndOf="@id/sample_text"
+        app:layout_constraintTop_toBottomOf="@+id/sample_text">
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/sql_input"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:layout_columnWeight="6"
+            app:layout_constraintEnd_toStartOf="@+id/execute_button"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+            <com.google.android.material.textfield.TextInputEditText
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                app:placeholderText="@string/sql_input_helper_text"
+                />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:text="@string/execute_button_text"
+            android:id="@id/execute_button"
+            android:layout_columnWeight="1"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="@id/sql_input"
+            app:layout_constraintTop_toTopOf="parent">
+        </androidx.appcompat.widget.AppCompatButton>
+    </GridLayout>
+
     <HorizontalScrollView
         android:id="@+id/constraintLayout"
         android:layout_width="0dp"
         android:layout_height="0dp"
+        android:layout_margin="10dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        android:layout_margin="10dp"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/sample_text">
+        app:layout_constraintTop_toBottomOf="@+id/constraintLayout2">
+
         <GridLayout
             android:id="@+id/results"
             android:layout_width="wrap_content"
