@@ -38,8 +38,8 @@ public class MainActivity extends AppCompatActivity {
 					adapter.add(new Extension(resultSet));
 				}
 			}
-		} catch (SQLException e) {
-			Toast.makeText(this, e.toString(), Toast.LENGTH_LONG).show();
+		} catch (Throwable t) {
+			Toast.makeText(this, t.toString(), Toast.LENGTH_LONG).show();
 		}
 	}
 }
