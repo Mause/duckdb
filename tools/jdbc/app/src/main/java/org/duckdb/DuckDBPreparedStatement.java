@@ -515,11 +515,13 @@ public class DuckDBPreparedStatement implements PreparedStatement {
 		throw new SQLFeatureNotSupportedException("isPoolable");
 	}
 
+//	@Override // Android doesn't define this method in the interface, so we can't @Override it
 	public void closeOnCompletion() throws SQLException {
 		if (isClosed()) throw new SQLException("Statement is closed");
 		closeOnCompletion = true;
 	}
 
+//	@Override // Android doesn't define this method in the interface, so we can't @Override it
 	public boolean isCloseOnCompletion() throws SQLException {
 		if (isClosed()) throw new SQLException("Statement is closed");
 		return closeOnCompletion;
