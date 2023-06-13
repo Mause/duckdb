@@ -1170,7 +1170,7 @@ public class DuckDBDatabaseMetaData implements DatabaseMetaData {
 	@Override
 	public ResultSet getFunctions(String catalog, String schemaPattern, String functionNamePattern)
 			throws SQLException {
-		try (PreparedStatement statement = conn.prepareStatement(
+		try (var statement = prepareStatement(
 				"SELECT " +
 						"null as FUNCTION_CAT, " +
 						"function_name as FUNCTION_NAME, " +
@@ -1188,6 +1188,7 @@ public class DuckDBDatabaseMetaData implements DatabaseMetaData {
 			statement.setString(1, functionNamePattern);
 			statement.setString(2, schemaPattern);
 
+			statement.closeOnCompletion();
 			return statement.executeQuery();
 		}
 	}
