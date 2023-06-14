@@ -50,6 +50,6 @@ jobs:
         with:
           name: duckdb-android-aarch64
           path: |
-            tools/jdbc/app/build/outputs/**/*.aar
-            tools/jdbc/app/build/outputs/**/*.apk
+            tools/jdbc/**/build/outputs/**/*.aar
+            tools/jdbc/**/build/outputs/**/*.apk
 
