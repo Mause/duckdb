@@ -46,7 +46,6 @@ jobs:
         working-directory: tools/jdbc
         name: Build
 
-      - run: find tools/jdbc/app/build/outputs
       - uses: actions/upload-artifact@v3
         with:
           name: duckdb-android-aarch64
