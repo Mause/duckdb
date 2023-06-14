@@ -20,6 +20,7 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -67,10 +68,14 @@ public class MainActivity extends AppCompatActivity {
 
 	private void setGridData(String sql) {
 		var results = binding.results;
-		try (var stmt = connect.prepareStatement(sql);
-			 var resultSet = stmt.executeQuery()) {
-
-			loadIntoGridView(results, resultSet);
+		try (var stmt = connect.prepareStatement(sql)) {
+			if(stmt.execute()) {
+				try (var resultSet = stmt.getResultSet()) {
+					loadIntoGridView(results, resultSet);
+				}
+			} else {
+				Toast.makeText(this, String.format(Locale.getDefault(), "Updated %d rows", stmt.getUpdateCount()), Toast.LENGTH_SHORT).show();
+			}
 		} catch (Throwable t) {
 			handleException(t);
 		}
