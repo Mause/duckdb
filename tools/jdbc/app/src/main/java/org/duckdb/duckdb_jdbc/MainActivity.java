@@ -43,16 +43,19 @@ public class MainActivity extends AppCompatActivity {
 		try {
 			connect = duckDBDriver.connect("jdbc:duckdb:", null);
 
-			try (var stmt = connect.prepareStatement("select concat('We are running DuckDB version ', version())");
-				 var resultSet = stmt.executeQuery()) {
-				if (resultSet.next()) {
-					binding.sampleText.setText(resultSet.getString(1));
-				}
-			}
+			setTitle(getDuckDBVersion());
 
 			setGridData(getString(R.string.sql_input_helper_text));
 		} catch (Throwable t) {
 			handleException(t);
+		}
+	}
+
+	private String getDuckDBVersion() throws SQLException {
+		try (var stmt = connect.prepareStatement("select concat('DuckDB - ', version())");
+			 var resultSet = stmt.executeQuery()) {
+			resultSet.next();
+			return resultSet.getString(1);
 		}
 	}
 
