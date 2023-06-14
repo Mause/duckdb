@@ -2,4 +2,6 @@
     <string name="app_name">DuckDB Demo</string>
     <string name="sql_input_helper_text">select * from duckdb_extensions()</string>
     <string name="execute_button_text">Execute</string>
+    <string name="sql_results">SQL Results</string>
+    <string name="sql_query">SQL Query</string>
 </resources>

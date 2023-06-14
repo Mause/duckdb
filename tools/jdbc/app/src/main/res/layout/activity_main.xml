@@ -25,6 +25,7 @@
             <com.google.android.material.textfield.TextInputEditText
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
+                android:hint="@string/sql_query"
                 app:placeholderText="@string/sql_input_helper_text"
                 />
         </com.google.android.material.textfield.TextInputLayout>
@@ -49,6 +50,7 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
+        android:contentDescription="@string/sql_results"
         app:layout_constraintTop_toBottomOf="@+id/constraintLayout2">
 
         <GridLayout

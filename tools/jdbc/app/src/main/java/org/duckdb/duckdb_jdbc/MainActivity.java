@@ -134,7 +134,8 @@ public class MainActivity extends AppCompatActivity {
 	@NonNull
 	private TextView make(String string) {
 		TextView child = new TextView(this);
-		child.setPadding(10, 0, 0, 0);
+		int padding = 10;
+		child.setPadding(padding, padding, padding, padding);
 		child.setText(string);
 		return child;
 	}
