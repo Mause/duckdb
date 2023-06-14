@@ -1,5 +1,5 @@
 plugins {
-    id 'com.android.application'
+    id 'com.android.library'
     id 'maven-publish'
 }
 
@@ -15,9 +15,7 @@ android {
     }
 
     defaultConfig {
-        applicationId 'org.duckdb.duckdb_jdbc'
-        minSdk 33
-        targetSdk 33
+        minSdk 24
         versionCode 1
         versionName '1.0'
 

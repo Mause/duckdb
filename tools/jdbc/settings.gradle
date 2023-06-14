@@ -13,4 +13,5 @@ dependencyResolutionManagement {
     }
 }
 rootProject.name = "duckdb_jdbc"
-include ':app'
+include ':duckdb_jdbc_android'
+include ':duckdbdemo'

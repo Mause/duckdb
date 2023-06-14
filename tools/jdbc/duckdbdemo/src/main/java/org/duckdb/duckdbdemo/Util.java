@@ -1,4 +1,4 @@
-package org.duckdb.duckdb_jdbc;
+package org.duckdb.duckdbdemo;
 
 import androidx.annotation.NonNull;
 
