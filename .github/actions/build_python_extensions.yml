@@ -5,6 +5,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    - run: ls
     - uses: ./.github/actions/centos_7_setup
       with:
         openssl: 1
