@@ -87,7 +87,6 @@ jobs:
    manylinux-extensions:
     name: DuckDB Extensions (gcc4)
     runs-on: ubuntu-latest
-    container: quay.io/pypa/manylinux2014_${{ matrix.arch }}
     # needs: linux-python3-9
 
     strategy:
@@ -95,42 +94,47 @@ jobs:
         arch: [x86_64, aarch64]
 
     steps:
-    - run: /usr/bin/docker ls
-      if: ${{ matrix.arch == 'aarch64' }}
-    - name: Set up QEMU
-      uses: docker/setup-qemu-action@v2
-      if: ${{ matrix.arch == 'aarch64' }}
-
     - uses: actions/checkout@v3
       with:
         fetch-depth: 0
 
-    - uses: ./.github/actions/centos_7_setup
+    - uses: uraimo/run-on-arch-action@v2
+      name: Build artifact
       with:
-        openssl: 1
+        # Not required, but speeds up builds
+        githubToken: ${{ github.token }}
 
-    - name: Version Check
-      shell: bash
-      run: |
-        cmake --version
-        ldd --version ldd
-        ls -al
-        pwd
-        echo "$USER"
+        baseImage: quay.io/pypa/manylinux2014_${{ matrix.arch }}
 
-    - uses: ./.github/actions/build_extensions
-      with:
-        deploy_as: linux_amd64_gcc4
-        s3_id: ${{ secrets.S3_ID }}
-        s3_key: ${{ secrets.S3_KEY }}
-        signing_pk: ${{ secrets.DUCKDB_EXTENSION_SIGNING_PK }}
-        treat_warn_as_error: 0
+        # Create an build directory
+        setup: |
+          mkdir -p "${PWD}/build"
 
-    - uses: actions/upload-artifact@v3
-      with:
-        name: manylinux-extensions-x86_64
-        path: |
-          build/release/extension/*/*.duckdb_extension
+        # Mount the build directory as /build in the container
+        dockerRunArgs: |
+          --volume "${PWD}/build:/build"
+
+        # Pass some environment variables to the container
+        env: | # YAML, but pipe character is necessary
+          artifact_name: git-${{ matrix.distro }}_${{ matrix.arch }}
+
+        # The shell to run commands with in the container
+        shell: /bin/sh
+
+        # Install some dependencies in the container. This speeds up builds if
+        # you are also using githubToken. Any dependencies installed here will
+        # be part of the container image that gets cached, so subsequent
+        # builds don't have to re-install them. The image layer is cached
+        # publicly in your project's package repository, so it is vital that
+        # no secrets are present in the container state or logs.
+        install: |
+          gh extension install https://github.com/nektos/gh-act
+
+        # Produce a binary artifact and place it in the mounted volume
+        run: |
+          gh act -j ./.github/actions/build_python_extensions
+        # cp $(which git) "/artifacts/${artifact_name}"
+        # echo "Produced artifact at /artifacts/${artifact_name}"
 
    linux-python3:
     name: Python 3 Linux

@@ -1,0 +1,33 @@
+name: Build Python Extensions
+description: ''
+inputs: {}
+outputs: {}
+runs:
+  using: "composite"
+  steps:
+    - uses: ./.github/actions/centos_7_setup
+      with:
+        openssl: 1
+
+    - name: Version Check
+      shell: bash
+      run: |
+        cmake --version
+        ldd --version ldd
+        ls -al
+        pwd
+        echo "$USER"
+
+    - uses: ./.github/actions/build_extensions
+      with:
+        deploy_as: linux_amd64_gcc4
+        s3_id: ${{ secrets.S3_ID }}
+        s3_key: ${{ secrets.S3_KEY }}
+        signing_pk: ${{ secrets.DUCKDB_EXTENSION_SIGNING_PK }}
+        treat_warn_as_error: 0
+
+    - uses: actions/upload-artifact@v3
+      with:
+        name: manylinux-extensions-x86_64
+        path: |
+          build/release/extension/*/*.duckdb_extension
