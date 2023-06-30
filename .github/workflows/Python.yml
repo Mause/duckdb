@@ -102,7 +102,7 @@ jobs:
       uses: docker/setup-qemu-action@v2
       if: matrix.arch == 'aarch64'
     - run: curl -s https://raw.githubusercontent.com/nektos/act/master/install.sh | sh
-    - run: ./bin/act -j build_python_extensions -W ./.github/actions/build_python_extensions -P ubuntu-latest=catthehacker/ubuntu:full-20.04
+    - run: ./bin/act -j build_python_extensions -W ./.github/actions/build_python_extensions.yml -P ubuntu-latest=catthehacker/ubuntu:full-20.04
 
    linux-python3:
     name: Python 3 Linux
