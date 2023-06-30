@@ -2,7 +2,7 @@ name: Build Python Extensions
 
 jobs:
   build_python_extensions:
-    runs-on: quay.io/pypa/manylinux2014_aarch64
+    runs-on: ubuntu-latest
 
     steps:
     - uses: ./.github/actions/centos_7_setup
