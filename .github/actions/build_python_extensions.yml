@@ -12,8 +12,9 @@ jobs:
     - run: echo 'stdout'
     - run: ls -a
     - uses: ./.github/actions/centos_7_setup
-      with:
-        openssl: 1
+      # with:
+      #   openssl: 1
+    - run: yum install -y openssl
 
     - name: Version Check
       shell: bash
