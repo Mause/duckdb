@@ -104,8 +104,7 @@ jobs:
         # Not required, but speeds up builds
         githubToken: ${{ github.token }}
 
-        arch: ${{ matrix.arch }}
-        baseImage: quay.io/pypa/manylinux2014_${{ matrix.arch }}
+        base_image: quay.io/pypa/manylinux2014_${{ matrix.arch }}
 
         # Create an build directory
         setup: |
