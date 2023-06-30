@@ -132,7 +132,7 @@ jobs:
 
         # Produce a binary artifact and place it in the mounted volume
         run: |
-          gh act -j ./.github/actions/build_python_extensions
+          act -j ./.github/actions/build_python_extensions
         # cp $(which git) "/artifacts/${artifact_name}"
         # echo "Produced artifact at /artifacts/${artifact_name}"
 
