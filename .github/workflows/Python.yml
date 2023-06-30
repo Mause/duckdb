@@ -98,43 +98,11 @@ jobs:
       with:
         fetch-depth: 0
 
-    - uses: uraimo/run-on-arch-action@v2
-      name: Build artifact
-      with:
-        # Not required, but speeds up builds
-        githubToken: ${{ github.token }}
-
-        base_image: quay.io/pypa/manylinux2014_${{ matrix.arch }}
-
-        # Create an build directory
-        setup: |
-          mkdir -p "${PWD}/build"
-
-        # Mount the build directory as /build in the container
-        dockerRunArgs: |
-          --volume "${PWD}/build:/build"
-
-        # Pass some environment variables to the container
-        env: | # YAML, but pipe character is necessary
-          artifact_name: git-${{ matrix.distro }}_${{ matrix.arch }}
-
-        # The shell to run commands with in the container
-        shell: /bin/sh
-
-        # Install some dependencies in the container. This speeds up builds if
-        # you are also using githubToken. Any dependencies installed here will
-        # be part of the container image that gets cached, so subsequent
-        # builds don't have to re-install them. The image layer is cached
-        # publicly in your project's package repository, so it is vital that
-        # no secrets are present in the container state or logs.
-        install: |
-          curl -s https://raw.githubusercontent.com/nektos/act/master/install.sh | sh
-
-        # Produce a binary artifact and place it in the mounted volume
-        run: |
-          act -j ./.github/actions/build_python_extensions -P ubuntu-latest=nektos/act-environments-ubuntu:18.04
-        # cp $(which git) "/artifacts/${artifact_name}"
-        # echo "Produced artifact at /artifacts/${artifact_name}"
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v2
+      if: matrix.arch == 'aarch64'
+    - run: curl -s https://raw.githubusercontent.com/nektos/act/master/install.sh | sh
+    - run: act -j build_python_extensions --workflow ./.github/actions/build_python_extensions -P ubuntu-latest=catthehacker/ubuntu:full-20.04
 
    linux-python3:
     name: Python 3 Linux

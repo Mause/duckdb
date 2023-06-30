@@ -1,10 +1,10 @@
 name: Build Python Extensions
-description: ''
-inputs: {}
-outputs: {}
-runs:
-  using: "composite"
-  steps:
+
+jobs:
+  build_python_extensions:
+    runs-on: quay.io/pypa/manylinux2014_aarch64
+
+    steps:
     - uses: ./.github/actions/centos_7_setup
       with:
         openssl: 1
