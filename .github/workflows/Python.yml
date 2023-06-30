@@ -87,8 +87,10 @@ jobs:
    manylinux-extensions:
     name: DuckDB Extensions (gcc4)
     runs-on: ubuntu-latest
-    container: quay.io/pypa/manylinux2014_${{ matrix.arch }}
-    needs: linux-python3-9
+    container:
+      image: quay.io/pypa/manylinux2014_${{ matrix.arch }}
+      options: --platform linux/amd64
+    # needs: linux-python3-9
 
     strategy:
       matrix:
