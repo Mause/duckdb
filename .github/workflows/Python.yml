@@ -96,6 +96,7 @@ jobs:
 
     steps:
     - run: /usr/bin/docker ls
+      if: ${{ matrix.arch == 'aarch64' }}
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v2
       if: ${{ matrix.arch == 'aarch64' }}
