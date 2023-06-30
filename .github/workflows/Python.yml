@@ -128,7 +128,7 @@ jobs:
         # publicly in your project's package repository, so it is vital that
         # no secrets are present in the container state or logs.
         install: |
-          curl -s https://raw.githubusercontent.com/nektos/act/master/install.sh | sudo bash
+          curl -s https://raw.githubusercontent.com/nektos/act/master/install.sh | sh
 
         # Produce a binary artifact and place it in the mounted volume
         run: |
