@@ -20,9 +20,8 @@ if(MINGW)
   set(OPENSSL_USE_STATIC_LIBS TRUE)
 endif()
 
-find_package(OpenSSL REQUIRED)
-target_link_libraries(httpfs_loadable_extension duckdb_mbedtls
-                      ${OPENSSL_LIBRARIES})
+find_package(OpenSSL REQUIRED COMPONENTS SSL)
+target_link_libraries(httpfs_loadable_extension duckdb_mbedtls OpenSSL::SSL)
 
 if(MINGW)
   find_package(ZLIB)
