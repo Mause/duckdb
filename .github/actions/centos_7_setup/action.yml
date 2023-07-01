@@ -10,6 +10,9 @@ runs:
     - name: openssl version
       run: tree /usr/local/ssl #/bin/openssl version
 
+    - name: git version
+      run: git --version
+
     - name: Install dependencies
       shell: bash
       run: |
