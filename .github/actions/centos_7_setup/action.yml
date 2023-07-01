@@ -8,10 +8,12 @@ runs:
   using: "composite"
   steps:
     - name: find openssl
+      shell: sh
       run: |
-        yum install -y epel-release
-        yum search openssl11
+        yum install -y epel-release yum-utils rpm-build
+        yumdownloader --source openssl11
     - name: git version
+      shell: sh
       run: git --version
 
     - name: Install dependencies
