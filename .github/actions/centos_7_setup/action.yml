@@ -7,6 +7,10 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: find openssl
+      run: |
+        yum install -y epel epel-release
+        yum search openssl11
     - name: git version
       run: git --version
 
@@ -15,7 +19,7 @@ runs:
       run: |
         yum install -y gcc gcc-c++ cmake make
         yum install -y epel-release
-        yum install openssl11 openssl11-libs openssl11-devel
+        yum install -y openssl11-libs openssl11-devel
         yum install -y make gcc perl-core pcre-devel wget zlib-devel python3
         yum install -y git
         yum install -y curl-devel expat-devel gettext-devel zlib-devel perl-ExtUtils-MakeMaker ninja-build
