@@ -15,10 +15,10 @@ runs:
         rpm -ivh ./openssl11-1.1.1k-5.el7.src.rpm
         rpm --showrc | grep topdir
         yum-builddep -y openssl11
-        cd rpmbuild/SPECS
+        cd ~/rpmbuild/SPECS
         rpmbuild -bp openssl11.spec
         rpmbuild -ba openssl11.spec
-        ls RPMS
+        ls ~/rpmbuild/RPMS
 
     - name: git version
       shell: sh
