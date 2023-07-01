@@ -9,7 +9,7 @@ runs:
   steps:
     - name: find openssl
       run: |
-        yum install -y epel epel-release
+        yum install -y epel-release
         yum search openssl11
     - name: git version
       run: git --version
