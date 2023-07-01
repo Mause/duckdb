@@ -9,12 +9,20 @@ jobs:
       with:
         fetch-depth: 0
 
-    - run: echo 'stdout'
-    - run: ls -a
     - uses: ./.github/actions/centos_7_setup
-      # with:
-      #   openssl: 1
-    - run: yum install -y openssl openssl-devel openssl-static
+      with:
+        openssl: 0
+        visualizer: 0
+        icu: 0
+        tpch: 0
+        tpcds: 0
+        httpfs: 0
+        fts: 0
+        json: 1
+        excel: 0
+        sqlsmith: 0
+        inet: 0
+        autocomplete: 0
 
     - name: Version Check
       shell: bash
@@ -27,7 +35,7 @@ jobs:
 
     - uses: ./.github/actions/build_extensions
       with:
-        deploy_as: linux_amd64_gcc4
+        deploy_as: linux_arm64_gcc4
         s3_id: ${{ secrets.S3_ID }}
         s3_key: ${{ secrets.S3_KEY }}
         signing_pk: ${{ secrets.DUCKDB_EXTENSION_SIGNING_PK }}
@@ -35,6 +43,6 @@ jobs:
 
     - uses: actions/upload-artifact@v3
       with:
-        name: manylinux-extensions-x86_64
+        name: manylinux-extensions-aarch64
         path: |
           build/release/extension/*/*.duckdb_extension
