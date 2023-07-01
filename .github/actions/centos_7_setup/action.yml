@@ -8,7 +8,7 @@ runs:
   using: "composite"
   steps:
     - name: openssl version
-      run: find /usr/local/ssl #/bin/openssl version
+      run: find /usr/local | grep openssl # /ssl #/bin/openssl version
 
     - name: git version
       run: git --version
