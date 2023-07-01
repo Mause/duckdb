@@ -8,7 +8,7 @@ runs:
   using: "composite"
   steps:
     - name: openssl version
-      run: /usr/local/ssl/bin/openssl version
+      run: tree /usr/local/ssl #/bin/openssl version
 
     - name: Install dependencies
       shell: bash
