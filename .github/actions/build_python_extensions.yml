@@ -11,7 +11,7 @@ jobs:
 
     - uses: ./.github/actions/centos_7_setup
       with:
-        openssl: 0
+        openssl: 1
         visualizer: 0
         icu: 0
         tpch: 0
