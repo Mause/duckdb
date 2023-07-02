@@ -17,6 +17,11 @@ runs:
         yum install -y epel-release
         yum install -y make gcc wget ninja-build
 
+    - run: |
+        yum install -y nodejs  # required for artifact upload, not included in manylinux images
+        node --version
+      shell: sh
+
     - name: Install JDK
       if: inputs.jdk == 'true'
       shell: sh
