@@ -30,11 +30,6 @@ runs:
                        https://duckdb-rpms.s3.us-west-2.amazonaws.com/openssl11-static-1.1.1k-5.el7.aarch64.rpm \
                        https://duckdb-rpms.s3.us-west-2.amazonaws.com/openssl11-1.1.1k-5.el7.aarch64.rpm
 
-    - uses: actions/upload-artifact@v3
-      with:
-        name: openssl-rpm
-        path: ~/rpmbuild/RPMS
-
     - name: git version
       shell: sh
       run: git --version
