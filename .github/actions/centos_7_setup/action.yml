@@ -46,7 +46,5 @@ runs:
       shell: sh
       if: ${{ inputs.openssl == 1 }}
       run: |
-        yum install -y https://duckdb-rpms.s3.us-west-2.amazonaws.com/openssl11-devel-1.1.1k-5.el7.aarch64.rpm \
-                       https://duckdb-rpms.s3.us-west-2.amazonaws.com/openssl11-libs-1.1.1k-5.el7.aarch64.rpm \
-                       https://duckdb-rpms.s3.us-west-2.amazonaws.com/openssl11-static-1.1.1k-5.el7.aarch64.rpm \
-                       https://duckdb-rpms.s3.us-west-2.amazonaws.com/openssl11-1.1.1k-5.el7.aarch64.rpm
+        yum-config-manager --add-repo https://duckdb-rpms.s3.us-west-2.amazonaws.com/duckdb-rpms.repo
+        yum install -y openssl11-devel openssl11-libs openssl11-static openssl11
