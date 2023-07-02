@@ -12,17 +12,6 @@ jobs:
     - uses: ./.github/actions/centos_7_setup
       with:
         openssl: 1
-        visualizer: 0
-        icu: 0
-        tpch: 0
-        tpcds: 0
-        httpfs: 0
-        fts: 0
-        json: 1
-        excel: 0
-        sqlsmith: 0
-        inet: 0
-        autocomplete: 0
 
     - name: Version Check
       shell: bash
@@ -40,6 +29,17 @@ jobs:
         s3_key: ${{ secrets.S3_KEY }}
         signing_pk: ${{ secrets.DUCKDB_EXTENSION_SIGNING_PK }}
         treat_warn_as_error: 0
+        visualizer: 0
+        icu: 0
+        tpch: 0
+        tpcds: 0
+        httpfs: 0
+        fts: 0
+        json: 1
+        excel: 0
+        sqlsmith: 0
+        inet: 0
+        autocomplete: 0
 
     - uses: actions/upload-artifact@v3
       with:
