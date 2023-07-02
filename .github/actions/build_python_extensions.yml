@@ -29,17 +29,6 @@ jobs:
         s3_key: ${{ secrets.S3_KEY }}
         signing_pk: ${{ secrets.DUCKDB_EXTENSION_SIGNING_PK }}
         treat_warn_as_error: 0
-        visualizer: 0
-        icu: 0
-        tpch: 0
-        tpcds: 0
-        httpfs: 0
-        fts: 0
-        json: 1
-        excel: 0
-        sqlsmith: 0
-        inet: 0
-        autocomplete: 0
       env:
         OPENSSL_ROOT_DIR: /usr/lib64/
         OPENSSL_INCLUDE_DIR: /usr/include/openssl11/openssl/
