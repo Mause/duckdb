@@ -7,20 +7,20 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: find openssl
-      shell: sh
-      run: |
-        yum install -y epel-release yum-utils rpm-build
-        yumdownloader --source openssl11
-        rpm -ivh ./openssl11-1.1.1k-5.el7.src.rpm
-        rpm --showrc | grep topdir
-        yum-builddep -y openssl11
-        # disable tests
-        patch ~/rpmbuild/SPECS/openssl11.spec .github/actions/centos_7_setup/openssl.patch
-        cd ~/rpmbuild/SPECS
-        rpmbuild -bp openssl11.spec
-        rpmbuild -ba openssl11.spec
-        ls ~/rpmbuild/RPMS
+    #    - name: find openssl
+    #      shell: sh
+    #      run: |
+    #        yum install -y epel-release yum-utils rpm-build
+    #        yumdownloader --source openssl11
+    #        rpm -ivh ./openssl11-1.1.1k-5.el7.src.rpm
+    #        rpm --showrc | grep topdir
+    #        yum-builddep -y openssl11
+    #        # disable tests
+    #        patch ~/rpmbuild/SPECS/openssl11.spec .github/actions/centos_7_setup/openssl.patch
+    #        cd ~/rpmbuild/SPECS
+    #        rpmbuild -bp openssl11.spec
+    #        rpmbuild -ba openssl11.spec
+    #        ls ~/rpmbuild/RPMS
 
     - name: install openssl
       shell: sh
