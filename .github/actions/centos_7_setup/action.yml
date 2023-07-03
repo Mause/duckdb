@@ -28,6 +28,8 @@ runs:
       run: |
         yum install -y java-11-openjdk-devel maven
 
+    - run: echo "/opt/_internal/cpython-3.10.12/bin" >> $GITHUB_PATH
+
     - name: Install AWS CLI
       shell: bash
       run: |
