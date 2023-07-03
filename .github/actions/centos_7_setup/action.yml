@@ -31,7 +31,7 @@ runs:
     - name: Install AWS CLI
       shell: bash
       run: |
-        python3 -m pip install awscli
+        python3.10 -m pip install awscli
         aws --version
 
     - name: Install OpenSSL 1.1.1k
