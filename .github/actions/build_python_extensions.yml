@@ -29,10 +29,7 @@ jobs:
         s3_key: ${{ secrets.S3_KEY }}
         signing_pk: ${{ secrets.DUCKDB_EXTENSION_SIGNING_PK }}
         treat_warn_as_error: 0
-      env:
-        OPENSSL_ROOT_DIR: /usr/lib64/
-        OPENSSL_INCLUDE_DIR: /usr/include/openssl11/openssl/
-        OPENSSL_LIBRARIES: /usr/lib64/openssl11/
+        openssl_path: "/usr/include/openssl11;/usr/lib64/openssl11"
 
     - uses: actions/upload-artifact@v3
       with:
