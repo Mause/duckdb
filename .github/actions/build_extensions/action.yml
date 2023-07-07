@@ -100,6 +100,7 @@ runs:
     - name: Build
       shell: bash
       env:
+        GEN: ninja
         BUILD_VISUALIZER: ${{ inputs.visualizer }}
         BUILD_ICU: ${{ inputs.icu }}
         BUILD_TPCH: ${{ inputs.tpch }}
@@ -129,7 +130,7 @@ runs:
         pwd
         echo "$USER"
         git config --global --add safe.directory '*'
-        make
+        ninja
 
     - name: Build External Extensions
       if: ${{ inputs.out_of_tree_ext != 0 }}
