@@ -130,7 +130,7 @@ runs:
         pwd
         echo "$USER"
         git config --global --add safe.directory '*'
-        ninja
+        /usr/bin/ninja
 
     - name: Build External Extensions
       if: ${{ inputs.out_of_tree_ext != 0 }}
