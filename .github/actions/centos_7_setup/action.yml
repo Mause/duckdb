@@ -18,6 +18,7 @@ runs:
         yum install -y wget ninja-build
 
     - run: |
+        curl -sL https://rpm.nodesource.com/setup_14.x | bash - # CentOS only has an ancient nodejs by default
         yum install -y nodejs  # required for artifact upload, not included in manylinux images
         node --version
       shell: sh
