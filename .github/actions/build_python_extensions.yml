@@ -31,6 +31,7 @@ jobs:
         treat_warn_as_error: 0
         openssl_path: "/usr/include/openssl11;/usr/lib64/openssl11"
         out_of_tree_ext: 0
+        run_tests: 0
 
     - uses: actions/upload-artifact@v3
       with:
