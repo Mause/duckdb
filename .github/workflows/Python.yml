@@ -102,7 +102,11 @@ jobs:
       uses: docker/setup-qemu-action@v2
       if: matrix.arch == 'aarch64'
     - run: curl -s https://raw.githubusercontent.com/nektos/act/master/install.sh | sh
-    - run: ./bin/act --job build_python_extensions --workflows ./.github/actions/build_python_extensions.yml --platform ubuntu-latest=quay.io/pypa/manylinux2014_aarch64 --container-architecture linux/arm64
+    - run: ./bin/act --job build_python_extensions --workflows ./.github/actions/build_python_extensions.yml --platform ubuntu-latest=quay.io/pypa/manylinux2014_aarch64 --container-architecture linux/arm64 --artifact-server-path artifacts
+    - uses: actions/upload-artifact@v3
+      with:
+        name: python_extensions
+        path: artifacts
 
    linux-python3:
     name: Python 3 Linux
