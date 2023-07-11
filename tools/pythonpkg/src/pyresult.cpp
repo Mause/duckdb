@@ -38,7 +38,7 @@ int64_t DuckDBPyResult::RowCount() {
 		return -1;
 	}
 
-	auto &materialized = reinterpret_cast<MaterializedQueryResult &>(result);
+	auto &materialized = result->Cast<MaterializedQueryResult>();
 	return materialized.RowCount();
 }
 
