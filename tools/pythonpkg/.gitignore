@@ -12,3 +12,4 @@ githash.list
 includes.list
 sources.list
 venv/
+extensions/

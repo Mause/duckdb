@@ -326,6 +326,13 @@ spark_packages = ['pyduckdb.spark', 'pyduckdb.spark.sql']
 
 packages.extend(spark_packages)
 
+duckdb_version = 'UNKNOWN'
+try:
+    from setuptools_scm import get_version
+    duckdb_version = get_version()
+except ImportError:
+    pass
+
 setup(
     name=lib_name,
     description='DuckDB embedded database',
@@ -348,6 +355,11 @@ setup(
     maintainer="Hannes Muehleisen",
     maintainer_email="hannes@cwi.nl",
     cmdclass={"build_ext": build_ext},
+    extra_requires={
+        ext: [f'duckdb-extension-{ext}=={duckdb_version}']
+        for ext in ['httpfs', 'json', 'icu', 'excel', 'inet', 'autocomplete']
+        if ext not in extensions
+    },
     project_urls={
         "Documentation": "https://duckdb.org/docs/api/python/overview",
         "Source": "https://github.com/duckdb/duckdb/blob/master/tools/pythonpkg",
