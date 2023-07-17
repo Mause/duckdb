@@ -3617,7 +3617,7 @@ public class TestDuckDBJDBC {
 			stmt.setString(1, "word1");
 			stmt.setString(2, "word2");
 
-			ResultSetMetaData meta = stmt.getMetadata();
+			ResultSetMetaData meta = stmt.getMetaData();
 			assertEquals(meta.getColumnCount(), 1);
 			assertEquals(meta.getColumnName(1), "unknown");
 			assertEquals(meta.getColumnTypeName(1), "UNKNOWN");
@@ -3627,9 +3627,9 @@ public class TestDuckDBJDBC {
 				ResultSetMetaData metadata = resultSet.getMetaData();
 
 				assertEquals(metadata.getColumnCount(), 2);
-				assertEquals(metadata.getColumnName(1), "unknown");
-				assertEquals(metadata.getColumnTypeName(1), "UNKNOWN");
-				assertEquals(metadata.getColumnType(1), Types.JAVA_OBJECT);
+				assertEquals(metadata.getColumnName(1), "$1");
+				assertEquals(metadata.getColumnTypeName(1), "VARCHAR");
+				assertEquals(metadata.getColumnType(1), Types.VARCHAR);
 
 				// but we should still be able to retrieve the result
 				resultSet.next();
