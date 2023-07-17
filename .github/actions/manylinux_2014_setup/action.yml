@@ -1,0 +1,122 @@
+name: "Setup manylinux2014 image"
+description: "Installs/configures additional CI dependencies"
+inputs:
+  aws-cli:
+    description: 'Setup aws-cli'
+    default: 0
+  ninja-build:
+    description: 'Setup ninja-build'
+    default: 0
+  vcpkg:
+    description: 'Setup vcpkg (installs to $GITHUB_WORKSPACE/vcpkg)'
+    default: 0
+  openssl:
+    description: 'Setup OpenSSL (requires vcpkg to also be installed)'
+    default: 0
+  ccache:
+    description: 'Setup Ccache'
+    default: 0
+  jdk:
+    description: 'Setup JDK'
+    default: 0
+  odbc:
+    description: 'Setup ODBC'
+    default: 0
+  ssh:
+    description: 'Setup SSH'
+    default: 0
+  glibc32:
+    description: 'Setup 32bit glibc'
+    default: 0
+  gcc_4_8:
+    description: 'Setup GCC 4.8 (installs to /usr/bin/g++, default will still be GCC 10)'
+    default: 0
+  python_alias:
+    description: 'Create an alias for python3 to python3.9'
+    default: 0
+
+runs:
+  using: "composite"
+  steps:
+    - run: |
+        curl -sL https://rpm.nodesource.com/setup_14.x | bash - # CentOS only has an ancient nodejs by default
+        yum install -y nodejs  # required for artifact upload, not included in manylinux images
+        node --version
+      shell: sh
+
+    - name: Setup general dependencies
+      shell: bash
+      run: scripts/setup_manylinux2014.sh general
+
+    - run: echo "/opt/_internal/cpython-3.10.12/bin" >> $GITHUB_PATH
+
+    - name: Install AWS CLI
+      shell: bash
+      run: |
+        python3.10 -m pip install awscli
+        aws --version
+
+    - name: Setup dependencies for ODBC
+      if: ${{ inputs.odbc == 1 }}
+      shell: bash
+      run: scripts/setup_manylinux2014.sh odbc
+
+    - name: Setup dependencies for ccache
+      if: ${{ inputs.ccache == 1 }}
+      shell: bash
+      run: scripts/setup_manylinux2014.sh ccache
+
+    - name: Install dependencies
+      shell: bash
+      run: |
+        yum install -y gcc gcc-c++ make
+        yum install -y epel-release
+        yum install -y wget ninja-build
+
+    - name: Install JDK
+      if: inputs.jdk == 'true'
+      shell: sh
+      run: |
+        yum install -y java-11-openjdk-devel maven
+
+    - name: Setup SSH
+      if: ${{ inputs.ssh == 1 }}
+      shell: bash
+      run: scripts/setup_manylinux2014.sh ssh
+
+    - name: Setup 32bit compiler
+      if: ${{ inputs.glibc32 == 1 }}
+      shell: bash
+      run: scripts/setup_manylinux2014.sh glibc32
+
+    - name: Setup python3 as python3.9
+      if: ${{ inputs.python_alias == 1 }}
+      shell: bash
+      run: scripts/setup_manylinux2014.sh python_alias
+
+    - name: Setup old (GCC 4.8) compiler
+      if: ${{ inputs.gcc_4_8 == 1 }}
+      shell: bash
+      run: scripts/setup_manylinux2014.sh gcc_4_8
+
+    # Note instead of using scripts/setup_manylinux2014.sh vcpkg, we prefer to use
+    # lukka/run-vcpkg@v11 here as it configures vcpkg to cache to GH actions.
+    - name: Setup vcpkg
+      if: ${{ inputs.vcpkg == 1 }}
+      uses: lukka/run-vcpkg@v11
+      with:
+        vcpkgGitCommitId: 501db0f17ef6df184fcdbfbe0f87cde2313b6ab1
+
+    - name: Install OpenSSL 1.1.1k
+      shell: sh
+      if: inputs.openssl == 1
+      run: |
+        yum-config-manager --add-repo https://duckdb-rpms.s3.us-west-2.amazonaws.com/duckdb-rpms.repo
+        yum install -y openssl11-devel openssl11-libs openssl11-static openssl11
+
+    - name: Setup Ccache
+      if: ${{ inputs.ccache == 1 }}
+      uses: hendrikmuhs/ccache-action@main
+      with:
+        key: ${{ github.job }}
+        save: ${{ github.ref == 'refs/heads/master' || github.repository != 'duckdb/duckdb' }}

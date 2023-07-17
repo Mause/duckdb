@@ -84,8 +84,9 @@ jobs:
         # TODO: Use ccache inside container, see https://github.com/pypa/cibuildwheel/issues/1030
         cibuildwheel --output-dir wheelhouse --config-file cibw.toml duckdb_tarball
 
-   manylinux-extensions:
-    name: DuckDB Extensions (gcc4)
+   manylinux-extensions-x64:
+    # Builds extensions for linux_md64_gcc4
+    name: Linux Extensions (ggc4)
     runs-on: ubuntu-latest
     # needs: linux-python3-9
 
@@ -130,7 +131,7 @@ jobs:
             arch: i686
           - isRelease: false
             arch: aarch64
-    needs: manylinux-extensions
+    needs: manylinux-extensions-x64
     env:
       CIBW_BUILD: ${{ matrix.python_build}}
       CIBW_SKIP: '*-musllinux_aarch64'
@@ -159,7 +160,7 @@ jobs:
     - uses: actions/download-artifact@v3
       if: ${{ matrix.arch == 'x86_64' }}
       with:
-        name: manylinux-extensions-x86_64
+        name: manylinux-extensions-x64
         path: tools/pythonpkg
 
     - name: List extensions to be tested
