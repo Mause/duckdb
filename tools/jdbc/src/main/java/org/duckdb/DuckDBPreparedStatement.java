@@ -136,11 +136,11 @@ public class DuckDBPreparedStatement implements PreparedStatement {
 		try {
 			startTransaction();
 			result_ref = DuckDBNative.duckdb_jdbc_execute(stmt_ref, params);
-			select_result = new DuckDBResultSet(this, meta, result_ref, conn.conn_ref);
-			meta = DuckDBNative.duckdb_jdbc_query_result_meta(result_ref);
-			returnsResultSet = meta.return_type.equals(StatementReturnType.QUERY_RESULT);
-			returnsChangedRows = meta.return_type.equals(StatementReturnType.CHANGED_ROWS);
-			returnsNothing = meta.return_type.equals(StatementReturnType.NOTHING);
+			DuckDBResultSetMetaData result_meta = DuckDBNative.duckdb_jdbc_query_result_meta(result_ref);
+			select_result = new DuckDBResultSet(this, result_meta, result_ref, conn.conn_ref);
+			returnsResultSet = result_meta.return_type.equals(StatementReturnType.QUERY_RESULT);
+			returnsChangedRows = result_meta.return_type.equals(StatementReturnType.CHANGED_ROWS);
+			returnsNothing = result_meta.return_type.equals(StatementReturnType.NOTHING);
 		}
 		catch (SQLException e) {
 			// Delete stmt_ref as it cannot be used anymore and 
