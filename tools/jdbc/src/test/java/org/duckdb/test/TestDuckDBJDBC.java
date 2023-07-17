@@ -3617,13 +3617,16 @@ public class TestDuckDBJDBC {
 			stmt.setString(1, "word1");
 			stmt.setString(2, "word2");
 
+			ResultSetMetaData meta = stmt.getMetadata();
+			assertEquals(meta.getColumnCount(), 1);
+			assertEquals(meta.getColumnName(1), "unknown");
+			assertEquals(meta.getColumnTypeName(1), "UNKNOWN");
+			assertEquals(meta.getColumnType(1), Types.JAVA_OBJECT);
+
 			try (ResultSet resultSet = stmt.executeQuery()) {
 				ResultSetMetaData metadata = resultSet.getMetaData();
 
-				// TODO: fix this in the binder
-
-				// the binder gives back bad data...
-				assertEquals(metadata.getColumnCount(), 1);
+				assertEquals(metadata.getColumnCount(), 2);
 				assertEquals(metadata.getColumnName(1), "unknown");
 				assertEquals(metadata.getColumnTypeName(1), "UNKNOWN");
 				assertEquals(metadata.getColumnType(1), Types.JAVA_OBJECT);
