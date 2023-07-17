@@ -693,9 +693,9 @@ JNIEXPORT jobject JNICALL Java_org_duckdb_DuckDBNative_duckdb_1jdbc_1query_1resu
 	}
 	auto &result = res_ref->res;
 
-	return build_meta(env, result->names.size(),
-	                  -1, // no params now
-	                  result->names, result->types, result->properties);
+	auto n_param = -1; // no params now
+
+	return build_meta(env, result->ColumnCount(), n_param, result->names, result->types, result->properties);
 }
 
 JNIEXPORT jobject JNICALL Java_org_duckdb_DuckDBNative_duckdb_1jdbc_1prepared_1statement_1meta(JNIEnv *env, jclass,
