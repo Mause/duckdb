@@ -3611,11 +3611,21 @@ public class TestDuckDBJDBC {
 		}
 	}
 
+	public static void test_prepared_statement_metadata() throws Exception {
+		try (Connection conn = DriverManager.getConnection("jdbc:duckdb:");
+			 PreparedStatement stmt = conn.prepareStatement("SELECT 'hello' as world")) {
+			ResultSetMetaData metadata = stmt.getMetaData();
+			assertEquals(metadata.getColumnCount(), 1);
+			assertEquals(metadata.getColumnName(1), "world");
+			assertEquals(metadata.getColumnType(1), Types.VARCHAR);
+		}
+	}
+
 	public static void test_unbindable_query() throws Exception {
 		try (Connection conn = DriverManager.getConnection("jdbc:duckdb:");
 			 PreparedStatement stmt = conn.prepareStatement("SELECT ?, ?")) {
 			stmt.setString(1, "word1");
-			stmt.setString(2, "word2");
+			stmt.setInt(2, 42);
 
 			ResultSetMetaData meta = stmt.getMetaData();
 			assertEquals(meta.getColumnCount(), 1);
@@ -3627,14 +3637,18 @@ public class TestDuckDBJDBC {
 				ResultSetMetaData metadata = resultSet.getMetaData();
 
 				assertEquals(metadata.getColumnCount(), 2);
+
 				assertEquals(metadata.getColumnName(1), "$1");
 				assertEquals(metadata.getColumnTypeName(1), "VARCHAR");
 				assertEquals(metadata.getColumnType(1), Types.VARCHAR);
 
-				// but we should still be able to retrieve the result
+				assertEquals(metadata.getColumnName(2), "$2");
+				assertEquals(metadata.getColumnTypeName(2), "INTEGER");
+				assertEquals(metadata.getColumnType(2), Types.INTEGER);
+
 				resultSet.next();
-				assertEquals(resultSet.getObject(1), "word1");
-				assertEquals(resultSet.getObject(2), "word2");
+				assertEquals(resultSet.getString(1), "word1");
+				assertEquals(resultSet.getInt(2), 42);
 			}
 		}
 	}
