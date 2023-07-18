@@ -69,6 +69,8 @@ def main():
             '''
             ))
 
+        print('templated', extension_name)
+
 
 if __name__ == '__main__':
     main()
