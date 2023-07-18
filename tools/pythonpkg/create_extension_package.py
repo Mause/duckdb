@@ -50,9 +50,11 @@ def main():
             toml.dump(pyproject(extension_name), fh)
 
         with (target / 'setup.py').open('w') as fh:
-            fh.write(dedent('''
-            from setuptools import setup
-            setup()
+            fh.write(dedent(f'''\
+            from setuptools import setup, Extension
+            setup(
+                ext_modules = [Extension('duckdb-extension-{extension_name}', [])],
+            )
             '''
             ))
 
