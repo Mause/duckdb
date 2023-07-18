@@ -63,7 +63,7 @@ jobs:
 
     - name: Install
       shell: bash
-      run: pip install cibuildwheel twine
+      run: pip install cibuildwheel twine toml
 
     - name: Setup Ccache
       uses: hendrikmuhs/ccache-action@main
