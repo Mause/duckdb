@@ -356,7 +356,7 @@ setup(
     maintainer_email="hannes@cwi.nl",
     cmdclass={"build_ext": build_ext},
     extras_require={
-        ext: [f'duckdb-extension-{ext}=={duckdb_version}']
+        ext: [f'duckdb-extension-{ext}' + ('' if duckdb_version == 'UNKNOWN' else f'=={duckdb_version}')]
         for ext in ['httpfs', 'json', 'icu', 'excel', 'inet', 'autocomplete']
         if ext not in extensions
     },
