@@ -84,6 +84,8 @@ jobs:
         # TODO: Use ccache inside container, see https://github.com/pypa/cibuildwheel/issues/1030
         cibuildwheel --output-dir wheelhouse --config-file cibw.toml duckdb_tarball
 
+        python3 create_extension_package.py
+
    manylinux-extensions-x64:
     # Builds extensions for linux_md64_gcc4
     name: Linux Extensions (ggc4)

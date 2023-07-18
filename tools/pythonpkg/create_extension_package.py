@@ -2,7 +2,12 @@ import toml
 from pathlib import Path
 from shutil import copyfile, rmtree
 from textwrap import dedent
+from argparse import ArgumentParser
+import cibuildwheel.__main__ as cibuildwheel
 
+parser = ArgumentParser()
+parser.add_argument('--build', action='store_true')
+args = parser.parse_args()
 
 def pyproject(extension_name: str) -> dict:
     module_name = f'duckdb-extension-{extension_name}'
@@ -37,9 +42,11 @@ def main():
     cwd = Path(__file__).parent
     base = cwd / 'extensions'
     rmtree(base, ignore_errors=True)
-    for extension_name in ['httpfs']:
+    for extension_name in ['autocomplete', 'excel', 'fts', 'httpfs', 'icu', 'inet', 'json', 'parquet', 'sqlsmith', 'tpcds', 'tpch', 'visualizer']:
         source = (cwd / '../../build/debug/extension' / extension_name/ f'{extension_name}.duckdb_extension').resolve()
-        assert source.exists(), source
+        if not source.exists():
+            print(source, 'is missing')
+            continue
 
         target = base / extension_name
         module_name = f'duckdb_extension_{extension_name}'
@@ -72,6 +79,20 @@ def main():
             ))
 
         print('templated', extension_name)
+
+        if args.build:
+            cibuildwheel.build_in_directory(cibuildwheel.CommandLineArguments(
+                platform='linux',
+                archs=None,
+                allow_empty=None,
+                config_file=None,
+                only=None,
+                output_dir=base / 'wheels',
+                package_dir=target,
+                prerelease_pythons=None,
+                print_build_identifiers=None
+            ))
+
 
 
 if __name__ == '__main__':
