@@ -50,6 +50,7 @@ jobs:
       CIBW_TEST_COMMAND: 'python -m pytest {project}/tests'
       SETUPTOOLS_SCM_NO_LOCAL: 'yes'
       PYTEST_TIMEOUT: '600'
+      DISTUTILS_C_COMPILER_LAUNCHER: ccache
 
     steps:
     - uses: actions/checkout@v3
@@ -80,10 +81,13 @@ jobs:
       shell: bash
       working-directory: tools/pythonpkg
       run: |
-        export DISTUTILS_C_COMPILER_LAUNCHER=ccache
         # TODO: Use ccache inside container, see https://github.com/pypa/cibuildwheel/issues/1030
         cibuildwheel --output-dir wheelhouse --config-file cibw.toml duckdb_tarball
 
+    - name: Build packaged extensions
+      shell: bash
+      working-directory: tools/pythonpkg
+      run: |
         python3 create_extension_package.py
 
    manylinux-extensions-x64:
