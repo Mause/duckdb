@@ -28,6 +28,9 @@ def pyproject(extension_name: str) -> dict:
             'setuptools': {
                 'include-package-data': True
             },
+            'cibuildwheel': {
+                'build': "*cp31*"
+            }
         },
         'build-system': {
             'requires': ["setuptools>=61.0.0", "wheel"],
@@ -87,8 +90,8 @@ def main():
                 only=None,
                 output_dir=base / 'wheels',
                 package_dir=target,
-                prerelease_pythons=None,
-                print_build_identifiers=None
+                prerelease_pythons=False,
+                print_build_identifiers=False
             ))
 
 
