@@ -9,12 +9,13 @@ parser = ArgumentParser()
 parser.add_argument('--build', action='store_true')
 args = parser.parse_args()
 
+
 def pyproject(extension_name: str) -> dict:
     module_name = f'duckdb-extension-{extension_name}'
     return {
         'project': {
             'name': module_name,
-            'dynamic': ['version'],
+            'version': '0.1.0',
             'license': {'text': 'MIT'},
             'dependencies': ['duckdb'],
             'entry-points': {
@@ -27,12 +28,9 @@ def pyproject(extension_name: str) -> dict:
             'setuptools': {
                 'include-package-data': True
             },
-            'setuptools_scm': {
-                "root": "../../../..",
-            }
         },
         'build-system': {
-            'requires': ["setuptools>=61.0.0", "setuptools_scm[toml]>=6.2", "wheel"],
+            'requires': ["setuptools>=61.0.0", "wheel"],
             'build-backend': "setuptools.build_meta:__legacy__"
         }
     }
