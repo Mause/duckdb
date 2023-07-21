@@ -44,7 +44,7 @@ struct BitwiseNotFun {
 
 struct LeftShiftFun {
 	static constexpr const char *Name = "<<";
-	static constexpr const char *Parameters = "input";
+	static constexpr const char *Parameters = "input,shift";
 	static constexpr const char *Description = "bitwise shift left";
 	static constexpr const char *Example = "1 << 4";
 
@@ -53,7 +53,7 @@ struct LeftShiftFun {
 
 struct RightShiftFun {
 	static constexpr const char *Name = ">>";
-	static constexpr const char *Parameters = "input";
+	static constexpr const char *Parameters = "input,shift";
 	static constexpr const char *Description = "bitwise shift right";
 	static constexpr const char *Example = "8 >> 2";
 
