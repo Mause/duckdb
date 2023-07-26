@@ -18,24 +18,13 @@ def pyproject(extension_name: str) -> dict:
             'version': '0.1.0',
             'license': {'text': 'MIT'},
             'dependencies': ['duckdb'],
-            'entry-points': {
-                'duckdb_extension': {
-                    extension_name: f'duckdb_extension_{extension_name}:extension'
-                }
-            },
+            'entry-points': {'duckdb_extension': {extension_name: f'duckdb_extension_{extension_name}:extension'}},
         },
-        'tool': {
-            'setuptools': {
-                'include-package-data': True
-            },
-            'cibuildwheel': {
-                'build': "*cp31*"
-            }
-        },
+        'tool': {'setuptools': {'include-package-data': True}, 'cibuildwheel': {'build': "*cp31*"}},
         'build-system': {
             'requires': ["setuptools>=61.0.0", "wheel"],
-            'build-backend': "setuptools.build_meta:__legacy__"
-        }
+            'build-backend': "setuptools.build_meta:__legacy__",
+        },
     }
 
 
@@ -43,8 +32,21 @@ def main():
     cwd = Path(__file__).parent
     base = cwd / 'extensions'
     rmtree(base, ignore_errors=True)
-    for extension_name in ['autocomplete', 'excel', 'fts', 'httpfs', 'icu', 'inet', 'json', 'parquet', 'sqlsmith', 'tpcds', 'tpch', 'visualizer']:
-        source = (cwd / '../../build/debug/extension' / extension_name/ f'{extension_name}.duckdb_extension').resolve()
+    for extension_name in [
+        'autocomplete',
+        'excel',
+        'fts',
+        'httpfs',
+        'icu',
+        'inet',
+        'json',
+        'parquet',
+        'sqlsmith',
+        'tpcds',
+        'tpch',
+        'visualizer',
+    ]:
+        source = (cwd / '../../build/debug/extension' / extension_name / f'{extension_name}.duckdb_extension').resolve()
         if not source.exists():
             print(source, 'is missing')
             continue
@@ -58,17 +60,22 @@ def main():
             toml.dump(pyproject(extension_name), fh)
 
         with (target / 'setup.py').open('w') as fh:
-            fh.write(dedent(f'''\
+            fh.write(
+                dedent(
+                    f'''\
             from setuptools import setup, Extension
             setup(
                 ext_modules = [Extension('duckdb-extension-{extension_name}', [])],
             )
             '''
-            ))
+                )
+            )
 
         copyfile(source, module / source.name)
         with (module / '__init__.py').open('w') as fh:
-            fh.write(dedent('''
+            fh.write(
+                dedent(
+                    '''
             from glob import iglob
             from os.path import dirname, join
 
@@ -77,23 +84,25 @@ def main():
             def extension():
                 return next(iglob(join(dirname(__file__), '*.duckdb_extension')))
             '''
-            ))
+                )
+            )
 
         print('templated', extension_name)
 
         if args.build:
-            cibuildwheel.build_in_directory(cibuildwheel.CommandLineArguments(
-                platform='linux',
-                archs=None,
-                allow_empty=None,
-                config_file=None,
-                only=None,
-                output_dir=base / 'wheels',
-                package_dir=target,
-                prerelease_pythons=False,
-                print_build_identifiers=False
-            ))
-
+            cibuildwheel.build_in_directory(
+                cibuildwheel.CommandLineArguments(
+                    platform='linux',
+                    archs=None,
+                    allow_empty=None,
+                    config_file=None,
+                    only=None,
+                    output_dir=base / 'wheels',
+                    package_dir=target,
+                    prerelease_pythons=False,
+                    print_build_identifiers=False,
+                )
+            )
 
 
 if __name__ == '__main__':

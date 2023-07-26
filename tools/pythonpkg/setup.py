@@ -329,6 +329,7 @@ packages.extend(spark_packages)
 duckdb_version = 'UNKNOWN'
 try:
     from setuptools_scm import get_version
+
     duckdb_version = get_version()
 except ImportError as e:
     print(e)
@@ -357,7 +358,20 @@ setup(
     cmdclass={"build_ext": build_ext},
     extras_require={
         ext: [f'duckdb-extension-{ext}' + ('' if duckdb_version == 'UNKNOWN' else f'=={duckdb_version}')]
-        for ext in ['autocomplete', 'excel', 'fts', 'httpfs', 'icu', 'inet', 'json', 'parquet', 'sqlsmith', 'tpcds', 'tpch', 'visualizer']
+        for ext in [
+            'autocomplete',
+            'excel',
+            'fts',
+            'httpfs',
+            'icu',
+            'inet',
+            'json',
+            'parquet',
+            'sqlsmith',
+            'tpcds',
+            'tpch',
+            'visualizer',
+        ]
         if ext not in extensions
     },
     project_urls={
