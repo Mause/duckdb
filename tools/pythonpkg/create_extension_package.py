@@ -4,7 +4,7 @@ from shutil import copyfile, rmtree
 from textwrap import dedent
 from argparse import ArgumentParser
 from build.__main__ import main as build
-import auditwheel.main.main_repair as repair
+import auditwheel.main_repair as repair
 
 parser = ArgumentParser()
 parser.add_argument('--build', action='store_true')
