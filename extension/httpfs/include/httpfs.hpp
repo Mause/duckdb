@@ -46,6 +46,7 @@ struct HTTPParams {
 	bool keep_alive;
 	bool enable_server_cert_verification;
 	std::string ca_cert_file;
+	HeaderMap headers;
 
 	static HTTPParams ReadFrom(FileOpener *opener);
 };

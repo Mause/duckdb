@@ -21,7 +21,7 @@
 
 namespace duckdb {
 
-static duckdb::unique_ptr<duckdb_httplib_openssl::Headers> initialize_http_headers(HeaderMap &header_map) {
+static duckdb::unique_ptr<duckdb_httplib_openssl::Headers> initialize_http_headers(const HeaderMap &header_map) {
 	auto headers = make_uniq<duckdb_httplib_openssl::Headers>();
 	for (auto &entry : header_map) {
 		headers->insert(entry);
@@ -38,6 +38,7 @@ HTTPParams HTTPParams::ReadFrom(FileOpener *opener) {
 	bool keep_alive = DEFAULT_KEEP_ALIVE;
 	bool enable_server_cert_verification = DEFAULT_ENABLE_SERVER_CERT_VERIFICATION;
 	std::string ca_cert_file = "";
+	HeaderMap headers;
 
 	Value value;
 	if (FileOpener::TryGetCurrentSetting(opener, "http_timeout", value)) {
@@ -64,10 +65,16 @@ HTTPParams HTTPParams::ReadFrom(FileOpener *opener) {
 	if (FileOpener::TryGetCurrentSetting(opener, "ca_cert_file", value)) {
 		ca_cert_file = value.ToString();
 	}
+	if (FileOpener::TryGetCurrentSetting(opener, "http_headers", value)) {
+		for (auto child : ListValue::GetChildren(value)) {
+			auto s = StructValue::GetChildren(child);
+			headers.emplace(s[0].ToString(), s[1].ToString());
+		}
+	}
 
 	return {
 	    timeout,     retries, retry_wait_ms, retry_backoff, force_download, keep_alive, enable_server_cert_verification,
-	    ca_cert_file};
+	    ca_cert_file, headers};
 }
 
 void HTTPFileSystem::ParseUrl(string &url, string &path_out, string &proto_host_port_out) {
@@ -206,6 +213,7 @@ unique_ptr<duckdb_httplib_openssl::Client> HTTPFileSystem::GetClient(const HTTPP
 	client->set_read_timeout(http_params.timeout);
 	client->set_connection_timeout(http_params.timeout);
 	client->set_decompress(false);
+	client->set_default_headers(*initialize_http_headers(http_params.headers));
 	return client;
 }
 
