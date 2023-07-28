@@ -124,6 +124,7 @@ jobs:
           build/release/extension/*/*.duckdb_extension
 
    package_extensions:
+    name: Package extensions for PyPi
     runs-on: ubuntu-latest
     container: quay.io/pypa/manylinux2014_x86_64
     needs: manylinux-extensions-x64
@@ -134,13 +135,11 @@ jobs:
     - uses: actions/download-artifact@v3
       with:
         name: manylinux-extensions-x64
-        path: tools/pythonpkg
     - run: python3.10 -m pip install -U pip build auditwheel toml
     - name: Build packaged extensions
       shell: bash
-      working-directory: tools/pythonpkg
       run: |
-        python3.10 create_extension_package.py --build
+        python3.10 tools/pythonpkg/create_extension_package.py --build --source_folder build/release/extension/
 
    linux-python3:
     name: Python 3 Linux
