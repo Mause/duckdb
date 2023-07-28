@@ -23,7 +23,7 @@ def pyproject(extension_name: str) -> dict:
         'tool': {'setuptools': {'include-package-data': True}, 'cibuildwheel': {'build': "*cp31*"}},
         'build-system': {
             'requires': ["setuptools>=61.0.0", "wheel"],
-            'build-backend': "setuptools.build_meta:__legacy__",
+            'build-backend': 'setuptools.build_meta',
         },
     }
 
