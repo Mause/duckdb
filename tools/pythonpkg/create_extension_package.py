@@ -6,7 +6,11 @@ from argparse import ArgumentParser
 from build.__main__ import main as build
 import auditwheel.main_repair as repair
 
+cwd = Path(__file__).parent
+base = cwd / 'extensions'
+
 parser = ArgumentParser()
+parser.add_argument('--source_folder', required=False, default=cwd / '../../build/debug/extension')
 parser.add_argument('--build', action='store_true')
 args = parser.parse_args()
 
@@ -33,8 +37,6 @@ def pyproject(extension_name: str) -> dict:
 
 
 def main():
-    cwd = Path(__file__).parent
-    base = cwd / 'extensions'
     rmtree(base, ignore_errors=True)
     for extension_name in [
         'autocomplete',
@@ -50,7 +52,7 @@ def main():
         'tpch',
         'visualizer',
     ]:
-        source = (cwd / '../../build/debug/extension' / extension_name / f'{extension_name}.duckdb_extension').resolve()
+        source = (Path(args.source_folder) / extension_name / f'{extension_name}.duckdb_extension').resolve()
         if not source.exists():
             print(source, 'is missing')
             continue
