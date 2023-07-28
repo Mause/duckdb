@@ -135,12 +135,12 @@ jobs:
       with:
         name: manylinux-extensions-x64
         path: tools/pythonpkg
-    - run: pip install -U pip build auditwheel toml
+    - run: python3.10 -m pip install -U pip build auditwheel toml
     - name: Build packaged extensions
       shell: bash
       working-directory: tools/pythonpkg
       run: |
-        python3 create_extension_package.py --build
+        python3.10 create_extension_package.py --build
 
    linux-python3:
     name: Python 3 Linux
