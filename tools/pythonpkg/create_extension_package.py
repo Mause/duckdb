@@ -12,13 +12,14 @@ args = parser.parse_args()
 
 def pyproject(extension_name: str) -> dict:
     module_name = f'duckdb-extension-{extension_name}'
+    folder_name = f'duckdb_extension_{extension_name}'
     return {
         'project': {
             'name': module_name,
             'version': '0.1.0',
             'license': {'text': 'MIT'},
             'dependencies': ['duckdb'],
-            'entry-points': {'duckdb_extension': {extension_name: f'duckdb_extension_{extension_name}:extension'}},
+            'entry-points': {'duckdb_extension': {extension_name: f'{folder_name}:extension'}},
         },
         'tool': {'setuptools': {'include-package-data': True}, 'cibuildwheel': {'build': "*cp31*"}},
         'build-system': {
