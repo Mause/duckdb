@@ -125,6 +125,7 @@ jobs:
 
    package_extensions:
     runs-on: ubuntu-latest
+    container: quay.io/pypa/manylinux2014_x86_64
     needs: manylinux-extensions-x64
     steps:
     - uses: actions/checkout@v3
