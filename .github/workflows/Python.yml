@@ -84,12 +84,6 @@ jobs:
         # TODO: Use ccache inside container, see https://github.com/pypa/cibuildwheel/issues/1030
         cibuildwheel --output-dir wheelhouse --config-file cibw.toml duckdb_tarball
 
-    - name: Build packaged extensions
-      shell: bash
-      working-directory: tools/pythonpkg
-      run: |
-        python3 create_extension_package.py
-
    manylinux-extensions-x64:
     # Builds extensions for linux_md64_gcc4
     name: Linux Extensions (ggc4)
@@ -128,6 +122,23 @@ jobs:
         name: manylinux-extensions-x64
         path: |
           build/release/extension/*/*.duckdb_extension
+
+   package_extensions:
+    runs-on: ubuntu-latest
+    needs: manylinux-extensions-x64
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    - uses: actions/download-artifact@v3
+      with:
+        name: manylinux-extensions-x64
+        path: tools/pythonpkg
+    - name: Build packaged extensions
+      shell: bash
+      working-directory: tools/pythonpkg
+      run: |
+        python3 create_extension_package.py --build
 
    linux-python3:
     name: Python 3 Linux
