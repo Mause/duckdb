@@ -3,7 +3,8 @@ from pathlib import Path
 from shutil import copyfile, rmtree
 from textwrap import dedent
 from argparse import ArgumentParser
-import cibuildwheel.__main__ as cibuildwheel
+from build.__main__ import main as build
+import auditwheel.main.main_repair as repair
 
 parser = ArgumentParser()
 parser.add_argument('--build', action='store_true')
@@ -22,14 +23,10 @@ def pyproject(extension_name: str) -> dict:
             'entry-points': {'duckdb_extension': {extension_name: f'{folder_name}:extension'}},
         },
         'tool': {
-            'setuptools': {'include-package-data': True},
-            'cibuildwheel': {
-                'build': '*cp31*',
-                'test-command': f'python3 -m {folder_name}',
-            },
+            'setuptools': {'package-data': {folder_name: ['*.duckdb_extension']}},
         },
         'build-system': {
-            'requires': ['setuptools>=61.0.0', 'wheel', 'pybind11~=2.6.1'],
+            'requires': ['setuptools>=61.0.0', 'wheel'],
             'build-backend': 'setuptools.build_meta',
         },
     }
@@ -71,33 +68,9 @@ def main():
                 dedent(
                     f'''\
             from setuptools import setup
-            from pybind11.setup_helpers import Pybind11Extension, build_ext
 
-            setup(
-                ext_modules = [
-                    Pybind11Extension(
-                        '_duckdb-extension-{extension_name}',
-                        ['entrypoint.cpp'],
-                        extra_compile_args=['-std=c++11', '-Wall', '-g'],
-                        language='c++'
-                    )
-                ],
-                cmdclass={{'build_ext': build_ext}}
-            )
+            setup()
             '''
-                )
-            )
-
-        with (target / 'entrypoint.cpp').open('w') as fh:
-            fh.write(
-                dedent(
-                    f'''
-                #include <pybind11/pybind11.h>
-                PYBIND11_MODULE(_duckdb_extension_{extension_name}, m) {{
-                    m.doc() = "Meta package for {extension_name}";
-                    m["hello"] = "world";
-                }}
-                '''
                 )
             )
 
@@ -105,14 +78,17 @@ def main():
         with (module / '__init__.py').open('w') as fh:
             fh.write(
                 dedent(
-                    '''
-            from glob import iglob
-            from os.path import dirname, join
+                    f'''\
+            import importlib.resources as pkg_resources
 
             __all__ = ['extension']
 
             def extension():
-                return next(iglob(join(dirname(__file__), '*.duckdb_extension')))
+                files = list(pkg_resources.files(__name__).iterdir())
+                result = next((f for f in files if f.name.endswith('.duckdb_extension')), None)
+                assert result, files
+                return pkg_resources.as_file(result)
+
             '''
                 )
             )
@@ -129,19 +105,10 @@ def main():
         print('templated', extension_name)
 
         if args.build:
-            cibuildwheel.build_in_directory(
-                cibuildwheel.CommandLineArguments(
-                    platform='linux',
-                    archs=None,
-                    allow_empty=None,
-                    config_file=None,
-                    only=None,
-                    output_dir=base / 'wheels',
-                    package_dir=target,
-                    prerelease_pythons=False,
-                    print_build_identifiers=False,
-                )
-            )
+            build([str(target), '--wheel'])
+            p = ArgumentParser()
+            repair.configure_parser(p.add_subparsers())
+            repair.execute(p.parse_args(['repair', str(list((target / 'dist').glob('*.whl'))[0])]), p)
 
 
 if __name__ == '__main__':
