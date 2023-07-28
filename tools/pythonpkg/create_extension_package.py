@@ -21,7 +21,13 @@ def pyproject(extension_name: str) -> dict:
             'dependencies': ['duckdb'],
             'entry-points': {'duckdb_extension': {extension_name: f'{folder_name}:extension'}},
         },
-        'tool': {'setuptools': {'include-package-data': True}, 'cibuildwheel': {'build': "*cp31*"}},
+        'tool': {
+            'setuptools': {'include-package-data': True},
+            'cibuildwheel': {
+                'build': '*cp31*',
+                'test-command': f'python3 -m {folder_name}',
+            },
+        },
         'build-system': {
             'requires': ['setuptools>=61.0.0', 'wheel', 'pybind11~=2.6.1'],
             'build-backend': 'setuptools.build_meta',
@@ -110,6 +116,15 @@ def main():
             '''
                 )
             )
+
+        (module / '__main__.py').write_text(
+            dedent(
+                '''
+            from . import extension
+            print(extension())
+            '''
+            )
+        )
 
         print('templated', extension_name)
 
