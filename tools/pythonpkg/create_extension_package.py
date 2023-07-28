@@ -1,4 +1,5 @@
 import toml
+from os import PathLike
 from pathlib import Path
 from shutil import copyfile, rmtree
 from textwrap import dedent
@@ -34,6 +35,13 @@ def pyproject(extension_name: str) -> dict:
             'build-backend': 'setuptools.build_meta',
         },
     }
+
+
+def auditwheel_repair(target: PathLike) -> None:
+    p = ArgumentParser()
+    repair.configure_parser(p.add_subparsers())
+    ags = p.parse_args(['repair', str(target)])
+    ags.func(ags, p)
 
 
 def main():
@@ -108,9 +116,7 @@ def main():
 
         if args.build:
             build([str(target), '--wheel'])
-            p = ArgumentParser()
-            repair.configure_parser(p.add_subparsers())
-            repair.execute(p.parse_args(['repair', str(list((target / 'dist').glob('*.whl'))[0])]), p)
+            auditwheel_repair(list((target / 'dist').glob('*.whl'))[0])
 
 
 if __name__ == '__main__':
