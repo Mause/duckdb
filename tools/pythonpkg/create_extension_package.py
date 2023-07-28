@@ -22,7 +22,7 @@ def pyproject(extension_name: str) -> dict:
         },
         'tool': {'setuptools': {'include-package-data': True}, 'cibuildwheel': {'build': "*cp31*"}},
         'build-system': {
-            'requires': ["setuptools>=61.0.0", "wheel"],
+            'requires': ['setuptools>=61.0.0', 'wheel', 'pybind11~=2.6.1'],
             'build-backend': 'setuptools.build_meta',
         },
     }
@@ -63,11 +63,34 @@ def main():
             fh.write(
                 dedent(
                     f'''\
-            from setuptools import setup, Extension
+            from setuptools import setup
+            from pybind11.setup_helpers import Pybind11Extension, build_ext
+
             setup(
-                ext_modules = [Extension('duckdb-extension-{extension_name}', [])],
+                ext_modules = [
+                    Pybind11Extension(
+                        '_duckdb-extension-{extension_name}',
+                        ['entrypoint.cpp'],
+                        extra_compile_args=['-std=c++11', '-Wall', '-g'],
+                        language='c++'
+                    )
+                ],
+                cmdclass={{'build_ext': build_ext}}
             )
             '''
+                )
+            )
+
+        with (target / 'entrypoint.cpp').open('w') as fh:
+            fh.write(
+                dedent(
+                    f'''
+                #include <pybind11/pybind11.h>
+                PYBIND11_MODULE(_duckdb_extension_{extension_name}, m) {{
+                    m.doc() = "Meta package for {extension_name}";
+                    m["hello"] = "world";
+                }}
+                '''
                 )
             )
 
