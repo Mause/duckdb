@@ -140,7 +140,7 @@ jobs:
     - name: Build packaged extensions
       shell: bash
       run: |
-        python3.10 tools/pythonpkg/create_extension_package.py --build --source_folder build/release/extension/
+        python3.10 tools/pythonpkg/create_extension_package.py --build --source_folder .
 
    linux-python3:
     name: Python 3 Linux
