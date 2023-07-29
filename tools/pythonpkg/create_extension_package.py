@@ -44,6 +44,17 @@ def auditwheel_repair(target: PathLike) -> None:
     ags.func(ags, p)
 
 
+def group(func):
+    def wrapper(*args, **kwargs):
+        print(f'::group::{args[0]}')
+        try:
+            return func(*args, **kwargs)
+        finally:
+            print('::endgroup::')
+    return wrapper
+
+
+@group
 def process_extension(extension_name: str) -> None:
     source = (Path(args.source_folder) / extension_name / f'{extension_name}.duckdb_extension').resolve()
     if not source.exists():
