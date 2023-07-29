@@ -7,11 +7,11 @@ from argparse import ArgumentParser
 from build.__main__ import main as build
 import auditwheel.main_repair as repair
 
-cwd = Path(__file__).parent
-base = cwd / 'extensions'
+here = Path(__file__).parent
+base = here / 'extensions'
 
 parser = ArgumentParser()
-parser.add_argument('--source_folder', required=False, default=cwd / '../../build/debug/extension')
+parser.add_argument('--source_folder', required=False, default=here / '../../build/debug/extension')
 parser.add_argument('--build', action='store_true')
 args = parser.parse_args()
 
