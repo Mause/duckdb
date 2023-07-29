@@ -141,6 +141,10 @@ jobs:
       shell: bash
       run: |
         python3.10 tools/pythonpkg/create_extension_package.py --build --source_folder .
+    - uses: actions/upload-artifact@v3
+      with:
+        name: manylinux-extensions-x64-packaged
+        path: *.whl
 
    linux-python3:
     name: Python 3 Linux
