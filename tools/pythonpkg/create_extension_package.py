@@ -4,9 +4,8 @@ from pathlib import Path
 from shutil import copyfile, rmtree
 from textwrap import dedent
 from argparse import ArgumentParser
-from build.__main__ import main as build
-import auditwheel.main_repair as repair
 import github_action_utils as gha_utils
+from subprocess import check_call, check_output
 
 here = Path(__file__).parent
 base = here / 'extensions'
@@ -36,13 +35,6 @@ def pyproject(extension_name: str) -> dict:
             'build-backend': 'setuptools.build_meta',
         },
     }
-
-
-def auditwheel_repair(target: PathLike) -> None:
-    p = ArgumentParser()
-    repair.configure_parser(p.add_subparsers())
-    ags = p.parse_args(['repair', str(target)])
-    ags.func(ags, p)
 
 
 def group(func):
@@ -110,14 +102,18 @@ def process_extension(extension_name: str) -> None:
     print('templated', extension_name)
 
     if args.build:
-        build([str(target), '--wheel'])
-        gha_utils.warning('Okay, built. Now lets repair')
-        auditwheel_repair(list((target / 'dist').glob('*.whl'))[0])
+        check_call(['pyproject-build', target, '--wheel'])
+        wheel = list((target / 'dist').glob('*.whl'))[0]
+        gha_utils.warning(f'Okay, built. Now lets repair {wheel}')
+        check_call(['auditwheel', 'repair', wheel])
 
     return True
 
 
 def main():
+    print(check_output(['pyproject-build', '--version'], text=True))
+    print(check_output(['auditwheel', '--version'], text=True))
+
     rmtree(base, ignore_errors=True)
     extension_names = [
         'autocomplete',
