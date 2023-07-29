@@ -37,15 +37,6 @@ def pyproject(extension_name: str) -> dict:
     }
 
 
-def group(func):
-    def wrapper(*args, **kwargs):
-        with gha_utils.group(args[0]):
-            return func(*args, **kwargs)
-
-    return wrapper
-
-
-@group
 def process_extension(source: Path) -> None:
     extension_name = source.stem
     target = base / extension_name
@@ -111,9 +102,14 @@ def main():
 
     rmtree(base, ignore_errors=True)
 
-    extensions = Path(args.source_folder).glob('**/*.duckdb_extension')
-    if not any([process_extension(extension) for extension in extensions]):
-        parser.error("Couldn't process any extensions")
+
+    extensions = list(Path(args.source_folder).glob('**/*.duckdb_extension'))
+    if not extensions:
+        parser.error("Couldn't find any extensions to process")
+
+    for extension in extensions:
+        with gha_utils.group(extension):
+            process_extension(extension)
 
 
 if __name__ == '__main__':
