@@ -90,13 +90,25 @@ def process_extension(source: Path) -> None:
 
     print('templated', extension_name)
 
-    if args.build:
-        check_call(['pyproject-build', target, '--wheel'])
-        wheel = list((target / 'dist').glob('*.whl'))[0]
-        gha_utils.warning(f'Okay, built. Now lets repair {wheel}')
-        check_call(['auditwheel', 'repair', wheel])
+    if not args.build:
+        return
 
-    return True
+    check_call(['pyproject-build', target, '--wheel'])
+    wheel = first((target / 'dist').glob('*.whl'))
+    gha_utils.warning(f'Okay, built. Now lets repair {wheel}')
+    check_call(['auditwheel', 'repair', wheel])
+
+    wheel = first((Path.cwd() / 'wheelhouse').glob(f'duckdb_extension_{extension_name}*.whl'))
+    check_call(['pip', 'install', wheel])
+
+    import duckdb
+    ext = import_module(f'duckdb_extension_{extension_name}')
+
+    duckdb.load_extension(ext.extension())
+
+
+def first(iterable):
+    return next(iter(iterable))
 
 
 def main():
