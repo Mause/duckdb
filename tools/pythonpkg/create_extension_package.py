@@ -6,6 +6,7 @@ from textwrap import dedent
 from argparse import ArgumentParser
 from build.__main__ import main as build
 import auditwheel.main_repair as repair
+import github_action_utils as gha_utils
 
 here = Path(__file__).parent
 base = here / 'extensions'
@@ -46,11 +47,8 @@ def auditwheel_repair(target: PathLike) -> None:
 
 def group(func):
     def wrapper(*args, **kwargs):
-        print(f'::group::{args[0]}')
-        try:
+        with gha_utils.group(args[0]):
             return func(*args, **kwargs)
-        finally:
-            print('::endgroup::')
 
     return wrapper
 
@@ -59,7 +57,7 @@ def group(func):
 def process_extension(extension_name: str) -> None:
     source = (Path(args.source_folder) / extension_name / f'{extension_name}.duckdb_extension').resolve()
     if not source.exists():
-        print(source, 'is missing')
+        gha_utils.warning(f'{source} is missing')
         return False
 
     target = base / extension_name
@@ -113,6 +111,7 @@ def process_extension(extension_name: str) -> None:
 
     if args.build:
         build([str(target), '--wheel'])
+        gha_utils.warning('Okay, built. Now lets repair')
         auditwheel_repair(list((target / 'dist').glob('*.whl'))[0])
 
     return True
