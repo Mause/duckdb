@@ -46,12 +46,8 @@ def group(func):
 
 
 @group
-def process_extension(extension_name: str) -> None:
-    source = (Path(args.source_folder) / extension_name / f'{extension_name}.duckdb_extension').resolve()
-    if not source.exists():
-        gha_utils.warning(f'{source} is missing')
-        return False
-
+def process_extension(source: Path) -> None:
+    extension_name = source.stem
     target = base / extension_name
     module_name = f'duckdb_extension_{extension_name}'
     module = target / module_name
@@ -115,22 +111,9 @@ def main():
     print(check_output(['auditwheel', '--version'], text=True))
 
     rmtree(base, ignore_errors=True)
-    extension_names = [
-        'autocomplete',
-        'excel',
-        'fts',
-        'httpfs',
-        'icu',
-        'inet',
-        'json',
-        'parquet',
-        'sqlsmith',
-        'tpcds',
-        'tpch',
-        'visualizer',
-    ]
 
-    if not any([process_extension(extension_name) for extension_name in extension_names]):
+    extensions = Path(args.source_folder).glob('**/*.duckdb_extension')
+    if not any([process_extension(extension) for extension in extensions]):
         parser.error("Couldn't process any extensions")
 
 
