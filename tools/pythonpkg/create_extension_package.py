@@ -6,6 +6,7 @@ from textwrap import dedent
 from argparse import ArgumentParser
 import github_action_utils as gha_utils
 from subprocess import check_call, check_output
+import setuptools_scm
 
 here = Path(__file__).parent
 base = here / 'extensions'
@@ -15,6 +16,8 @@ parser.add_argument('--source_folder', required=False, default=here / '../../bui
 parser.add_argument('--build', action='store_true')
 args = parser.parse_args()
 
+version = setuptools_scm.get_version('../..')
+
 
 def pyproject(extension_name: str) -> dict:
     module_name = f'duckdb-extension-{extension_name}'
@@ -22,9 +25,9 @@ def pyproject(extension_name: str) -> dict:
     return {
         'project': {
             'name': module_name,
-            'version': '0.1.0',
+            'version': version,
             'license': {'text': 'MIT'},
-            'dependencies': ['duckdb'],
+            'dependencies': [f'duckdb=={version}'],
             'entry-points': {'duckdb_extension': {extension_name: f'{folder_name}:extension'}},
         },
         'tool': {
