@@ -123,7 +123,7 @@ def main():
         'visualizer',
     ]
 
-    if not any(process_extension(extension_name) for extension_name in extension_names):
+    if not any([process_extension(extension_name) for extension_name in extension_names]):
         parser.error("Couldn't process any extensions")
 
 
