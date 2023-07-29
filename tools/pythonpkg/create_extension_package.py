@@ -51,6 +51,7 @@ def group(func):
             return func(*args, **kwargs)
         finally:
             print('::endgroup::')
+
     return wrapper
 
 
