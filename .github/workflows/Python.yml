@@ -146,6 +146,15 @@ jobs:
       with:
         name: manylinux-extensions-x64-packaged
         path: 'wheelhouse/**/*.whl'
+    - name: Deploy
+      env:
+        TWINE_USERNAME: 'hfmuehleisen'
+        TWINE_PASSWORD: ${{ secrets.TWINE_PASSWORD }}
+      shell: bash
+      run: |
+        if [[ "$GITHUB_REF" =~ ^(refs/heads/master|refs/tags/v.+)$ && "$GITHUB_REPOSITORY" = "duckdb/duckdb" ]] ; then
+          twine upload --non-interactive --disable-progress-bar --skip-existing wheelhouse/*.whl
+        fi
 
    linux-python3:
     name: Python 3 Linux
