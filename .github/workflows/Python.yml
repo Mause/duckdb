@@ -145,7 +145,7 @@ jobs:
     - uses: actions/upload-artifact@v3
       with:
         name: manylinux-extensions-x64-packaged
-        path: 'tools/pythonpkg/extensions/**/*.whl'
+        path: 'wheelhouse/**/*.whl'
 
    linux-python3:
     name: Python 3 Linux
