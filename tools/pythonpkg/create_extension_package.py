@@ -56,22 +56,21 @@ def process_extension(source: Path) -> None:
     with (target / 'pyproject.toml').open('w') as fh:
         toml.dump(pyproject(extension_name), fh)
 
-    with (target / 'setup.py').open('w') as fh:
-        fh.write(
-            dedent(
-                f'''\
+    (target / 'setup.py').write_text(
+        dedent(
+            f'''\
         from setuptools import setup
 
         setup()
         '''
-            )
         )
+    )
 
     copyfile(source, module / source.name)
-    with (module / '__init__.py').open('w') as fh:
-        fh.write(
-            dedent(
-                f'''\
+
+    (module / '__init__.py').write_text(
+        dedent(
+            f'''\
         import importlib.resources as pkg_resources
 
         __all__ = ['extension']
@@ -83,8 +82,8 @@ def process_extension(source: Path) -> None:
             return pkg_resources.as_file(result)
 
         '''
-            )
         )
+    )
 
     (module / '__main__.py').write_text(
         dedent(
