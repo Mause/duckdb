@@ -16,7 +16,7 @@ parser.add_argument('--source_folder', required=False, default=here / '../../bui
 parser.add_argument('--build', action='store_true')
 args = parser.parse_args()
 
-version = setuptools_scm.get_version('../..')
+version = setuptools_scm.get_version(here / '../..')
 
 
 def pyproject(extension_name: str) -> dict:
