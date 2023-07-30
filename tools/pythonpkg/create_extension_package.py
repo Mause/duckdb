@@ -17,7 +17,7 @@ parser.add_argument('--build', action='store_true')
 parser.add_argument('--test', action='store_true')
 args = parser.parse_args()
 
-version = setuptools_scm.get_version(here / '../..')
+version = setuptools_scm.get_version(str(here / '../..'))
 
 
 def pyproject(extension_name: str) -> dict:
@@ -130,7 +130,7 @@ def main():
         parser.error("Couldn't find any extensions to process")
 
     for extension in extensions:
-        with gha_utils.group(extension):
+        with gha_utils.group(str(extension)):
             process_extension(extension)
 
 
