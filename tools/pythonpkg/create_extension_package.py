@@ -128,7 +128,7 @@ def run_build(extension_name, target):
             tool = None
 
     if tool:
-        check_call(['pip', 'install', tool])
+        pip(tool)
 
     check_call(
         shlex.split(
@@ -140,11 +140,15 @@ def run_build(extension_name, target):
 
 
 def run_test(extension_name, wheel):
-    check_call(['pip', 'install', wheel])
+    pip(wheel)
     import duckdb
     duckdb.load_extension(extension_name)
     loaded, = duckdb.execute('select loaded from duckdb_extensions() where extension_name = ?', extension_name).fetchone()
     assert loaded
+
+
+def pip(package):
+    check_call(['pip', 'install', package])
 
 
 def get_repair_command(target):
