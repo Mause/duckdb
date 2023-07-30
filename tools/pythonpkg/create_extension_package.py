@@ -142,8 +142,9 @@ def run_build(extension_name, target):
 def run_test(extension_name, wheel):
     check_call(['pip', 'install', wheel])
     import duckdb
-    ext = import_module(f'duckdb_extension_{extension_name}')
-    duckdb.load_extension(ext.extension())
+    duckdb.load_extension(extension_name)
+    loaded, = duckdb.execute('select loaded from duckdb_extensions() where extension_name = ?', extension_name).fetchone()
+    assert loaded
 
 
 def get_repair_command(target):
