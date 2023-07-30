@@ -1,12 +1,19 @@
-import toml
-from os import PathLike
+import shlex
+import sys
+from argparse import ArgumentParser
+from importlib import import_module
 from pathlib import Path
 from shutil import copyfile, rmtree
-from textwrap import dedent
-from argparse import ArgumentParser
-import github_action_utils as gha_utils
 from subprocess import check_call, check_output
+from textwrap import dedent
+from typing import cast
+
+import github_action_utils as gha_utils
 import setuptools_scm
+import toml
+from cibuildwheel.options import Options, CommandLineArguments
+from cibuildwheel.typing import PlatformName
+from cibuildwheel.util import prepare_command
 
 here = Path(__file__).parent
 base = here / 'extensions'
@@ -98,10 +105,26 @@ def process_extension(source: Path) -> None:
     wheel = first((target / 'dist').glob('*.whl'))
     print(f'Okay, built. Now lets repair {wheel}')
 
-    # TODO: run delocate on Mac, nothing on Windows
-    check_call(['auditwheel', 'repair', wheel])
+    repair_command = get_repair_command(target)
+    if repair_command:
+        match sys.platform:
+            case 'linux':
+                tool = 'auditwheel'
+            case 'darwin':
+                tool = 'delocate'
+            case _:
+                tool = None
 
-    wheel = first((Path.cwd() / 'wheelhouse').glob(f'duckdb_extension_{extension_name}*.whl'))
+        if tool:
+            check_call(['pip', 'install', tool])
+        check_call(
+            shlex.split(
+                prepare_command(repair_command, dest_dir='wheelhouse', wheel=wheel, delocate_archs='x86_64,arm64')
+            )
+        )
+        wheel = first((Path.cwd() / 'wheelhouse').glob(f'duckdb_extension_{extension_name}*.whl'))
+    else:
+        print('no repair required for this system')
 
     if not args.test:
         return
@@ -112,6 +135,16 @@ def process_extension(source: Path) -> None:
     ext = import_module(f'duckdb_extension_{extension_name}')
 
     duckdb.load_extension(ext.extension())
+
+
+def get_repair_command(target):
+    cli_args = CommandLineArguments.defaults()
+    cli_args.config_file = str(target / 'pyproject.toml')
+    platform_name = cast(PlatformName, {'linux': 'linux', 'darwin': 'macos', 'win32': 'windows'}[sys.platform])
+    cli_args.package_dir = target
+    options = Options(platform=platform_name, command_line_arguments=cli_args, env={})
+    build_options = options.build_options('')
+    return build_options.repair_command
 
 
 def first(iterable):
