@@ -96,7 +96,7 @@ def process_extension(source: Path) -> None:
 
     check_call(['pyproject-build', target, '--wheel'])
     wheel = first((target / 'dist').glob('*.whl'))
-    gha_utils.warning(f'Okay, built. Now lets repair {wheel}')
+    print(f'Okay, built. Now lets repair {wheel}')
 
     # TODO: run delocate on Mac, nothing on Windows
     check_call(['auditwheel', 'repair', wheel])
