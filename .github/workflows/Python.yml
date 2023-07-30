@@ -142,7 +142,7 @@ jobs:
     - uses: actions/download-artifact@v3
       with:
         name: manylinux-extensions-x64
-    - run: python3.10 -m pip install -U pip build auditwheel toml github-action-utils setuptools_scm
+    - run: python3.10 -m pip install -U pip build cibuildwheel toml github-action-utils setuptools_scm
     - run: echo "/opt/_internal/cpython-3.10.12/bin" >> $GITHUB_PATH
     - name: Build packaged extensions
       shell: bash
