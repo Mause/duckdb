@@ -101,39 +101,48 @@ def process_extension(source: Path) -> None:
     if not args.build:
         return
 
-    check_call(['pyproject-build', target, '--wheel'])
-    wheel = first((target / 'dist').glob('*.whl'))
-    print(f'Okay, built. Now lets repair {wheel}')
-
-    repair_command = get_repair_command(target)
-    if repair_command:
-        match sys.platform:
-            case 'linux':
-                tool = 'auditwheel'
-            case 'darwin':
-                tool = 'delocate'
-            case _:
-                tool = None
-
-        if tool:
-            check_call(['pip', 'install', tool])
-        check_call(
-            shlex.split(
-                prepare_command(repair_command, dest_dir='wheelhouse', wheel=wheel, delocate_archs='x86_64,arm64')
-            )
-        )
-        wheel = first((Path.cwd() / 'wheelhouse').glob(f'duckdb_extension_{extension_name}*.whl'))
-    else:
-        print('no repair required for this system')
+    wheel = run_build(extension_name, target)
 
     if not args.test:
         return
 
-    check_call(['pip', 'install', wheel])
+    run_test(extension_name, wheel)
 
+
+def run_build(extension_name, target):
+    check_call(['pyproject-build', target, '--wheel'])
+    wheel = first((target / 'dist').glob('*.whl'))
+    print(f'Okay, built. Now lets repair {wheel}')
+    repair_command = get_repair_command(target)
+
+    if not repair_command:
+        print('no repair required for this system')
+        return wheel
+
+    match sys.platform:
+        case 'linux':
+            tool = 'auditwheel'
+        case 'darwin':
+            tool = 'delocate'
+        case _:
+            tool = None
+
+    if tool:
+        check_call(['pip', 'install', tool])
+
+    check_call(
+        shlex.split(
+            prepare_command(repair_command, dest_dir='wheelhouse', wheel=wheel, delocate_archs='x86_64,arm64')
+        )
+    )
+
+    return first((Path.cwd() / 'wheelhouse').glob(f'duckdb_extension_{extension_name}*.whl'))
+
+
+def run_test(extension_name, wheel):
+    check_call(['pip', 'install', wheel])
     import duckdb
     ext = import_module(f'duckdb_extension_{extension_name}')
-
     duckdb.load_extension(ext.extension())
 
 
