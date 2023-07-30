@@ -14,6 +14,7 @@ base = here / 'extensions'
 parser = ArgumentParser()
 parser.add_argument('--source_folder', required=False, default=here / '../../build/debug/extension')
 parser.add_argument('--build', action='store_true')
+parser.add_argument('--test', action='store_true')
 args = parser.parse_args()
 
 version = setuptools_scm.get_version(here / '../..')
@@ -99,6 +100,10 @@ def process_extension(source: Path) -> None:
     check_call(['auditwheel', 'repair', wheel])
 
     wheel = first((Path.cwd() / 'wheelhouse').glob(f'duckdb_extension_{extension_name}*.whl'))
+
+    if not args.test:
+        return
+
     check_call(['pip', 'install', wheel])
 
     import duckdb
