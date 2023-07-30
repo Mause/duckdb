@@ -131,9 +131,7 @@ def run_build(extension_name, target):
         pip(tool)
 
     check_call(
-        shlex.split(
-            prepare_command(repair_command, dest_dir='wheelhouse', wheel=wheel, delocate_archs='x86_64,arm64')
-        )
+        shlex.split(prepare_command(repair_command, dest_dir='wheelhouse', wheel=wheel, delocate_archs='x86_64,arm64'))
     )
 
     return first((Path.cwd() / 'wheelhouse').glob(f'duckdb_extension_{extension_name}*.whl'))
@@ -142,8 +140,11 @@ def run_build(extension_name, target):
 def run_test(extension_name, wheel):
     pip(wheel)
     import duckdb
+
     duckdb.load_extension(extension_name)
-    loaded, = duckdb.execute('select loaded from duckdb_extensions() where extension_name = ?', extension_name).fetchone()
+    (loaded,) = duckdb.execute(
+        'select loaded from duckdb_extensions() where extension_name = ?', extension_name
+    ).fetchone()
     assert loaded
 
 
