@@ -328,10 +328,10 @@ packages.extend(spark_packages)
 
 duckdb_version = 'UNKNOWN'
 try:
-    from setuptools_scm import get_version
+    from setuptools_scm import get_version, LookupError
 
     duckdb_version = get_version()
-except ImportError as e:
+except (ImportError, LookupError) as e:
     print(e)
 
 setup(
