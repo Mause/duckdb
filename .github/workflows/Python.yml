@@ -98,6 +98,12 @@ jobs:
       with:
         fetch-depth: 0
 
+    - name: Setup Ccache
+      uses: hendrikmuhs/ccache-action@main
+      with:
+        key: ${{ github.job }}
+        save: ${{ github.ref == 'refs/heads/master' || github.repository != 'duckdb/duckdb' }}
+
     - uses: ./.github/actions/manylinux_2014_setup
       with:
         aws-cli: 1
