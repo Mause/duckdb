@@ -1,12 +1,9 @@
 #include "duckdb_python/pyconnection/pyconnection.hpp"
 
 #include "duckdb/catalog/default/default_types.hpp"
-#include "duckdb/common/arrow/arrow.hpp"
 #include "duckdb/common/enums/file_compression_type.hpp"
 #include "duckdb/common/printer.hpp"
 #include "duckdb/common/types.hpp"
-#include "duckdb/common/types/vector.hpp"
-#include "duckdb/function/table/read_csv.hpp"
 #include "duckdb/main/client_config.hpp"
 #include "duckdb/main/client_context.hpp"
 #include "duckdb/main/config.hpp"
@@ -30,18 +27,10 @@
 #include "duckdb_python/pyresult.hpp"
 #include "duckdb_python/python_conversion.hpp"
 #include "duckdb_python/numpy/numpy_type.hpp"
-#include "duckdb/main/prepared_statement.hpp"
 #include "duckdb_python/jupyter_progress_bar_display.hpp"
 #include "duckdb_python/pyfilesystem.hpp"
-#include "duckdb/main/client_config.hpp"
-#include "duckdb/function/table/read_csv.hpp"
-#include "duckdb/common/enums/file_compression_type.hpp"
-#include "duckdb/catalog/default/default_types.hpp"
-#include "duckdb/main/relation/value_relation.hpp"
 #include "duckdb_python/filesystem_object.hpp"
 #include "duckdb/parser/parsed_data/create_scalar_function_info.hpp"
-#include "duckdb/function/scalar_function.hpp"
-#include "duckdb_python/pandas/pandas_scan.hpp"
 #include "duckdb_python/python_objects.hpp"
 #include "duckdb/function/function.hpp"
 #include "duckdb_python/pybind11/conversions/exception_handling_enum.hpp"
@@ -49,8 +38,6 @@
 #include "duckdb/catalog/catalog_entry/scalar_function_catalog_entry.hpp"
 
 #include <random>
-
-#include "duckdb/common/printer.hpp"
 
 namespace duckdb {
 
@@ -1225,7 +1212,27 @@ void DuckDBPyConnection::InstallExtension(const string &extension, bool force_in
 }
 
 void DuckDBPyConnection::LoadExtension(const string &extension) {
-	ExtensionHelper::LoadExternalExtension(*connection->context, extension);
+	try {
+		ExtensionHelper::LoadExternalExtension(*connection->context, extension);
+	} catch (const std::exception &e) {
+		LoadEntrypointExtension(extension);
+	}
+}
+void DuckDBPyConnection::LoadEntrypointExtension(const string &extension) const {
+	const auto &pkg_resources = py::module_::import("pkg_resources");
+	const py::list &extensions = pkg_resources.attr("iter_entry_points")("duckdb_extension", py::str(extension));
+
+	if (extensions.empty()) {
+		throw InvalidInputException("Couldn't find an extension by that name");
+	}
+
+	const auto &ext = extensions.begin();
+
+	const auto &extension_function = ext->attr("load")();
+
+	string extension_file = py::str(extension_function());
+
+	ExtensionHelper::LoadExternalExtension(*connection->context, extension_file);
 }
 
 // cursor() is stupid
