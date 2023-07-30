@@ -24,7 +24,7 @@ parser.add_argument('--build', action='store_true')
 parser.add_argument('--test', action='store_true')
 args = parser.parse_args()
 
-version = setuptools_scm.get_version(str(here / '../..'))
+version = setuptools_scm.get_version(str(here / '../..'), local_scheme='no-local-version')
 
 
 def pyproject(extension_name: str) -> dict:
