@@ -234,6 +234,7 @@ static constexpr ExtensionEntry EXTENSION_SETTINGS[] = {
     {"enable_server_cert_verification", "httpfs"},
     {"force_download", "httpfs"},
     {"http_keep_alive", "httpfs"},
+    {"http_headers", "httpfs"},
     {"http_retries", "httpfs"},
     {"http_retry_backoff", "httpfs"},
     {"http_retry_wait_ms", "httpfs"},
