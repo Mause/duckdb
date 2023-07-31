@@ -371,6 +371,16 @@ setup(
             'tpcds',
             'tpch',
             'visualizer',
+            # out of tree extensions
+            'sqlite',
+            'postgres',
+            'spatial',
+            'arrow',
+            'iceberg',
+            'substrait',
+            'motherduck',
+            'azure',
+            'aws',
         ]
         if ext not in extensions
     },
