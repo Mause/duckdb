@@ -86,10 +86,10 @@ generic_set:
 		;
 
 
-var_value:	a_expr
-				{ $$ = $1; }
-		;
-
+var_value:  a_expr
+            { $$ = $1; }
+              | indirection_expr      { $$ = $1; }
+        ;
 
 zone_value:
 			Sconst
