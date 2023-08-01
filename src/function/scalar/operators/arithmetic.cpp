@@ -11,7 +11,7 @@
 #include "duckdb/common/types/timestamp.hpp"
 #include "duckdb/common/vector_operations/vector_operations.hpp"
 #include "duckdb/common/enum_util.hpp"
-#include "duckdb/function/scalar/operators.hpp"
+#include "duckdb/function/scalar/operators_functions.hpp"
 #include "duckdb/planner/expression/bound_function_expression.hpp"
 #include "duckdb/function/scalar/nested_functions.hpp"
 
@@ -370,7 +370,7 @@ ScalarFunction AddFun::GetFunction(const LogicalType &left_type, const LogicalTy
 	// LCOV_EXCL_STOP
 }
 
-void AddFun::RegisterFunction(BuiltinFunctions &set) {
+ScalarFunctionSet AddFun::GetFunctions() {
 	ScalarFunctionSet functions("+");
 	for (auto &type : LogicalType::Numeric()) {
 		// unary add function is a nop, but only exists for numeric types
@@ -400,10 +400,14 @@ void AddFun::RegisterFunction(BuiltinFunctions &set) {
 	// we can add lists together
 	functions.AddFunction(ListConcatFun::GetFunction());
 
-	set.AddFunction(functions);
+	ScalarFunctionSet set;
+
+	set.MergeFunctionSet(functions);
 
 	functions.name = "add";
-	set.AddFunction(functions);
+	set.MergeFunctionSet(functions);
+
+	return set;
 }
 
 //===--------------------------------------------------------------------===//
@@ -622,7 +626,7 @@ ScalarFunction SubtractFun::GetFunction(const LogicalType &left_type, const Logi
 	// LCOV_EXCL_STOP
 }
 
-void SubtractFun::RegisterFunction(BuiltinFunctions &set) {
+ScalarFunctionSet SubtractFun::GetFunctions() {
 	ScalarFunctionSet functions("-");
 	for (auto &type : LogicalType::Numeric()) {
 		// unary subtract function, negates the input (i.e. multiplies by -1)
@@ -644,10 +648,14 @@ void SubtractFun::RegisterFunction(BuiltinFunctions &set) {
 	functions.AddFunction(GetFunction(LogicalType::TIMESTAMP, LogicalType::INTERVAL));
 	// we can negate intervals
 	functions.AddFunction(GetFunction(LogicalType::INTERVAL));
-	set.AddFunction(functions);
+
+	ScalarFunctionSet set;
+	set.MergeFunctionSet(functions);
 
 	functions.name = "subtract";
-	set.AddFunction(functions);
+	set.MergeFunctionSet(functions);
+
+	return set;
 }
 
 //===--------------------------------------------------------------------===//
@@ -760,7 +768,7 @@ unique_ptr<FunctionData> BindDecimalMultiply(ClientContext &context, ScalarFunct
 	return std::move(bind_data);
 }
 
-void MultiplyFun::RegisterFunction(BuiltinFunctions &set) {
+ScalarFunctionSet MultiplyFun::GetFunctions() {
 	ScalarFunctionSet functions("*");
 	for (auto &type : LogicalType::Numeric()) {
 		if (type.id() == LogicalTypeId::DECIMAL) {
@@ -784,10 +792,10 @@ void MultiplyFun::RegisterFunction(BuiltinFunctions &set) {
 	functions.AddFunction(
 	    ScalarFunction({LogicalType::BIGINT, LogicalType::INTERVAL}, LogicalType::INTERVAL,
 	                   ScalarFunction::BinaryFunction<int64_t, interval_t, interval_t, MultiplyOperator>));
-	set.AddFunction(functions);
 
 	functions.name = "multiply";
-	set.AddFunction(functions);
+
+	return functions;
 }
 
 //===--------------------------------------------------------------------===//
@@ -906,7 +914,7 @@ static scalar_function_t GetBinaryFunctionIgnoreZero(const LogicalType &type) {
 	}
 }
 
-void DivideFun::RegisterFunction(BuiltinFunctions &set) {
+ScalarFunctionSet DivideFun::GetFunctions() {
 	ScalarFunctionSet fp_divide("/");
 	fp_divide.AddFunction(ScalarFunction({LogicalType::FLOAT, LogicalType::FLOAT}, LogicalType::FLOAT,
 	                                     GetBinaryFunctionIgnoreZero<DivideOperator>(LogicalType::FLOAT)));
@@ -915,7 +923,8 @@ void DivideFun::RegisterFunction(BuiltinFunctions &set) {
 	fp_divide.AddFunction(
 	    ScalarFunction({LogicalType::INTERVAL, LogicalType::BIGINT}, LogicalType::INTERVAL,
 	                   BinaryScalarFunctionIgnoreZero<interval_t, int64_t, interval_t, DivideOperator>));
-	set.AddFunction(fp_divide);
+	ScalarFunctionSet set;
+	set.MergeFunctionSet(fp_divide);
 
 	ScalarFunctionSet full_divide("//");
 	for (auto &type : LogicalType::Numeric()) {
@@ -926,10 +935,11 @@ void DivideFun::RegisterFunction(BuiltinFunctions &set) {
 			    ScalarFunction({type, type}, type, GetBinaryFunctionIgnoreZero<DivideOperator>(type)));
 		}
 	}
-	set.AddFunction(full_divide);
+	set.MergeFunctionSet(full_divide);
 
 	full_divide.name = "divide";
-	set.AddFunction(full_divide);
+
+	return full_divide;
 }
 
 //===--------------------------------------------------------------------===//
@@ -957,7 +967,7 @@ hugeint_t ModuloOperator::Operation(hugeint_t left, hugeint_t right) {
 	return left % right;
 }
 
-void ModFun::RegisterFunction(BuiltinFunctions &set) {
+ScalarFunctionSet ModFun::GetFunctions() {
 	ScalarFunctionSet functions("%");
 	for (auto &type : LogicalType::Numeric()) {
 		if (type.id() == LogicalTypeId::DECIMAL) {
@@ -967,9 +977,11 @@ void ModFun::RegisterFunction(BuiltinFunctions &set) {
 			    ScalarFunction({type, type}, type, GetBinaryFunctionIgnoreZero<ModuloOperator>(type)));
 		}
 	}
-	set.AddFunction(functions);
+	ScalarFunctionSet set;
+	set.MergeFunctionSet(functions);
 	functions.name = "mod";
-	set.AddFunction(functions);
+	set.MergeFunctionSet(functions);
+	return set;
 }
 
 } // namespace duckdb

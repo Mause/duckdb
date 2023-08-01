@@ -1,0 +1,45 @@
+[
+    {
+        "name": "add",
+        "description": "",
+        "type": "scalar_function_set",
+        "aliases": ["+"],
+        "example": "2 + 2",
+        "extra_functions": [
+            "static ScalarFunction GetFunction(const LogicalType &left_type, const LogicalType &right_type);",
+            "static ScalarFunction GetFunction(const LogicalType &type);"
+        ]
+    },
+    {
+        "name": "subtract",
+        "description": "",
+        "type": "scalar_function_set",
+        "example": "5 - 2",
+        "aliases": ["-"],
+        "extra_functions": [
+            "static ScalarFunction GetFunction(const LogicalType& left_type, const LogicalType& right_type);",
+            "static ScalarFunction GetFunction(const LogicalType &type);"
+        ]
+    },
+    {
+        "name": "multiply",
+        "description": "",
+        "type": "scalar_function_set",
+        "example": "2 * 2",
+        "aliases": ["*"]
+    },
+    {
+        "name": "divide",
+        "description": "",
+        "type": "scalar_function_set",
+        "example": "10 / 5",
+        "aliases": ["/", "//"]
+    },
+    {
+        "name": "mod",
+        "description": "",
+        "type": "scalar_function_set",
+        "example": "11 % 2",
+        "aliases": ["%"]
+    }
+]

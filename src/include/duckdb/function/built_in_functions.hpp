@@ -10,6 +10,8 @@
 
 #include "duckdb/function/function.hpp"
 #include "duckdb/catalog/catalog_transaction.hpp"
+#include "duckdb/core_functions/function_list.hpp"
+#include "duckdb/core_functions/function_helpers.hpp"
 
 namespace duckdb {
 
@@ -59,7 +61,6 @@ private:
 	// scalar functions
 	void RegisterCompressedMaterializationFunctions();
 	void RegisterGenericFunctions();
-	void RegisterOperators();
 	void RegisterStringFunctions();
 	void RegisterNestedFunctions();
 	void RegisterSequenceFunctions();

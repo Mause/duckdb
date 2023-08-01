@@ -14,7 +14,11 @@ void FillExtraInfo(StaticFunctionDefinition &function, T &info) {
 }
 
 void CoreFunctions::RegisterFunctions(Catalog &catalog, CatalogTransaction transaction) {
-	auto functions = StaticFunctionDefinition::GetFunctionList();
+	RegisterFunctions(catalog, transaction, StaticFunctionDefinition::GetFunctionList());
+}
+
+void CoreFunctions::RegisterFunctions(Catalog &catalog, CatalogTransaction transaction,
+                                      StaticFunctionDefinition *functions) {
 	for (idx_t i = 0; functions[i].name; i++) {
 		auto &function = functions[i];
 		if (function.get_function || function.get_function_set) {

@@ -4,6 +4,8 @@
 #include "duckdb/common/types/hash.hpp"
 #include "duckdb/function/scalar/string_functions.hpp"
 #include "duckdb/function/scalar_function.hpp"
+#include "duckdb/core_functions/core_functions.hpp"
+#include "duckdb/function/function_list.hpp"
 #include "duckdb/parser/parsed_data/pragma_info.hpp"
 #include "duckdb/planner/expression/bound_aggregate_expression.hpp"
 #include "duckdb/planner/expression/bound_function_expression.hpp"
@@ -97,7 +99,7 @@ void BuiltinFunctions::Initialize() {
 	RegisterCompressedMaterializationFunctions();
 
 	RegisterGenericFunctions();
-	RegisterOperators();
+	CoreFunctions::RegisterFunctions(catalog, transaction, OperatorFunctions::GetFunctions());
 	RegisterSequenceFunctions();
 	RegisterStringFunctions();
 	RegisterNestedFunctions();

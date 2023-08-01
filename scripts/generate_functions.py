@@ -1,6 +1,10 @@
 import os
 import re
 import json
+from textwrap import dedent
+from argparse import ArgumentParser
+from glob import glob
+from os.path import exists
 
 aggregate_functions = ['algebraic', 'distributive', 'holistic', 'nested', 'regression']
 scalar_functions = ['bit', 'blob', 'date', 'enum', 'generic', 'list', 'map', 'math', 'operators', 'random', 'string', 'debug', 'struct', 'union']
@@ -8,7 +12,7 @@ scalar_functions = ['bit', 'blob', 'date', 'enum', 'generic', 'list', 'map', 'ma
 header = '''//===----------------------------------------------------------------------===//
 //                         DuckDB
 //
-// duckdb/core_functions/{HEADER}_functions.hpp
+// duckdb/{folder_name}/{HEADER}_functions.hpp
 //
 //
 //===----------------------------------------------------------------------===//
@@ -20,12 +24,32 @@ header = '''//===---------------------------------------------------------------
 
 #include "duckdb/function/function_set.hpp"
 
-namespace duckdb {
+namespace duckdb {{
 
 '''
 
 footer = '''} // namespace duckdb
 '''
+FUNCTION_TEMPLATE = '''\
+struct {STRUCT} {{
+\tstatic constexpr const char *Name = "{NAME}";
+\tstatic constexpr const char *Parameters = "{PARAMETERS}";
+\tstatic constexpr const char *Description = "{DESCRIPTION}";
+\tstatic constexpr const char *Example = "{EXAMPLE}";
+
+\t{FUNCTION}
+}};
+
+'''
+ALIAS_TEMPLATE = '''\
+struct {STRUCT} {{
+\tusing ALIAS = {ALIAS};
+
+\tstatic constexpr const char *Name = "{NAME}";
+}};
+
+'''
+
 
 def normalize_path_separators(x):
     return os.path.sep.join(x.split('/'))
@@ -39,18 +63,26 @@ def get_struct_name(function_name):
 def sanitize_string(text):
     return text.replace('\\', '\\\\').replace('"', '\\"')
 
-all_function_types = []
-all_function_types += [f'aggregate/{x}' for x in aggregate_functions]
-all_function_types += [f'scalar/{x}' for x in scalar_functions]
+all_function_types = [
+    f'aggregate/{x}' for x in aggregate_functions
+] +[
+    f'scalar/{x}' for x in scalar_functions
+]
 
-function_type_set = {}
-all_function_list = []
-for path in all_function_types:
-    header_path = normalize_path_separators(f'src/include/duckdb/core_functions/{path}_functions.hpp')
-    json_path = normalize_path_separators(f'src/core_functions/{path}/functions.json')
+
+def generate_functions(folder_name, path):
+    function_type_set = {}
+
+    header_path = normalize_path_separators(f'src/include/duckdb/{folder_name}/{path}_functions.hpp')
+    json_path = normalize_path_separators(f'src/{folder_name}/{path}/functions.json')
+
+    if not exists(json_path):
+        return
+
+    print(json_path, header_path)
     with open(json_path, 'r') as f:
         parsed_json = json.load(f)
-    new_text = header.replace('{HEADER}', path)
+    new_text = header.format(HEADER=path, folder_name=folder_name)
     for entry in parsed_json:
         function_text = ''
         if 'struct' in entry:
@@ -65,32 +97,30 @@ for path in all_function_types:
         function_type_set[struct_name] = entry['type']
         if entry['type'] == 'scalar_function':
             function_text = 'static ScalarFunction GetFunction();'
-            all_function_list.append([entry['name'], f"DUCKDB_SCALAR_FUNCTION({struct_name})"])
+            yield [entry['name'], f"DUCKDB_SCALAR_FUNCTION({struct_name})"]
         elif entry['type'] == 'scalar_function_set':
             function_text = 'static ScalarFunctionSet GetFunctions();'
-            all_function_list.append([entry['name'], f"DUCKDB_SCALAR_FUNCTION_SET({struct_name})"])
+            yield [entry['name'], f"DUCKDB_SCALAR_FUNCTION_SET({struct_name})"]
         elif entry['type'] == 'aggregate_function':
             function_text = 'static AggregateFunction GetFunction();'
-            all_function_list.append([entry['name'], f"DUCKDB_AGGREGATE_FUNCTION({struct_name})"])
+            yield [entry['name'], f"DUCKDB_AGGREGATE_FUNCTION({struct_name})"]
         elif entry['type'] == 'aggregate_function_set':
             function_text = 'static AggregateFunctionSet GetFunctions();'
-            all_function_list.append([entry['name'], f"DUCKDB_AGGREGATE_FUNCTION_SET({struct_name})"])
+            yield [entry['name'], f"DUCKDB_AGGREGATE_FUNCTION_SET({struct_name})"]
         else:
             print("Unknown entry type " + entry['type'] + ' for entry ' + struct_name)
             exit(1)
         if 'extra_functions' in entry:
             for func_text in entry['extra_functions']:
                 function_text += '\n	' + func_text
-        new_text += '''struct {STRUCT} {
-	static constexpr const char *Name = "{NAME}";
-	static constexpr const char *Parameters = "{PARAMETERS}";
-	static constexpr const char *Description = "{DESCRIPTION}";
-	static constexpr const char *Example = "{EXAMPLE}";
-
-	{FUNCTION}
-};
-
-'''.replace('{STRUCT}', struct_name).replace('{NAME}', entry['name']).replace('{PARAMETERS}', entry['parameters'] if 'parameters' in entry else '').replace('{DESCRIPTION}', sanitize_string(entry['description'])).replace('{EXAMPLE}', sanitize_string(entry['example'])).replace('{FUNCTION}', function_text)
+        new_text += FUNCTION_TEMPLATE.format(
+            STRUCT=struct_name,
+            NAME=entry['name'],
+            PARAMETERS=entry['parameters'] if 'parameters' in entry else '',
+            DESCRIPTION=sanitize_string(entry['description']),
+            EXAMPLE=sanitize_string(entry['example']),
+            FUNCTION=function_text
+        )
         alias_count = 1
         if 'aliases' in entry:
             for alias in entry['aliases']:
@@ -103,49 +133,58 @@ for path in all_function_types:
 
                 aliased_type = entry['type']
                 if aliased_type == 'scalar_function':
-                    all_function_list.append([alias, f"DUCKDB_SCALAR_FUNCTION_ALIAS({alias_struct_name})"])
+                    yield [alias, f"DUCKDB_SCALAR_FUNCTION_ALIAS({alias_struct_name})"]
                 elif aliased_type == 'scalar_function_set':
-                    all_function_list.append([alias, f"DUCKDB_SCALAR_FUNCTION_SET_ALIAS({alias_struct_name})"])
+                    yield [alias, f"DUCKDB_SCALAR_FUNCTION_SET_ALIAS({alias_struct_name})"]
                 elif aliased_type == 'aggregate_function':
-                    all_function_list.append([alias, f"DUCKDB_AGGREGATE_FUNCTION_ALIAS({alias_struct_name})"])
+                    yield [alias, f"DUCKDB_AGGREGATE_FUNCTION_ALIAS({alias_struct_name})"]
                 elif aliased_type == 'aggregate_function_set':
-                    all_function_list.append([alias, f"DUCKDB_AGGREGATE_FUNCTION_SET_ALIAS({alias_struct_name})"])
+                    yield [alias, f"DUCKDB_AGGREGATE_FUNCTION_SET_ALIAS({alias_struct_name})"]
                 else:
                     print("Unknown entry type " + aliased_type + ' for entry ' + struct_name)
                     exit(1)
                 function_type_set[alias_struct_name] = aliased_type
-                new_text += '''struct {STRUCT} {
-	using ALIAS = {ALIAS};
-
-	static constexpr const char *Name = "{NAME}";
-};
-
-'''.replace('{STRUCT}', alias_struct_name).replace('{NAME}', alias).replace('{ALIAS}', struct_name)
+                new_text += ALIAS_TEMPLATE.format(STRUCT=alias_struct_name, NAME=alias, ALIAS=struct_name)
     new_text += footer
     with open(header_path, 'w+') as f:
         f.write(new_text)
 
-function_list_file = normalize_path_separators('src/core_functions/function_list.cpp')
-with open(function_list_file, 'r') as f:
-    text = f.read()
 
-static_function = 'static StaticFunctionDefinition internal_functions[] = {'
-pos = text.find(static_function)
-header = text[:pos]
-footer_lines = text[pos:].split('\n')
-footer = ''
-for i in range(len(footer_lines)):
-    if len(footer_lines[i]) == 0:
-        footer = '\n'.join(footer_lines[i:])
-        break
+def generate_function_list(all_function_list, folder_name: str):
+    function_list_file = normalize_path_separators(f'src/{folder_name}/function_list.cpp')
+    with open(function_list_file, 'r') as f:
+        text = f.read()
 
-new_text = header
-new_text += static_function + '\n'
-all_function_list = sorted(all_function_list, key=lambda x: x[0])
-for entry in all_function_list:
-    new_text += '\t' + entry[1] + ',\n'
-new_text += '\tFINAL_FUNCTION\n};\n'
-new_text += footer
+    static_function = 'static StaticFunctionDefinition internal_functions[] = {'
+    pos = text.find(static_function)
+    header = text[:pos]
+    footer_lines = text[pos:].split('\n')
+    footer = next(('\n'.join(footer_lines[i:]) for i in range(len(footer_lines)) if len(footer_lines[i]) == 0), '')
 
-with open(function_list_file, 'w+') as f:
-    f.write(new_text)
+    new_text = header
+    new_text += static_function + '\n'
+    all_function_list = sorted(all_function_list, key=lambda x: x[0])
+    for entry in all_function_list:
+        new_text += '\t' + entry[1] + ',\n'
+    new_text += '\tFINAL_FUNCTION\n};\n'
+    new_text += footer
+
+    with open(function_list_file, 'w+') as f:
+        f.write(new_text)
+
+
+def main():
+    parser = ArgumentParser(description='This machine generates functions')
+    parser.add_argument('--root', action='append', required=False, help='List roots for which you wish to generate functions for')
+    roots = parser.parse_args().root or ['function', 'core_functions']
+    for root in roots:
+        function_list = []
+        for path in all_function_types:
+            function_list += generate_functions(root, path)
+
+        generate_function_list(function_list, root)
+        print()
+
+
+if __name__ == '__main__':
+    main()
