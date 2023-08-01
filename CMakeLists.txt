@@ -17,6 +17,7 @@ if(POLICY CMP0063)
 endif()
 
 project(DuckDB)
+include(CPack)
 
 find_package(Threads REQUIRED)
 
