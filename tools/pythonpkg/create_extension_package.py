@@ -119,14 +119,7 @@ def run_build(extension_name, target):
         print('no repair required for this system')
         return wheel
 
-    match sys.platform:
-        case 'linux':
-            tool = 'auditwheel'
-        case 'darwin':
-            tool = 'delocate'
-        case _:
-            tool = None
-
+    tool = {'linux': 'auditwheel', 'darwin': 'delocate'}.get(sys.platform, None)
     if tool:
         pip(tool)
 
@@ -171,7 +164,6 @@ def main():
     print(check_output(['auditwheel', '--version'], text=True))
 
     rmtree(base, ignore_errors=True)
-
 
     extensions = list(Path(args.source_folder).glob('**/*.duckdb_extension'))
     if not extensions:
