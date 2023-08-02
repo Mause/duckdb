@@ -1230,9 +1230,10 @@ void DuckDBPyConnection::LoadEntrypointExtension(const string &extension) const 
 
 	const auto &extension_function = ext->attr("load")();
 
-	string extension_file = py::str(extension_function());
-
+	auto ctx = extension_function();
+	string extension_file = py::str(ctx.attr("__enter__")());
 	ExtensionHelper::LoadExternalExtension(*connection->context, extension_file);
+	ctx.attr("__exit__")();
 }
 
 // cursor() is stupid
