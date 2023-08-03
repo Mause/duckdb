@@ -1,13 +1,13 @@
 #include "duckdb/parser/parsed_data/sample_options.hpp"
 #include "duckdb/common/field_writer.hpp"
-#include "duckdb/common/serializer/enum_serializer.hpp"
 #include "duckdb/common/serializer/format_serializer.hpp"
 #include "duckdb/common/serializer/format_deserializer.hpp"
 
 namespace duckdb {
 
+// **DEPRECATED**: Use EnumUtil directly instead.
 string SampleMethodToString(SampleMethod method) {
-	return EnumSerializer::EnumToString(method);
+	return EnumUtil::ToString(method);
 }
 
 void SampleOptions::Serialize(Serializer &serializer) {
@@ -17,24 +17,6 @@ void SampleOptions::Serialize(Serializer &serializer) {
 	writer.WriteField<SampleMethod>(method);
 	writer.WriteField<int64_t>(seed);
 	writer.Finalize();
-}
-
-void SampleOptions::FormatSerialize(FormatSerializer &serializer) const {
-	serializer.WriteProperty("sample_size", sample_size);
-	serializer.WriteProperty("is_percentage", is_percentage);
-	serializer.WriteProperty("method", method);
-	serializer.WriteProperty("seed", seed);
-}
-
-unique_ptr<SampleOptions> SampleOptions::FormatDeserialize(FormatDeserializer &deserializer) {
-	auto result = make_uniq<SampleOptions>();
-
-	deserializer.ReadProperty("sample_size", result->sample_size);
-	deserializer.ReadProperty("is_percentage", result->is_percentage);
-	deserializer.ReadProperty("method", result->method);
-	deserializer.ReadProperty("seed", result->seed);
-
-	return result;
 }
 
 unique_ptr<SampleOptions> SampleOptions::Deserialize(Deserializer &source) {

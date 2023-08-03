@@ -96,7 +96,7 @@ public:
 class HashJoinLocalSinkState : public LocalSinkState {
 public:
 	HashJoinLocalSinkState(const PhysicalHashJoin &op, ClientContext &context) : build_executor(context) {
-		auto &allocator = Allocator::Get(context);
+		auto &allocator = BufferAllocator::Get(context);
 		if (!op.right_projection_map.empty()) {
 			build_chunk.Initialize(allocator, op.build_types);
 		}
@@ -124,7 +124,7 @@ public:
 unique_ptr<JoinHashTable> PhysicalHashJoin::InitializeHashTable(ClientContext &context) const {
 	auto result =
 	    make_uniq<JoinHashTable>(BufferManager::GetBufferManager(context), conditions, build_types, join_type);
-	result->max_ht_size = double(BufferManager::GetBufferManager(context).GetMaxMemory()) * 0.6;
+	result->max_ht_size = double(0.6) * BufferManager::GetBufferManager(context).GetMaxMemory();
 	if (!delim_types.empty() && join_type == JoinType::MARK) {
 		// correlated MARK join
 		if (delim_types.size() + 1 == conditions.size()) {
@@ -162,7 +162,7 @@ unique_ptr<JoinHashTable> PhysicalHashJoin::InitializeHashTable(ClientContext &c
 			payload_types.push_back(aggr->return_type);
 			info.correlated_aggregates.push_back(std::move(aggr));
 
-			auto &allocator = Allocator::Get(context);
+			auto &allocator = BufferAllocator::Get(context);
 			info.correlated_counts = make_uniq<GroupedAggregateHashTable>(context, allocator, delim_types,
 			                                                              payload_types, correlated_aggregates);
 			info.correlated_types = delim_types;
@@ -181,39 +181,38 @@ unique_ptr<LocalSinkState> PhysicalHashJoin::GetLocalSinkState(ExecutionContext 
 	return make_uniq<HashJoinLocalSinkState>(*this, context.client);
 }
 
-SinkResultType PhysicalHashJoin::Sink(ExecutionContext &context, GlobalSinkState &gstate_p, LocalSinkState &lstate_p,
-                                      DataChunk &input) const {
-	auto &lstate = lstate_p.Cast<HashJoinLocalSinkState>();
+SinkResultType PhysicalHashJoin::Sink(ExecutionContext &context, DataChunk &chunk, OperatorSinkInput &input) const {
+	auto &lstate = input.local_state.Cast<HashJoinLocalSinkState>();
 
 	// resolve the join keys for the right chunk
 	lstate.join_keys.Reset();
-	lstate.build_executor.Execute(input, lstate.join_keys);
+	lstate.build_executor.Execute(chunk, lstate.join_keys);
 
 	// build the HT
 	auto &ht = *lstate.hash_table;
 	if (!right_projection_map.empty()) {
 		// there is a projection map: fill the build chunk with the projected columns
 		lstate.build_chunk.Reset();
-		lstate.build_chunk.SetCardinality(input);
+		lstate.build_chunk.SetCardinality(chunk);
 		for (idx_t i = 0; i < right_projection_map.size(); i++) {
-			lstate.build_chunk.data[i].Reference(input.data[right_projection_map[i]]);
+			lstate.build_chunk.data[i].Reference(chunk.data[right_projection_map[i]]);
 		}
 		ht.Build(lstate.append_state, lstate.join_keys, lstate.build_chunk);
 	} else if (!build_types.empty()) {
 		// there is not a projected map: place the entire right chunk in the HT
-		ht.Build(lstate.append_state, lstate.join_keys, input);
+		ht.Build(lstate.append_state, lstate.join_keys, chunk);
 	} else {
 		// there are only keys: place an empty chunk in the payload
-		lstate.build_chunk.SetCardinality(input.size());
+		lstate.build_chunk.SetCardinality(chunk.size());
 		ht.Build(lstate.append_state, lstate.join_keys, lstate.build_chunk);
 	}
 
 	return SinkResultType::NEED_MORE_INPUT;
 }
 
-void PhysicalHashJoin::Combine(ExecutionContext &context, GlobalSinkState &gstate_p, LocalSinkState &lstate_p) const {
-	auto &gstate = gstate_p.Cast<HashJoinGlobalSinkState>();
-	auto &lstate = lstate_p.Cast<HashJoinLocalSinkState>();
+SinkCombineResultType PhysicalHashJoin::Combine(ExecutionContext &context, OperatorSinkCombineInput &input) const {
+	auto &gstate = input.global_state.Cast<HashJoinGlobalSinkState>();
+	auto &lstate = input.local_state.Cast<HashJoinLocalSinkState>();
 	if (lstate.hash_table) {
 		lstate.hash_table->GetSinkCollection().FlushAppendState(lstate.append_state);
 		lock_guard<mutex> local_ht_lock(gstate.lock);
@@ -222,6 +221,8 @@ void PhysicalHashJoin::Combine(ExecutionContext &context, GlobalSinkState &gstat
 	auto &client_profiler = QueryProfiler::Get(context.client);
 	context.thread.profiler.Flush(*this, lstate.build_executor, "build_executor", 1);
 	client_profiler.Flush(context.thread.profiler);
+
+	return SinkCombineResultType::FINISHED;
 }
 
 //===--------------------------------------------------------------------===//
@@ -261,7 +262,7 @@ public:
 	void Schedule() override {
 		auto &context = pipeline->GetClientContext();
 
-		vector<unique_ptr<Task>> finalize_tasks;
+		vector<shared_ptr<Task>> finalize_tasks;
 		auto &ht = *sink.hash_table;
 		const auto chunk_count = ht.GetDataCollection().ChunkCount();
 		const idx_t num_threads = TaskScheduler::GetScheduler(context).NumberOfThreads();
@@ -313,10 +314,10 @@ void HashJoinGlobalSinkState::InitializeProbeSpill() {
 	}
 }
 
-class HashJoinPartitionTask : public ExecutorTask {
+class HashJoinRepartitionTask : public ExecutorTask {
 public:
-	HashJoinPartitionTask(shared_ptr<Event> event_p, ClientContext &context, JoinHashTable &global_ht,
-	                      JoinHashTable &local_ht)
+	HashJoinRepartitionTask(shared_ptr<Event> event_p, ClientContext &context, JoinHashTable &global_ht,
+	                        JoinHashTable &local_ht)
 	    : ExecutorTask(context), event(std::move(event_p)), global_ht(global_ht), local_ht(local_ht) {
 	}
 
@@ -346,11 +347,11 @@ public:
 public:
 	void Schedule() override {
 		auto &context = pipeline->GetClientContext();
-		vector<unique_ptr<Task>> partition_tasks;
+		vector<shared_ptr<Task>> partition_tasks;
 		partition_tasks.reserve(local_hts.size());
 		for (auto &local_ht : local_hts) {
 			partition_tasks.push_back(
-			    make_uniq<HashJoinPartitionTask>(shared_from_this(), context, *sink.hash_table, *local_ht));
+			    make_uniq<HashJoinRepartitionTask>(shared_from_this(), context, *sink.hash_table, *local_ht));
 		}
 		SetTasks(std::move(partition_tasks));
 	}
@@ -363,8 +364,8 @@ public:
 };
 
 SinkFinalizeType PhysicalHashJoin::Finalize(Pipeline &pipeline, Event &event, ClientContext &context,
-                                            GlobalSinkState &gstate) const {
-	auto &sink = gstate.Cast<HashJoinGlobalSinkState>();
+                                            OperatorSinkFinalizeInput &input) const {
+	auto &sink = input.global_state.Cast<HashJoinGlobalSinkState>();
 	auto &ht = *sink.hash_table;
 
 	sink.external = ht.RequiresExternalJoin(context.config, sink.local_hash_tables);
@@ -435,7 +436,7 @@ public:
 };
 
 unique_ptr<OperatorState> PhysicalHashJoin::GetOperatorState(ExecutionContext &context) const {
-	auto &allocator = Allocator::Get(context.client);
+	auto &allocator = BufferAllocator::Get(context.client);
 	auto &sink = sink_state->Cast<HashJoinGlobalSinkState>();
 	auto state = make_uniq<HashJoinOperatorState>(context.client);
 	if (sink.perfect_join_executor) {
@@ -533,7 +534,18 @@ public:
 	bool AssignTask(HashJoinGlobalSinkState &sink, HashJoinLocalSourceState &lstate);
 
 	idx_t MaxThreads() override {
-		return probe_count / ((idx_t)STANDARD_VECTOR_SIZE * parallel_scan_chunk_count);
+		D_ASSERT(op.sink_state);
+		auto &gstate = op.sink_state->Cast<HashJoinGlobalSinkState>();
+
+		idx_t count;
+		if (gstate.probe_spill) {
+			count = probe_count;
+		} else if (IsRightOuterJoin(op.join_type)) {
+			count = gstate.hash_table->Count();
+		} else {
+			return 0;
+		}
+		return count / ((idx_t)STANDARD_VECTOR_SIZE * parallel_scan_chunk_count);
 	}
 
 public:
@@ -612,7 +624,7 @@ unique_ptr<GlobalSourceState> PhysicalHashJoin::GetGlobalSourceState(ClientConte
 
 unique_ptr<LocalSourceState> PhysicalHashJoin::GetLocalSourceState(ExecutionContext &context,
                                                                    GlobalSourceState &gstate) const {
-	return make_uniq<HashJoinLocalSourceState>(*this, Allocator::Get(context.client));
+	return make_uniq<HashJoinLocalSourceState>(*this, BufferAllocator::Get(context.client));
 }
 
 HashJoinGlobalSourceState::HashJoinGlobalSourceState(const PhysicalHashJoin &op, ClientContext &context)
@@ -880,15 +892,15 @@ void HashJoinLocalSourceState::ExternalScanHT(HashJoinGlobalSinkState &sink, Has
 	}
 }
 
-void PhysicalHashJoin::GetData(ExecutionContext &context, DataChunk &chunk, GlobalSourceState &gstate_p,
-                               LocalSourceState &lstate_p) const {
+SourceResultType PhysicalHashJoin::GetData(ExecutionContext &context, DataChunk &chunk,
+                                           OperatorSourceInput &input) const {
 	auto &sink = sink_state->Cast<HashJoinGlobalSinkState>();
-	auto &gstate = gstate_p.Cast<HashJoinGlobalSourceState>();
-	auto &lstate = lstate_p.Cast<HashJoinLocalSourceState>();
+	auto &gstate = input.global_state.Cast<HashJoinGlobalSourceState>();
+	auto &lstate = input.local_state.Cast<HashJoinLocalSourceState>();
 	sink.scanned_data = true;
 
 	if (!sink.external && !IsRightOuterJoin(join_type)) {
-		return;
+		return SourceResultType::FINISHED;
 	}
 
 	if (gstate.global_stage == HashJoinSourceStage::INIT) {
@@ -905,6 +917,8 @@ void PhysicalHashJoin::GetData(ExecutionContext &context, DataChunk &chunk, Glob
 			gstate.TryPrepareNextStage(sink);
 		}
 	}
+
+	return chunk.size() == 0 ? SourceResultType::FINISHED : SourceResultType::HAVE_MORE_OUTPUT;
 }
 
 } // namespace duckdb

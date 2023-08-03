@@ -108,7 +108,7 @@ static duckdb::unique_ptr<FunctionData> DataFrameScanBind(ClientContext &context
 			for (R_xlen_t level_idx = 0; level_idx < levels.size(); level_idx++) {
 				levels_ptr[level_idx] = StringVector::AddString(duckdb_levels, (string)levels[level_idx]);
 			}
-			duckdb_col_type = LogicalType::ENUM(df_names[col_idx], duckdb_levels, levels.size());
+			duckdb_col_type = LogicalType::ENUM(duckdb_levels, levels.size());
 			break;
 		}
 		case RType::STRING:
@@ -171,9 +171,6 @@ static duckdb::unique_ptr<FunctionData> DataFrameScanBind(ClientContext &context
 static idx_t DataFrameScanMaxThreads(ClientContext &context, const FunctionData *bind_data_p) {
 	D_ASSERT(bind_data_p);
 	auto bind_data = (const DataFrameScanBindData *)bind_data_p;
-	if (!bind_data->experimental) {
-		return 1;
-	}
 	return ceil((double)bind_data->row_count / bind_data->rows_per_task);
 }
 

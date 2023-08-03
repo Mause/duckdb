@@ -32,14 +32,18 @@ public:
 	                       vector<LogicalType> group_types_p, vector<LogicalType> payload_types_p,
 	                       vector<BoundAggregateExpression *> bindings_p);
 
-	idx_t AddChunk(DataChunk &groups, DataChunk &payload, bool do_partition, const vector<idx_t> &filter);
-	void Partition();
+	idx_t AddChunk(DataChunk &groups, DataChunk &payload, bool do_partition, const unsafe_vector<idx_t> &filter);
+	void Partition(bool sink_done);
 	bool IsPartitioned();
 
 	HashTableList GetPartition(idx_t partition);
 	HashTableList GetUnpartitioned();
+	idx_t GetPartitionCount(idx_t partition) const;
+	idx_t GetPartitionSize(idx_t partition) const;
 
 	void Finalize();
+
+	void Append(GroupedAggregateHashTable &ht);
 
 private:
 	ClientContext &context;
@@ -51,7 +55,7 @@ private:
 	bool is_partitioned;
 	RadixPartitionInfo &partition_info;
 	vector<SelectionVector> sel_vectors;
-	vector<idx_t> sel_vector_sizes;
+	unsafe_vector<idx_t> sel_vector_sizes;
 	DataChunk group_subset, payload_subset;
 	Vector hashes, hashes_subset;
 	AggregateHTAppendState append_state;
@@ -62,7 +66,7 @@ private:
 
 private:
 	idx_t ListAddChunk(HashTableList &list, DataChunk &groups, Vector &group_hashes, DataChunk &payload,
-	                   const vector<idx_t> &filter);
+	                   const unsafe_vector<idx_t> &filter);
 	//! Returns the HT entry size used for intermediate hash tables
 	HtEntryType GetHTEntrySize();
 };

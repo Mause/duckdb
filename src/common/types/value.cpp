@@ -682,7 +682,7 @@ Value Value::UNION(child_list_t<LogicalType> members, uint8_t tag, Value value) 
 	result.is_null = false;
 	// add the tag to the front of the struct
 	vector<Value> union_values;
-	union_values.emplace_back(Value::TINYINT(tag));
+	union_values.emplace_back(Value::UTINYINT(tag));
 	for (idx_t i = 0; i < members.size(); i++) {
 		if (i != tag) {
 			union_values.emplace_back(members[i].second);
@@ -734,7 +734,7 @@ Value Value::EMPTYLIST(const LogicalType &child_type) {
 Value Value::BLOB(const_data_ptr_t data, idx_t len) {
 	Value result(LogicalType::BLOB);
 	result.is_null = false;
-	result.value_info_ = make_shared<StringValueInfo>(string((const char *)data, len));
+	result.value_info_ = make_shared<StringValueInfo>(string(const_char_ptr_cast(data), len));
 	return result;
 }
 
@@ -748,7 +748,7 @@ Value Value::BLOB(const string &data) {
 Value Value::BIT(const_data_ptr_t data, idx_t len) {
 	Value result(LogicalType::BIT);
 	result.is_null = false;
-	result.value_info_ = make_shared<StringValueInfo>(string((const char *)data, len));
+	result.value_info_ = make_shared<StringValueInfo>(string(const_char_ptr_cast(data), len));
 	return result;
 }
 
@@ -1323,6 +1323,7 @@ string Value::ToSQLString() const {
 	case LogicalTypeId::BLOB:
 		return "'" + ToString() + "'::" + type_.ToString();
 	case LogicalTypeId::VARCHAR:
+	case LogicalTypeId::ENUM:
 		return "'" + StringUtil::Replace(ToString(), "'", "''") + "'";
 	case LogicalTypeId::STRUCT: {
 		string ret = "{";
@@ -1468,18 +1469,23 @@ const vector<Value> &ListValue::GetChildren(const Value &value) {
 }
 
 const Value &UnionValue::GetValue(const Value &value) {
-	D_ASSERT(value.type() == LogicalTypeId::UNION);
+	D_ASSERT(value.type().id() == LogicalTypeId::UNION);
 	auto &children = StructValue::GetChildren(value);
-	auto tag = children[0].GetValueUnsafe<uint8_t>();
+	auto tag = children[0].GetValueUnsafe<union_tag_t>();
 	D_ASSERT(tag < children.size() - 1);
 	return children[tag + 1];
 }
 
-uint8_t UnionValue::GetTag(const Value &value) {
-	D_ASSERT(value.type() == LogicalTypeId::UNION);
+union_tag_t UnionValue::GetTag(const Value &value) {
+	D_ASSERT(value.type().id() == LogicalTypeId::UNION);
 	auto children = StructValue::GetChildren(value);
-	auto tag = children[0].GetValueUnsafe<uint8_t>();
+	auto tag = children[0].GetValueUnsafe<union_tag_t>();
+	D_ASSERT(tag < children.size() - 1);
 	return tag;
+}
+
+const LogicalType &UnionValue::GetType(const Value &value) {
+	return UnionType::GetMemberType(value.type(), UnionValue::GetTag(value));
 }
 
 hugeint_t IntegralValue::Get(const Value &value) {

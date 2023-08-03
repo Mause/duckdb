@@ -8,10 +8,11 @@
 #include "duckdb/parser/expression/constant_expression.hpp"
 #include "duckdb/parser/expression/function_expression.hpp"
 #include "duckdb/parser/expression/subquery_expression.hpp"
+#include "duckdb/planner/expression/bound_cast_expression.hpp"
+#include "duckdb/planner/expression/bound_columnref_expression.hpp"
 #include "duckdb/parser/parsed_data/create_index_info.hpp"
 #include "duckdb/parser/parsed_data/create_macro_info.hpp"
 #include "duckdb/parser/parsed_data/create_view_info.hpp"
-#include "duckdb/parser/parsed_data/create_database_info.hpp"
 #include "duckdb/parser/tableref/table_function_ref.hpp"
 #include "duckdb/parser/parsed_expression_iterator.hpp"
 #include "duckdb/parser/statement/create_statement.hpp"
@@ -23,7 +24,7 @@
 #include "duckdb/planner/operator/logical_create_index.hpp"
 #include "duckdb/planner/operator/logical_create_table.hpp"
 #include "duckdb/planner/operator/logical_get.hpp"
-#include "duckdb/planner/operator/logical_distinct.hpp"
+#include "duckdb/planner/operator/logical_projection.hpp"
 #include "duckdb/planner/parsed_data/bound_create_table_info.hpp"
 #include "duckdb/planner/query_node/bound_select_node.hpp"
 #include "duckdb/planner/tableref/bound_basetableref.hpp"
@@ -37,6 +38,7 @@
 #include "duckdb/main/database_manager.hpp"
 #include "duckdb/main/attached_database.hpp"
 #include "duckdb/catalog/duck_catalog.hpp"
+#include "duckdb/function/table/table_scan.hpp"
 
 namespace duckdb {
 
@@ -132,33 +134,6 @@ void Binder::BindCreateViewInfo(CreateViewInfo &base) {
 	base.types = query_node.types;
 }
 
-static void QualifyFunctionNames(ClientContext &context, unique_ptr<ParsedExpression> &expr) {
-	switch (expr->GetExpressionClass()) {
-	case ExpressionClass::FUNCTION: {
-		auto &func = expr->Cast<FunctionExpression>();
-		auto function = Catalog::GetEntry(context, CatalogType::SCALAR_FUNCTION_ENTRY, func.catalog, func.schema,
-		                                  func.function_name, OnEntryNotFound::RETURN_NULL);
-		if (function) {
-			func.catalog = function->ParentCatalog().GetName();
-			func.schema = function->ParentSchema().name;
-		}
-		break;
-	}
-	case ExpressionClass::SUBQUERY: {
-		// replacing parameters within a subquery is slightly different
-		auto &sq = (expr->Cast<SubqueryExpression>()).subquery;
-		ParsedExpressionIterator::EnumerateQueryNodeChildren(
-		    *sq->node, [&](unique_ptr<ParsedExpression> &child) { QualifyFunctionNames(context, child); });
-		break;
-	}
-	default: // fall through
-		break;
-	}
-	// unfold child expressions
-	ParsedExpressionIterator::EnumerateChildren(
-	    *expr, [&](unique_ptr<ParsedExpression> &child) { QualifyFunctionNames(context, child); });
-}
-
 SchemaCatalogEntry &Binder::BindCreateFunctionInfo(CreateInfo &info) {
 	auto &base = info.Cast<CreateMacroInfo>();
 	auto &scalar_function = base.function->Cast<ScalarMacroFunction>();
@@ -188,7 +163,6 @@ SchemaCatalogEntry &Binder::BindCreateFunctionInfo(CreateInfo &info) {
 	auto this_macro_binding = make_uniq<DummyBinding>(dummy_types, dummy_names, base.name);
 	macro_binding = this_macro_binding.get();
 	ExpressionBinder::QualifyColumnNames(*this, scalar_function.expression);
-	QualifyFunctionNames(context, scalar_function.expression);
 
 	// create a copy of the expression because we do not want to alter the original
 	auto expression = scalar_function.expression->Copy();
@@ -240,33 +214,25 @@ void Binder::BindLogicalType(ClientContext &context, LogicalType &type, optional
 		type = LogicalType::UNION(member_types);
 		type.SetAlias(alias);
 	} else if (type.id() == LogicalTypeId::USER) {
-		auto &user_type_name = UserType::GetTypeName(type);
+		auto user_type_name = UserType::GetTypeName(type);
 		if (catalog) {
+			// The search order is:
+			// 1) In the same schema as the table
+			// 2) In the same catalog
+			// 3) System catalog
 			type = catalog->GetType(context, schema, user_type_name, OnEntryNotFound::RETURN_NULL);
+
 			if (type.id() == LogicalTypeId::INVALID) {
-				// look in the system catalog if the type was not found
-				type = Catalog::GetType(context, SYSTEM_CATALOG, schema, user_type_name);
+				type = catalog->GetType(context, INVALID_SCHEMA, user_type_name, OnEntryNotFound::RETURN_NULL);
+			}
+
+			if (type.id() == LogicalTypeId::INVALID) {
+				type = Catalog::GetType(context, INVALID_CATALOG, schema, user_type_name);
 			}
 		} else {
 			type = Catalog::GetType(context, INVALID_CATALOG, schema, user_type_name);
 		}
-	} else if (type.id() == LogicalTypeId::ENUM) {
-		auto &enum_type_name = EnumType::GetTypeName(type);
-		optional_ptr<TypeCatalogEntry> enum_type_catalog;
-		if (catalog) {
-			enum_type_catalog =
-			    catalog->GetEntry<TypeCatalogEntry>(context, schema, enum_type_name, OnEntryNotFound::RETURN_NULL);
-			if (!enum_type_catalog) {
-				// look in the system catalog if the type was not found
-				enum_type_catalog = Catalog::GetEntry<TypeCatalogEntry>(context, SYSTEM_CATALOG, schema, enum_type_name,
-				                                                        OnEntryNotFound::RETURN_NULL);
-			}
-		} else {
-			enum_type_catalog = Catalog::GetEntry<TypeCatalogEntry>(context, INVALID_CATALOG, schema, enum_type_name,
-			                                                        OnEntryNotFound::RETURN_NULL);
-		}
-
-		EnumType::SetCatalog(type, enum_type_catalog.get());
+		BindLogicalType(context, type, catalog, schema);
 	}
 }
 
@@ -292,17 +258,30 @@ static void FindMatchingPrimaryKeyColumns(const ColumnList &columns, const vecto
 		} else {
 			pk_names = unique.columns;
 		}
+		if (find_primary_key) {
+			// found matching primary key
+			if (pk_names.size() != fk.fk_columns.size()) {
+				auto pk_name_str = StringUtil::Join(pk_names, ",");
+				auto fk_name_str = StringUtil::Join(fk.fk_columns, ",");
+				throw BinderException(
+				    "Failed to create foreign key: number of referencing (%s) and referenced columns (%s) differ",
+				    fk_name_str, pk_name_str);
+			}
+			fk.pk_columns = pk_names;
+			return;
+		}
 		if (pk_names.size() != fk.fk_columns.size()) {
 			// the number of referencing and referenced columns for foreign keys must be the same
 			continue;
 		}
-		if (find_primary_key) {
-			// found matching primary key
-			fk.pk_columns = pk_names;
-			return;
+		bool equals = true;
+		for (idx_t i = 0; i < fk.pk_columns.size(); i++) {
+			if (!StringUtil::CIEquals(fk.pk_columns[i], pk_names[i])) {
+				equals = false;
+				break;
+			}
 		}
-		if (fk.pk_columns != pk_names) {
-			// Name mismatch
+		if (!equals) {
 			continue;
 		}
 		// found match
@@ -439,7 +418,7 @@ static bool AnyConstraintReferencesGeneratedColumn(CreateTableInfo &table_info) 
 unique_ptr<LogicalOperator> DuckCatalog::BindCreateIndex(Binder &binder, CreateStatement &stmt,
                                                          TableCatalogEntry &table, unique_ptr<LogicalOperator> plan) {
 	D_ASSERT(plan->type == LogicalOperatorType::LOGICAL_GET);
-	auto &base = (CreateIndexInfo &)*stmt.info;
+	auto &base = stmt.info->Cast<CreateIndexInfo>();
 
 	auto &get = plan->Cast<LogicalGet>();
 	// bind the index expressions
@@ -460,10 +439,14 @@ unique_ptr<LogicalOperator> DuckCatalog::BindCreateIndex(Binder &binder, CreateS
 	create_index_info->scan_types.emplace_back(LogicalType::ROW_TYPE);
 	create_index_info->names = get.names;
 	create_index_info->column_ids = get.column_ids;
+	auto &bind_data = get.bind_data->Cast<TableScanBindData>();
+	bind_data.is_create_index = true;
+	get.column_ids.push_back(COLUMN_IDENTIFIER_ROW_ID);
 
 	// the logical CREATE INDEX also needs all fields to scan the referenced table
-	return make_uniq<LogicalCreateIndex>(std::move(get.bind_data), std::move(create_index_info), std::move(expressions),
-	                                     table, std::move(get.function));
+	auto result = make_uniq<LogicalCreateIndex>(std::move(create_index_info), std::move(expressions), table);
+	result->children.push_back(std::move(plan));
+	return std::move(result);
 }
 
 BoundStatement Binder::Bind(CreateStatement &stmt) {
@@ -477,7 +460,7 @@ BoundStatement Binder::Bind(CreateStatement &stmt) {
 		result.plan = make_uniq<LogicalCreate>(LogicalOperatorType::LOGICAL_CREATE_SCHEMA, std::move(stmt.info));
 		break;
 	case CatalogType::VIEW_ENTRY: {
-		auto &base = (CreateViewInfo &)*stmt.info;
+		auto &base = stmt.info->Cast<CreateViewInfo>();
 		// bind the schema
 		auto &schema = BindCreateSchema(*stmt.info);
 		BindCreateViewInfo(base);
@@ -506,7 +489,12 @@ BoundStatement Binder::Bind(CreateStatement &stmt) {
 		auto &base = stmt.info->Cast<CreateIndexInfo>();
 
 		// visit the table reference
-		auto bound_table = Bind(*base.table);
+		auto table_ref = make_uniq<BaseTableRef>();
+		table_ref->catalog_name = base.catalog;
+		table_ref->schema_name = base.schema;
+		table_ref->table_name = base.table;
+
+		auto bound_table = Bind(*table_ref);
 		if (bound_table->type != TableReferenceType::BASE_TABLE) {
 			throw BinderException("Can only create an index over a base table!");
 		}
@@ -520,7 +508,6 @@ BoundStatement Binder::Bind(CreateStatement &stmt) {
 		if (plan->type != LogicalOperatorType::LOGICAL_GET) {
 			throw BinderException("Cannot create index on a view!");
 		}
-
 		result.plan = table.catalog.BindCreateIndex(*this, stmt, table, std::move(plan));
 		break;
 	}
@@ -540,7 +527,7 @@ BoundStatement Binder::Bind(CreateStatement &stmt) {
 			D_ASSERT(fk.info.pk_keys.empty());
 			D_ASSERT(fk.info.fk_keys.empty());
 			FindForeignKeyIndexes(create_info.columns, fk.fk_columns, fk.info.fk_keys);
-			if (create_info.table == fk.info.table) {
+			if (StringUtil::CIEquals(create_info.table, fk.info.table)) {
 				// self-referential foreign key constraint
 				fk.info.type = ForeignKeyType::FK_TYPE_SELF_REFERENCE_TABLE;
 				FindMatchingPrimaryKeyColumns(create_info.columns, create_info.constraints, fk);
@@ -592,41 +579,28 @@ BoundStatement Binder::Bind(CreateStatement &stmt) {
 	}
 	case CatalogType::TYPE_ENTRY: {
 		auto &schema = BindCreateSchema(*stmt.info);
-		auto &create_type_info = (CreateTypeInfo &)(*stmt.info);
+		auto &create_type_info = stmt.info->Cast<CreateTypeInfo>();
 		result.plan = make_uniq<LogicalCreate>(LogicalOperatorType::LOGICAL_CREATE_TYPE, std::move(stmt.info), &schema);
 		if (create_type_info.query) {
 			// CREATE TYPE mood AS ENUM (SELECT 'happy')
-			auto &select_stmt = create_type_info.query->Cast<SelectStatement>();
-			auto &query_node = *select_stmt.node;
-
-			// We always add distinct modifier implicitly
-			bool need_to_add = true;
-			if (!query_node.modifiers.empty()) {
-				if (query_node.modifiers[0]->type == ResultModifierType::DISTINCT_MODIFIER) {
-					// There are cases where the same column is grouped repeatedly
-					// CREATE TYPE mood AS ENUM (SELECT DISTINCT ON(x) x FROM test);
-					// When we push into a constant expression
-					// => CREATE TYPE mood AS ENUM (SELECT DISTINCT ON(x, x) x FROM test);
-					auto &distinct_modifier = (DistinctModifier &)*query_node.modifiers[0];
-					if (distinct_modifier.distinct_on_targets.empty()) {
-						need_to_add = false;
-					}
-				}
-			}
-
-			// Add distinct modifier
-			if (need_to_add) {
-				auto distinct_modifier = make_uniq<DistinctModifier>();
-				query_node.modifiers.emplace(query_node.modifiers.begin(), std::move(distinct_modifier));
-			}
-
 			auto query_obj = Bind(*create_type_info.query);
 			auto query = std::move(query_obj.plan);
+			create_type_info.query.reset();
 
 			auto &sql_types = query_obj.types;
-			if (sql_types.size() != 1 || sql_types[0].id() != LogicalType::VARCHAR) {
+			if (sql_types.size() != 1) {
 				// add cast expression?
-				throw BinderException("The query must return one varchar column");
+				throw BinderException("The query must return a single column");
+			}
+			if (sql_types[0].id() != LogicalType::VARCHAR) {
+				// push a projection casting to varchar
+				vector<unique_ptr<Expression>> select_list;
+				auto ref = make_uniq<BoundColumnRefExpression>(sql_types[0], query->GetColumnBindings()[0]);
+				auto cast_expr = BoundCastExpression::AddCastToType(context, std::move(ref), LogicalType::VARCHAR);
+				select_list.push_back(std::move(cast_expr));
+				auto proj = make_uniq<LogicalProjection>(GenerateTableIndex(), std::move(select_list));
+				proj->AddChild(std::move(query));
+				query = std::move(proj);
 			}
 
 			result.plan->AddChild(std::move(query));
@@ -638,36 +612,8 @@ BoundStatement Binder::Bind(CreateStatement &stmt) {
 			// We set b to be an alias for the underlying type of a
 			auto inner_type = Catalog::GetType(context, schema.catalog.GetName(), schema.name,
 			                                   UserType::GetTypeName(create_type_info.type));
-			// clear to nullptr, we don't need this
-			EnumType::SetCatalog(inner_type, nullptr);
 			inner_type.SetAlias(create_type_info.name);
 			create_type_info.type = inner_type;
-		}
-		break;
-	}
-	case CatalogType::DATABASE_ENTRY: {
-		// not supported in DuckDB yet but allow extensions to intercept and implement this functionality
-		auto &base = (CreateDatabaseInfo &)*stmt.info;
-		string database_name = base.name;
-		string source_path = base.path;
-
-		auto &config = DBConfig::GetConfig(context);
-
-		if (config.storage_extensions.empty()) {
-			throw NotImplementedException("CREATE DATABASE not supported in DuckDB yet");
-		}
-		// for now assume only one storage extension provides the custom create_database impl
-		for (auto &extension_entry : config.storage_extensions) {
-			if (extension_entry.second->create_database != nullptr) {
-				auto &storage_extension = extension_entry.second;
-				auto create_database_function_ref = storage_extension->create_database(
-				    storage_extension->storage_info.get(), context, database_name, source_path);
-				if (create_database_function_ref) {
-					auto bound_create_database_func = Bind(*create_database_function_ref);
-					result.plan = CreatePlan(*bound_create_database_func);
-					break;
-				}
-			}
 		}
 		break;
 	}

@@ -73,7 +73,7 @@ public:
 	duckdb::unique_ptr<data_t[]> read_buffer;
 	constexpr static idx_t READ_BUFFER_LEN = 1000000;
 
-	HTTPState *state;
+	shared_ptr<HTTPState> state;
 
 public:
 	void Close() override {
@@ -129,10 +129,15 @@ public:
 	bool OnDiskFile(FileHandle &handle) override {
 		return false;
 	}
+	bool IsPipe(const string &filename) override {
+		return false;
+	}
 	string GetName() const override {
 		return "HTTPFileSystem";
 	}
-
+	string PathSeparator(const string &path) override {
+		return "/";
+	}
 	static void Verify();
 
 	// Global cache

@@ -43,7 +43,7 @@ public:
 // Sink
 //===--------------------------------------------------------------------===//
 
-void MoveTmpFile(ClientContext &context, const string &tmp_file_path) {
+void PhysicalCopyToFile::MoveTmpFile(ClientContext &context, const string &tmp_file_path) {
 	auto &fs = FileSystem::GetFileSystem(context);
 	auto file_path = tmp_file_path.substr(0, tmp_file_path.length() - 4);
 	if (fs.FileExists(file_path)) {
@@ -58,22 +58,21 @@ PhysicalCopyToFile::PhysicalCopyToFile(vector<LogicalType> types, CopyFunction f
       function(std::move(function_p)), bind_data(std::move(bind_data)), parallel(false) {
 }
 
-SinkResultType PhysicalCopyToFile::Sink(ExecutionContext &context, GlobalSinkState &gstate, LocalSinkState &lstate,
-                                        DataChunk &input) const {
-	auto &g = gstate.Cast<CopyToFunctionGlobalState>();
-	auto &l = lstate.Cast<CopyToFunctionLocalState>();
+SinkResultType PhysicalCopyToFile::Sink(ExecutionContext &context, DataChunk &chunk, OperatorSinkInput &input) const {
+	auto &g = input.global_state.Cast<CopyToFunctionGlobalState>();
+	auto &l = input.local_state.Cast<CopyToFunctionLocalState>();
 
 	if (partition_output) {
-		l.part_buffer->Append(*l.part_buffer_append_state, input);
+		l.part_buffer->Append(*l.part_buffer_append_state, chunk);
 		return SinkResultType::NEED_MORE_INPUT;
 	}
 
 	{
 		lock_guard<mutex> glock(g.lock);
-		g.rows_copied += input.size();
+		g.rows_copied += chunk.size();
 	}
 	function.copy_to_sink(context, *bind_data, per_thread_output ? *l.global_state : *g.global_state, *l.local_state,
-	                      input);
+	                      chunk);
 	return SinkResultType::NEED_MORE_INPUT;
 }
 
@@ -98,9 +97,9 @@ static string CreateDirRecursive(const vector<idx_t> &cols, const vector<string>
 	return path;
 }
 
-void PhysicalCopyToFile::Combine(ExecutionContext &context, GlobalSinkState &gstate, LocalSinkState &lstate) const {
-	auto &g = gstate.Cast<CopyToFunctionGlobalState>();
-	auto &l = lstate.Cast<CopyToFunctionLocalState>();
+SinkCombineResultType PhysicalCopyToFile::Combine(ExecutionContext &context, OperatorSinkCombineInput &input) const {
+	auto &g = input.global_state.Cast<CopyToFunctionGlobalState>();
+	auto &l = input.local_state.Cast<CopyToFunctionLocalState>();
 
 	if (partition_output) {
 		auto &fs = FileSystem::GetFileSystem(context.client);
@@ -109,7 +108,7 @@ void PhysicalCopyToFile::Combine(ExecutionContext &context, GlobalSinkState &gst
 		auto partition_key_map = l.part_buffer->GetReverseMap();
 
 		string trimmed_path = file_path;
-		StringUtil::RTrim(trimmed_path, fs.PathSeparator());
+		StringUtil::RTrim(trimmed_path, fs.PathSeparator(trimmed_path));
 
 		for (idx_t i = 0; i < partitions.size(); i++) {
 			string hive_path =
@@ -131,7 +130,7 @@ void PhysicalCopyToFile::Combine(ExecutionContext &context, GlobalSinkState &gst
 			function.copy_to_finalize(context.client, *bind_data, *fun_data_global);
 		}
 
-		return;
+		return SinkCombineResultType::FINISHED;
 	}
 
 	if (function.copy_to_combine) {
@@ -142,11 +141,13 @@ void PhysicalCopyToFile::Combine(ExecutionContext &context, GlobalSinkState &gst
 			function.copy_to_finalize(context.client, *bind_data, *l.global_state);
 		}
 	}
+
+	return SinkCombineResultType::FINISHED;
 }
 
 SinkFinalizeType PhysicalCopyToFile::Finalize(Pipeline &pipeline, Event &event, ClientContext &context,
-                                              GlobalSinkState &gstate_p) const {
-	auto &gstate = gstate_p.Cast<CopyToFunctionGlobalState>();
+                                              OperatorSinkFinalizeInput &input) const {
+	auto &gstate = input.global_state.Cast<CopyToFunctionGlobalState>();
 	if (per_thread_output || partition_output) {
 		// already happened in combine
 		return SinkFinalizeType::READY;
@@ -208,8 +209,7 @@ unique_ptr<GlobalSinkState> PhysicalCopyToFile::GetGlobalSinkState(ClientContext
 			fs.CreateDirectory(file_path);
 		} else if (!overwrite_or_ignore) {
 			idx_t n_files = 0;
-			fs.ListFiles(
-			    file_path, [&n_files](const string &path, bool) { n_files++; }, FileOpener::Get(context));
+			fs.ListFiles(file_path, [&n_files](const string &path, bool) { n_files++; });
 			if (n_files > 0) {
 				throw IOException("Directory %s is not empty! Enable OVERWRITE_OR_IGNORE option to force writing",
 				                  file_path);
@@ -231,29 +231,15 @@ unique_ptr<GlobalSinkState> PhysicalCopyToFile::GetGlobalSinkState(ClientContext
 //===--------------------------------------------------------------------===//
 // Source
 //===--------------------------------------------------------------------===//
-class CopyToFileState : public GlobalSourceState {
-public:
-	CopyToFileState() : finished(false) {
-	}
 
-	bool finished;
-};
-
-unique_ptr<GlobalSourceState> PhysicalCopyToFile::GetGlobalSourceState(ClientContext &context) const {
-	return make_uniq<CopyToFileState>();
-}
-
-void PhysicalCopyToFile::GetData(ExecutionContext &context, DataChunk &chunk, GlobalSourceState &gstate,
-                                 LocalSourceState &lstate) const {
-	auto &state = (CopyToFileState &)gstate;
+SourceResultType PhysicalCopyToFile::GetData(ExecutionContext &context, DataChunk &chunk,
+                                             OperatorSourceInput &input) const {
 	auto &g = sink_state->Cast<CopyToFunctionGlobalState>();
-	if (state.finished) {
-		return;
-	}
 
 	chunk.SetCardinality(1);
 	chunk.SetValue(0, 0, Value::BIGINT(g.rows_copied));
-	state.finished = true;
+
+	return SourceResultType::FINISHED;
 }
 
 } // namespace duckdb

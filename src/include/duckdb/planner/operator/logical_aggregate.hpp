@@ -35,7 +35,7 @@ public:
 	//! The set of grouping sets (optional).
 	vector<GroupingSet> grouping_sets;
 	//! The list of grouping function calls (optional)
-	vector<vector<idx_t>> grouping_functions;
+	vector<unsafe_vector<idx_t>> grouping_functions;
 	//! Group statistics (optional)
 	vector<unique_ptr<BaseStatistics>> group_stats;
 
@@ -45,8 +45,12 @@ public:
 	vector<ColumnBinding> GetColumnBindings() override;
 	void Serialize(FieldWriter &writer) const override;
 	static unique_ptr<LogicalOperator> Deserialize(LogicalDeserializationState &state, FieldReader &reader);
+
+	void FormatSerialize(FormatSerializer &serializer) const override;
+	static unique_ptr<LogicalOperator> FormatDeserialize(FormatDeserializer &deserializer);
 	idx_t EstimateCardinality(ClientContext &context) override;
 	vector<idx_t> GetTableIndex() const override;
+	string GetName() const override;
 
 protected:
 	void ResolveTypes() override;

@@ -1,6 +1,7 @@
 add_subdirectory(buffer)
 add_subdirectory(checkpoint)
 add_subdirectory(compression)
+add_subdirectory(serialization)
 add_subdirectory(statistics)
 add_subdirectory(table)
 
@@ -21,6 +22,7 @@ add_library_unity(
   standard_buffer_manager.cpp
   table_index_list.cpp
   write_ahead_log.cpp
+  optimistic_data_writer.cpp
   partial_block_manager.cpp
   single_file_block_manager.cpp
   storage_info.cpp
