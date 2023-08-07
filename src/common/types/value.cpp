@@ -679,7 +679,7 @@ Value Value::STRUCT(child_list_t<Value> values) {
 	return Value::STRUCT(LogicalType::STRUCT(child_types), std::move(struct_values));
 }
 
-Value Value::KEY_VALUE(Value &key, Value &value) {
+Value Value::KEY_VALUE(const Value &key, const Value &value) {
 	return Value::STRUCT({{"key", key}, {"value", value}});
 }
 

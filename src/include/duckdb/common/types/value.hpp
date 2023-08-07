@@ -175,7 +175,7 @@ public:
 	DUCKDB_API static Value MAP(const LogicalType &key_type, const LogicalType &value_type, vector<Value> keys,
 	                            vector<Value> values);
 	//! Create a key/value pair for use in a MAP
-	DUCKDB_API static Value KEY_VALUE(Value &key, Value &value);
+	DUCKDB_API static Value KEY_VALUE(const Value &key, const Value &value);
 	//! Create a union value from a selected value and a tag from a set of alternatives.
 	DUCKDB_API static Value UNION(child_list_t<LogicalType> members, uint8_t tag, Value value);
 
