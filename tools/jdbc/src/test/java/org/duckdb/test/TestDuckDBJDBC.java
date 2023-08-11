@@ -3618,6 +3618,17 @@ public class TestDuckDBJDBC {
         }
     }
 
+    public static void test_version() throws Exception {
+        try (Connection conn = DriverManager.getConnection("jdbc:duckdb:")) {
+            DatabaseMetaData metaData = conn.getMetaData();
+
+            // can't really assert on the value without having to change it each release, so just test with a dummy
+            // value
+            assertTrue(metaData.getDatabaseMajorVersion() > -1);
+            assertTrue(metaData.getDatabaseMinorVersion() > -1);
+        }
+    }
+
     public static void main(String[] args) throws Exception {
         // Woo I can do reflection too, take this, JUnit!
         Method[] methods = TestDuckDBJDBC.class.getMethods();

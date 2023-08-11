@@ -11,6 +11,8 @@ import java.sql.RowIdLifetime;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 import java.sql.Statement;
+import java.util.Arrays;
+import java.util.List;
 
 import static java.lang.System.lineSeparator;
 
@@ -85,8 +87,7 @@ public class DuckDBDatabaseMetaData implements DatabaseMetaData {
     public String getDatabaseProductVersion() throws SQLException {
         try (Statement s = conn.createStatement(); ResultSet rs = s.executeQuery("PRAGMA version")) {
             rs.next();
-            String result = rs.getString(1);
-            return result;
+            return rs.getString(1);
         }
     }
 
@@ -1087,14 +1088,25 @@ public class DuckDBDatabaseMetaData implements DatabaseMetaData {
         throw new SQLFeatureNotSupportedException("getResultSetHoldability");
     }
 
+    private int[] getDatabaseVersion() throws SQLException {
+        try (PreparedStatement preparedStatement =
+                 this.getConnection().prepareStatement("select version().split('.').list_transform(x -> x::int)")) {
+            try (ResultSet resultSet = preparedStatement.executeQuery()) {
+                resultSet.next();
+
+                return (int[]) resultSet.getArray(1).getArray();
+            }
+        }
+    }
+
     @Override
     public int getDatabaseMajorVersion() throws SQLException {
-        return 1;
+        return getDatabaseVersion()[0];
     }
 
     @Override
     public int getDatabaseMinorVersion() throws SQLException {
-        return 0;
+        return getDatabaseVersion()[1];
     }
 
     @Override
