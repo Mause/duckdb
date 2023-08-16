@@ -224,6 +224,7 @@ private:
 
 	static PythonEnvironmentType environment;
 	static void DetectEnvironment();
+	void LoadEntrypointExtension(const string &extension) const;
 };
 
 template <typename T>
