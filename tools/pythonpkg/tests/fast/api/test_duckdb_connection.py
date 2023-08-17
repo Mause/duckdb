@@ -283,6 +283,10 @@ class TestDuckDBConnection(object):
     def test_docstrings(self, method: str) -> None:
         wrapper = getattr(duckdb, method)
         original = getattr(duckdb.default_connection, method)
+
+        if callable(original):  # only functions, classes, and modules can have docstrings
+            assert getdocstring(original)
+
         assert getdocstring(wrapper) == getdocstring(original)
 
 
