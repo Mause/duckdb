@@ -10,6 +10,7 @@ struct DuckDBSettingValue {
 	string value;
 	string description;
 	string input_type;
+	string type;
 };
 
 struct DuckDBSettingsData : public GlobalTableFunctionState {
@@ -34,6 +35,9 @@ static unique_ptr<FunctionData> DuckDBSettingsBind(ClientContext &context, Table
 	names.emplace_back("input_type");
 	return_types.emplace_back(LogicalType::VARCHAR);
 
+	names.emplace_back("type");
+	return_types.emplace_back(LogicalType::VARCHAR);
+
 	return nullptr;
 }
 
@@ -50,6 +54,13 @@ unique_ptr<GlobalTableFunctionState> DuckDBSettingsInit(ClientContext &context, 
 		value.value = option->get_setting(context).ToString();
 		value.description = option->description;
 		value.input_type = EnumUtil::ToString(option->parameter_type);
+		if (option->set_global) {
+			value.type = "global";
+		} else if (option->set_local) {
+			value.type = "local";
+		} else {
+			D_ASSERT(0);
+		}
 
 		result->settings.push_back(std::move(value));
 	}
@@ -64,6 +75,7 @@ unique_ptr<GlobalTableFunctionState> DuckDBSettingsInit(ClientContext &context, 
 		value.value = std::move(setting_str_val);
 		value.description = ext_param.second.description;
 		value.input_type = ext_param.second.type.ToString();
+		value.type = "EXTENSION";
 
 		result->settings.push_back(std::move(value));
 	}
@@ -91,6 +103,7 @@ void DuckDBSettingsFunction(ClientContext &context, TableFunctionInput &data_p, 
 		output.SetValue(2, count, Value(entry.description));
 		// input_type, LogicalType::VARCHAR
 		output.SetValue(3, count, Value(entry.input_type));
+		output.SetValue(4, count, Value(entry.type));
 		count++;
 	}
 	output.SetCardinality(count);
