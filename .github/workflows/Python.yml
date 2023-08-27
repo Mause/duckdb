@@ -173,6 +173,8 @@ jobs:
       shell: bash
       run: pip install cibuildwheel>=2.15.0 twine pip setuptools wheel -U
 
+    - run: pip install git+https://github.com/pypa/pip#egg=pip
+
 #    - uses: actions/download-artifact@v3
 #      if: ${{ matrix.arch == 'x86_64' }}
 #      with:
