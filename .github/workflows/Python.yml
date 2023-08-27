@@ -171,7 +171,7 @@ jobs:
 
     - name: Install
       shell: bash
-      run: pip install cibuildwheel>=2.15.0 twine
+      run: pip install cibuildwheel>=2.15.0 twine pip setuptools -U
 
 #    - uses: actions/download-artifact@v3
 #      if: ${{ matrix.arch == 'x86_64' }}
