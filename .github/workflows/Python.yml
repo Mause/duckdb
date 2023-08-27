@@ -173,11 +173,11 @@ jobs:
       shell: bash
       run: pip install cibuildwheel>=2.15.0 twine
 
-    - uses: actions/download-artifact@v3
-      if: ${{ matrix.arch == 'x86_64' }}
-      with:
-        name: manylinux-extensions-x64
-        path: tools/pythonpkg
+#    - uses: actions/download-artifact@v3
+#      if: ${{ matrix.arch == 'x86_64' }}
+#      with:
+#        name: manylinux-extensions-x64
+#        path: tools/pythonpkg
 
     - name: List extensions to be tested
       shell: bash
