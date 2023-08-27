@@ -62,7 +62,7 @@ jobs:
 
     - name: Install
       shell: bash
-      run: pip install cibuildwheel twine
+      run: pip install cibuildwheel>=2.15.0 twine
 
     - name: Setup Ccache
       uses: hendrikmuhs/ccache-action@main
@@ -171,7 +171,7 @@ jobs:
 
     - name: Install
       shell: bash
-      run: pip install cibuildwheel twine
+      run: pip install cibuildwheel>=2.15.0 twine
 
     - uses: actions/download-artifact@v3
       if: ${{ matrix.arch == 'x86_64' }}
@@ -240,7 +240,7 @@ jobs:
 
       - name: Install
         shell: bash
-        run: pip install cibuildwheel twine
+        run: pip install cibuildwheel>=2.15.0 twine
 
       - name: Setup Ccache
         uses: hendrikmuhs/ccache-action@main
@@ -307,7 +307,7 @@ jobs:
 
       - name: Install
         shell: bash
-        run: pip install cibuildwheel twine
+        run: pip install cibuildwheel>=2.15.0 twine
 
       - name: Setup Ccache
         uses: hendrikmuhs/ccache-action@main
