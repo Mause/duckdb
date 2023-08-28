@@ -48,9 +48,7 @@ runs:
       shell: bash
       run: scripts/setup_manylinux2014.sh general
 
-    - run: |
-        echo "/opt/_internal/cpython-3.10.12/bin" >> $GITHUB_PATH
-        echo "/usr/local/bin/" >> $GITHUB_PATH
+    - run: echo "/opt/_internal/cpython-3.10.12/bin" >> $GITHUB_PATH
       name: Add Python to PATH
       shell: bash
 

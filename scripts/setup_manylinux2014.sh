@@ -22,12 +22,10 @@ install_deps() {
     git config --global --add safe.directory '*'
     yum install -y curl zip unzip tar
     # yum install -y ninja-build
-    /usr/local/bin/python3.9 -m pip install ninja
+    python3.10 -m pip install ninja
 
   elif [ "$1" = "aws-cli" ]; then
-    /usr/local/bin/python3.9 -m pip install awscli
-    /usr/local/bin/python3.9 -c 'print(__import__("sys").exec_prefix)'
-    /usr/local/bin/aws --version
+    python3.10 -m pip install awscli
     aws --version
 
   elif [ "$1" = "odbc" ]; then
@@ -54,7 +52,7 @@ install_deps() {
     yum -y install ccache
 
   elif [ "$1" = "python_alias" ]; then
-    ln -fs /usr/local/bin/python3.9 /usr/local/bin/python3
+    ln -fs /usr/local/bin/python3.10 /usr/local/bin/python3
 
   elif [ "$1" = "jdk" ]; then
     yum install -y java-11-openjdk-devel maven
