@@ -53,10 +53,9 @@ runs:
       shell: bash
 
     - name: Install AWS CLI
+      if: ${{ inputs.aws-cli == 1 }}
       shell: bash
-      run: |
-        python3.10 -m pip install awscli
-        aws --version
+      run: scripts/setup_manylinux2014.sh aws-cli
 
     - name: Setup dependencies for ODBC
       if: ${{ inputs.odbc == 1 }}

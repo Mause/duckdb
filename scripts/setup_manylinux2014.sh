@@ -25,9 +25,7 @@ install_deps() {
     /usr/local/bin/python3.9 -m pip install ninja
 
   elif [ "$1" = "aws-cli" ]; then
-    curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-    unzip awscliv2.zip
-    ./aws/install
+    /usr/local/bin/python3.9 -m pip install awscli
     aws --version
 
   elif [ "$1" = "odbc" ]; then
