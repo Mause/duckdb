@@ -112,4 +112,5 @@ runs:
       uses: hendrikmuhs/ccache-action@main
       with:
         key: ${{ github.job }}
+        variant: sccache
         save: ${{ github.ref == 'refs/heads/main' || github.repository != 'duckdb/duckdb' }}
