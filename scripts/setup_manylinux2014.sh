@@ -16,13 +16,16 @@
 # > VCPKG_TARGET_DIR=/tmp scripts/setup_manylinux2014.sh general vcpkg openssl ccache jdk
 #
 
+python3.10 -m pip install pipx
+python3.10 -m pipx ensurepath
+
 # Installs deps for a specific required dependency
 install_deps() {
   if [ "$1" = "general" ]; then
     git config --global --add safe.directory '*'
     yum install -y curl zip unzip tar
     # yum install -y ninja-build
-    python3.10 -m pip install ninja
+    pipx install ninja
 
   elif [ "$1" = "aws-cli" ]; then
     curl "https://awscli.amazonaws.com/awscli-exe-linux-$(uname --machine).zip" -o "awscliv2.zip"
