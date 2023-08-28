@@ -21,7 +21,8 @@ install_deps() {
   if [ "$1" = "general" ]; then
     git config --global --add safe.directory '*'
     yum install -y curl zip unzip tar
-    yum install -y ninja-build
+    # yum install -y ninja-build
+    pip install ninja
 
   elif [ "$1" = "aws-cli" ]; then
     curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
