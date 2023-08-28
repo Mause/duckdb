@@ -54,7 +54,7 @@ install_deps() {
     yum install -y perl-IPC-Cmd
 
   elif [ "$1" = "ccache" ]; then
-    yum -y install ccache
+    pipx install sccache
 
   elif [ "$1" = "python_alias" ]; then
     ln -fs /usr/local/bin/python3.10 /usr/local/bin/python3
