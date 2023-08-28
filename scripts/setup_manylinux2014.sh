@@ -26,8 +26,8 @@ install_deps() {
 
   elif [ "$1" = "aws-cli" ]; then
     /usr/local/bin/python3.9 -m pip install awscli
-    /usr/local/bin/python3.9 -c 'print(sys.exec_prefix)'
-    /usr/local/bin/python3.9 -m aws --version
+    /usr/local/bin/python3.9 -c 'print(__import__("sys").exec_prefix)'
+    /usr/local/bin/aws --version
     aws --version
 
   elif [ "$1" = "odbc" ]; then
