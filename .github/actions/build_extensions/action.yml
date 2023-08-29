@@ -123,7 +123,6 @@ runs:
     - name: Build
       shell: bash
       env:
-        GEN: ninja
         TREAT_WARNINGS_AS_ERRORS: ${{ inputs.treat_warn_as_error}}
         FORCE_WARN_UNUSED: 1
         STATIC_OPENSSL: 1
