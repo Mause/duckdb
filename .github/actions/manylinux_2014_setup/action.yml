@@ -100,12 +100,10 @@ runs:
       with:
         vcpkgGitCommitId: 501db0f17ef6df184fcdbfbe0f87cde2313b6ab1
 
-    - name: Install OpenSSL 1.1.1k
-      shell: sh
-      if: inputs.openssl == 1
-      run: |
-        yum-config-manager --add-repo https://duckdb-rpms.s3.us-west-2.amazonaws.com/duckdb-rpms.repo
-        yum install -y openssl11-devel openssl11-libs openssl11-static openssl11
+    - name: Install OpenSSL
+      if: ${{ inputs.openssl == 1 }}
+      shell: bash
+      run: scripts/setup_manylinux2014.sh openssl
 
     - name: Setup Ccache
       if: ${{ inputs.ccache == 1 }}

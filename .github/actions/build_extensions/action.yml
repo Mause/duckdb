@@ -127,8 +127,6 @@ runs:
         FORCE_WARN_UNUSED: 1
         STATIC_OPENSSL: 1
         EXTENSION_STATIC_BUILD: ${{ inputs.static_link_build }}
-        OPENSSL_ROOT_DIR: ${{ inputs.openssl_path }}
-        CMAKE_VARS: -DOPENSSL_INCLUDE_DIR=/usr/include/openssl11 -DOPENSSL_CRYPTO_LIBRARY=/usr/lib64/openssl11/libcrypto.so -DOPENSSL_SSL_LIBRARY=/usr/lib64/openssl11/libssl.so
         OSX_BUILD_UNIVERSAL: ${{ inputs.osx_universal }}
         OSX_BUILD_ARCH: ${{ inputs.osx_arch }}
         DISABLE_BUILTIN_EXTENSIONS: ${{ inputs.no_static_linking}}
