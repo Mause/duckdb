@@ -99,7 +99,7 @@ struct ICUDateTrunc : public ICUDateFunc {
 		auto &date_arg = args.data[1];
 
 		auto &func_expr = state.expr.Cast<BoundFunctionExpression>();
-		auto &info = (BindData &)*func_expr.bind_info;
+		auto &info = func_expr.bind_info->Cast<BindData>();
 		CalendarPtr calendar(info.calendar->clone());
 
 		if (part_arg.GetVectorType() == VectorType::CONSTANT_VECTOR) {
@@ -175,6 +175,7 @@ ICUDateFunc::part_trunc_t ICUDateFunc::TruncationFactory(DatePartSpecifier type)
 	case DatePartSpecifier::DOW:
 	case DatePartSpecifier::ISODOW:
 	case DatePartSpecifier::DOY:
+	case DatePartSpecifier::JULIAN_DAY:
 		return ICUDateTrunc::TruncDay;
 	case DatePartSpecifier::HOUR:
 		return ICUDateTrunc::TruncHour;

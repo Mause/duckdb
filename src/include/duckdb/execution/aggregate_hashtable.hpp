@@ -73,7 +73,7 @@ struct AggregateHTAppendState {
 	SelectionVector empty_vector;
 	SelectionVector new_groups;
 	Vector addresses;
-	unique_ptr<UnifiedVectorFormat[]> group_data;
+	unsafe_unique_array<UnifiedVectorFormat> group_data;
 	DataChunk group_chunk;
 
 	TupleDataChunkState chunk_state;
@@ -102,9 +102,10 @@ public:
 	//! Add the given data to the HT, computing the aggregates grouped by the
 	//! data in the group chunk. When resize = true, aggregates will not be
 	//! computed but instead just assigned.
-	idx_t AddChunk(AggregateHTAppendState &state, DataChunk &groups, DataChunk &payload, const vector<idx_t> &filter);
+	idx_t AddChunk(AggregateHTAppendState &state, DataChunk &groups, DataChunk &payload,
+	               const unsafe_vector<idx_t> &filter);
 	idx_t AddChunk(AggregateHTAppendState &state, DataChunk &groups, Vector &group_hashes, DataChunk &payload,
-	               const vector<idx_t> &filter);
+	               const unsafe_vector<idx_t> &filter);
 	idx_t AddChunk(AggregateHTAppendState &state, DataChunk &groups, DataChunk &payload, AggregateType filter);
 
 	//! Scan the HT starting from the scan_position until the result and group
@@ -127,6 +128,9 @@ public:
 	//! Executes the filter(if any) and update the aggregates
 	void Combine(GroupedAggregateHashTable &other);
 
+	//! Appends the data in the other HT to this one
+	void Append(GroupedAggregateHashTable &other);
+
 	TupleDataCollection &GetDataCollection() {
 		return *data_collection;
 	}
@@ -135,16 +139,29 @@ public:
 		return data_collection->Count();
 	}
 
+	idx_t DataSize() const {
+		return data_collection->SizeInBytes();
+	}
+
 	static idx_t InitialCapacity();
 	idx_t Capacity() {
 		return capacity;
+	}
+
+	static idx_t FirstPartSize(idx_t count, HtEntryType entry_type) {
+		idx_t entry_size = entry_type == HT_WIDTH_32 ? sizeof(aggr_ht_entry_32) : sizeof(aggr_ht_entry_64);
+		return NextPowerOfTwo(count * 2L) * entry_size;
+	}
+
+	idx_t TotalSize() const {
+		return DataSize() + FirstPartSize(Count(), entry_type);
 	}
 
 	idx_t ResizeThreshold();
 	idx_t MaxCapacity();
 	static idx_t GetMaxCapacity(HtEntryType entry_type, idx_t tuple_size);
 
-	void Partition(vector<GroupedAggregateHashTable *> &partition_hts, idx_t radix_bits);
+	void Partition(vector<GroupedAggregateHashTable *> &partition_hts, idx_t radix_bits, bool sink_done);
 	void InitializeFirstPart();
 
 	void Finalize();
@@ -164,7 +181,7 @@ private:
 	vector<data_ptr_t> payload_hds_ptrs;
 
 	//! The hashes of the HT
-	BufferHandle hashes_hdl;
+	AllocatedData hashes_hdl;
 	data_ptr_t hashes_hdl_ptr;
 	idx_t hash_offset; // Offset into the layout of the hash column
 
@@ -177,8 +194,10 @@ private:
 
 	vector<ExpressionType> predicates;
 
-	//! The arena allocator used by the aggregates for their internal state
+	//! The active arena allocator used by the aggregates for their internal state
 	shared_ptr<ArenaAllocator> aggregate_allocator;
+	//! Owning arena allocators that this HT has data from
+	vector<shared_ptr<ArenaAllocator>> stored_allocators;
 
 private:
 	GroupedAggregateHashTable(const GroupedAggregateHashTable &) = delete;

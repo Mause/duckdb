@@ -10,6 +10,7 @@
 #include "duckdb/common/types/time.hpp"
 #include "duckdb/common/types/timestamp.hpp"
 #include "duckdb/common/vector_operations/vector_operations.hpp"
+#include "duckdb/common/enum_util.hpp"
 #include "duckdb/function/scalar/operators.hpp"
 #include "duckdb/planner/expression/bound_function_expression.hpp"
 #include "duckdb/function/scalar/nested_functions.hpp"
@@ -33,6 +34,9 @@ static scalar_function_t GetScalarIntegerFunction(PhysicalType type) {
 		break;
 	case PhysicalType::INT64:
 		function = &ScalarFunction::BinaryFunction<int64_t, int64_t, int64_t, OP>;
+		break;
+	case PhysicalType::INT128:
+		function = &ScalarFunction::BinaryFunction<hugeint_t, hugeint_t, hugeint_t, OP>;
 		break;
 	case PhysicalType::UINT8:
 		function = &ScalarFunction::BinaryFunction<uint8_t, uint8_t, uint8_t, OP>;
@@ -248,16 +252,15 @@ unique_ptr<FunctionData> BindDecimalAddSubtract(ClientContext &context, ScalarFu
 
 static void SerializeDecimalArithmetic(FieldWriter &writer, const FunctionData *bind_data_p,
                                        const ScalarFunction &function) {
-	D_ASSERT(bind_data_p);
-	auto bind_data = (DecimalArithmeticBindData *)bind_data_p;
-	writer.WriteField(bind_data->check_overflow);
+	auto &bind_data = bind_data_p->Cast<DecimalArithmeticBindData>();
+	writer.WriteField(bind_data.check_overflow);
 	writer.WriteSerializable(function.return_type);
 	writer.WriteRegularSerializableList(function.arguments);
 }
 
 // TODO this is partially duplicated from the bind
 template <class OP, class OPOVERFLOWCHECK, bool IS_SUBTRACT = false>
-unique_ptr<FunctionData> DeserializeDecimalArithmetic(ClientContext &context, FieldReader &reader,
+unique_ptr<FunctionData> DeserializeDecimalArithmetic(PlanDeserializationState &state, FieldReader &reader,
                                                       ScalarFunction &bound_function) {
 	// re-change the function pointers
 	auto check_overflow = reader.ReadRequired<bool>();
@@ -302,7 +305,7 @@ ScalarFunction AddFun::GetFunction(const LogicalType &left_type, const LogicalTy
 			function.serialize = SerializeDecimalArithmetic;
 			function.deserialize = DeserializeDecimalArithmetic<AddOperator, DecimalAddOverflowCheck>;
 			return function;
-		} else if (left_type.IsIntegral() && left_type.id() != LogicalTypeId::HUGEINT) {
+		} else if (left_type.IsIntegral()) {
 			return ScalarFunction("+", {left_type, right_type}, left_type,
 			                      GetScalarIntegerFunction<AddOperatorOverflowCheck>(left_type.InternalType()), nullptr,
 			                      nullptr, PropagateNumericStats<TryAddOperator, AddPropagateStatistics, AddOperator>);
@@ -365,8 +368,8 @@ ScalarFunction AddFun::GetFunction(const LogicalType &left_type, const LogicalTy
 		break;
 	}
 	// LCOV_EXCL_START
-	throw NotImplementedException("AddFun for types %s, %s", LogicalTypeIdToString(left_type.id()),
-	                              LogicalTypeIdToString(right_type.id()));
+	throw NotImplementedException("AddFun for types %s, %s", EnumUtil::ToString(left_type.id()),
+	                              EnumUtil::ToString(right_type.id()));
 	// LCOV_EXCL_STOP
 }
 
@@ -564,7 +567,7 @@ ScalarFunction SubtractFun::GetFunction(const LogicalType &left_type, const Logi
 			function.serialize = SerializeDecimalArithmetic;
 			function.deserialize = DeserializeDecimalArithmetic<SubtractOperator, DecimalSubtractOverflowCheck>;
 			return function;
-		} else if (left_type.IsIntegral() && left_type.id() != LogicalTypeId::HUGEINT) {
+		} else if (left_type.IsIntegral()) {
 			return ScalarFunction(
 			    "-", {left_type, right_type}, left_type,
 			    GetScalarIntegerFunction<SubtractOperatorOverflowCheck>(left_type.InternalType()), nullptr, nullptr,
@@ -617,8 +620,8 @@ ScalarFunction SubtractFun::GetFunction(const LogicalType &left_type, const Logi
 		break;
 	}
 	// LCOV_EXCL_START
-	throw NotImplementedException("SubtractFun for types %s, %s", LogicalTypeIdToString(left_type.id()),
-	                              LogicalTypeIdToString(right_type.id()));
+	throw NotImplementedException("SubtractFun for types %s, %s", EnumUtil::ToString(left_type.id()),
+	                              EnumUtil::ToString(right_type.id()));
 	// LCOV_EXCL_STOP
 }
 
@@ -768,7 +771,7 @@ void MultiplyFun::RegisterFunction(BuiltinFunctions &set) {
 			function.serialize = SerializeDecimalArithmetic;
 			function.deserialize = DeserializeDecimalArithmetic<MultiplyOperator, DecimalMultiplyOverflowCheck>;
 			functions.AddFunction(function);
-		} else if (TypeIsIntegral(type.InternalType()) && type.id() != LogicalTypeId::HUGEINT) {
+		} else if (TypeIsIntegral(type.InternalType())) {
 			functions.AddFunction(ScalarFunction(
 			    {type, type}, type, GetScalarIntegerFunction<MultiplyOperatorOverflowCheck>(type.InternalType()),
 			    nullptr, nullptr,

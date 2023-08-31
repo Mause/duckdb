@@ -117,7 +117,8 @@ PhysicalHashAggregate::PhysicalHashAggregate(ClientContext &context, vector<Logi
                                              vector<unique_ptr<Expression>> expressions,
                                              vector<unique_ptr<Expression>> groups_p,
                                              vector<GroupingSet> grouping_sets_p,
-                                             vector<vector<idx_t>> grouping_functions_p, idx_t estimated_cardinality)
+                                             vector<unsafe_vector<idx_t>> grouping_functions_p,
+                                             idx_t estimated_cardinality)
     : PhysicalOperator(PhysicalOperatorType::HASH_GROUP_BY, std::move(types), estimated_cardinality),
       grouping_sets(std::move(grouping_sets_p)) {
 	// get a list of all aggregates to be computed
@@ -266,7 +267,7 @@ void PhysicalHashAggregate::SinkDistinctGrouping(ExecutionContext &context, Data
 	DataChunk empty_chunk;
 
 	// Create an empty filter for Sink, since we don't need to update any aggregate states here
-	vector<idx_t> empty_filter;
+	unsafe_vector<idx_t> empty_filter;
 
 	for (idx_t &idx : distinct_info.indices) {
 		auto &aggregate = grouped_aggregate_data.aggregates[idx]->Cast<BoundAggregateExpression>();
@@ -395,10 +396,10 @@ SinkResultType PhysicalHashAggregate::Sink(ExecutionContext &context, DataChunk 
 	return SinkResultType::NEED_MORE_INPUT;
 }
 
-void PhysicalHashAggregate::CombineDistinct(ExecutionContext &context, GlobalSinkState &state,
-                                            LocalSinkState &lstate) const {
-	auto &global_sink = state.Cast<HashAggregateGlobalState>();
-	auto &sink = lstate.Cast<HashAggregateLocalState>();
+void PhysicalHashAggregate::CombineDistinct(ExecutionContext &context, OperatorSinkCombineInput &input) const {
+
+	auto &global_sink = input.global_state.Cast<HashAggregateGlobalState>();
+	auto &sink = input.local_state.Cast<HashAggregateLocalState>();
 
 	if (!distinct_collection_info) {
 		return;
@@ -424,14 +425,15 @@ void PhysicalHashAggregate::CombineDistinct(ExecutionContext &context, GlobalSin
 	}
 }
 
-void PhysicalHashAggregate::Combine(ExecutionContext &context, GlobalSinkState &state, LocalSinkState &lstate) const {
-	auto &gstate = state.Cast<HashAggregateGlobalState>();
-	auto &llstate = lstate.Cast<HashAggregateLocalState>();
+SinkCombineResultType PhysicalHashAggregate::Combine(ExecutionContext &context, OperatorSinkCombineInput &input) const {
+	auto &gstate = input.global_state.Cast<HashAggregateGlobalState>();
+	auto &llstate = input.local_state.Cast<HashAggregateLocalState>();
 
-	CombineDistinct(context, state, lstate);
+	OperatorSinkCombineInput combine_distinct_input {gstate, llstate, input.interrupt_state};
+	CombineDistinct(context, combine_distinct_input);
 
 	if (CanSkipRegularSink()) {
-		return;
+		return SinkCombineResultType::FINISHED;
 	}
 	for (idx_t i = 0; i < groupings.size(); i++) {
 		auto &grouping_gstate = gstate.grouping_states[i];
@@ -441,6 +443,8 @@ void PhysicalHashAggregate::Combine(ExecutionContext &context, GlobalSinkState &
 		auto &table = grouping.table_data;
 		table.Combine(context, *grouping_gstate.table_state, *grouping_lstate.table_state);
 	}
+
+	return SinkCombineResultType::FINISHED;
 }
 
 //! REGULAR FINALIZE EVENT
@@ -817,8 +821,8 @@ SinkFinalizeType PhysicalHashAggregate::FinalizeInternal(Pipeline &pipeline, Eve
 }
 
 SinkFinalizeType PhysicalHashAggregate::Finalize(Pipeline &pipeline, Event &event, ClientContext &context,
-                                                 GlobalSinkState &gstate_p) const {
-	return FinalizeInternal(pipeline, event, context, gstate_p, true);
+                                                 OperatorSinkFinalizeInput &input) const {
+	return FinalizeInternal(pipeline, event, context, input.global_state, true);
 }
 
 //===--------------------------------------------------------------------===//

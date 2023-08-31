@@ -67,7 +67,7 @@ public:
 	                      vector<unique_ptr<Expression>> groups, idx_t estimated_cardinality);
 	PhysicalHashAggregate(ClientContext &context, vector<LogicalType> types, vector<unique_ptr<Expression>> expressions,
 	                      vector<unique_ptr<Expression>> groups, vector<GroupingSet> grouping_sets,
-	                      vector<vector<idx_t>> grouping_functions, idx_t estimated_cardinality);
+	                      vector<unsafe_vector<idx_t>> grouping_functions, idx_t estimated_cardinality);
 
 	//! The grouping sets
 	GroupedAggregateData grouped_aggregate_data;
@@ -80,8 +80,8 @@ public:
 	vector<LogicalType> input_group_types;
 
 	// Filters given to Sink and friends
-	vector<idx_t> non_distinct_filter;
-	vector<idx_t> distinct_filter;
+	unsafe_vector<idx_t> non_distinct_filter;
+	unsafe_vector<idx_t> distinct_filter;
 
 	unordered_map<Expression *, size_t> filter_indexes;
 
@@ -106,9 +106,9 @@ public:
 public:
 	// Sink interface
 	SinkResultType Sink(ExecutionContext &context, DataChunk &chunk, OperatorSinkInput &input) const override;
-	void Combine(ExecutionContext &context, GlobalSinkState &state, LocalSinkState &lstate) const override;
+	SinkCombineResultType Combine(ExecutionContext &context, OperatorSinkCombineInput &input) const override;
 	SinkFinalizeType Finalize(Pipeline &pipeline, Event &event, ClientContext &context,
-	                          GlobalSinkState &gstate) const override;
+	                          OperatorSinkFinalizeInput &input) const override;
 	SinkFinalizeType FinalizeInternal(Pipeline &pipeline, Event &event, ClientContext &context, GlobalSinkState &gstate,
 	                                  bool check_distinct) const;
 
@@ -141,7 +141,7 @@ private:
 	SinkFinalizeType FinalizeDistinct(Pipeline &pipeline, Event &event, ClientContext &context,
 	                                  GlobalSinkState &gstate) const;
 	//! Combine the distinct aggregates
-	void CombineDistinct(ExecutionContext &context, GlobalSinkState &state, LocalSinkState &lstate) const;
+	void CombineDistinct(ExecutionContext &context, OperatorSinkCombineInput &input) const;
 	//! Sink the distinct aggregates for a single grouping
 	void SinkDistinctGrouping(ExecutionContext &context, DataChunk &chunk, OperatorSinkInput &input,
 	                          idx_t grouping_idx) const;

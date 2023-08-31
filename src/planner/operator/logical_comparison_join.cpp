@@ -2,7 +2,7 @@
 #include "duckdb/common/string_util.hpp"
 #include "duckdb/planner/operator/logical_comparison_join.hpp"
 #include "duckdb/planner/expression/bound_comparison_expression.hpp"
-
+#include "duckdb/common/enum_util.hpp"
 namespace duckdb {
 
 LogicalComparisonJoin::LogicalComparisonJoin(JoinType join_type, LogicalOperatorType logical_type)
@@ -10,7 +10,7 @@ LogicalComparisonJoin::LogicalComparisonJoin(JoinType join_type, LogicalOperator
 }
 
 string LogicalComparisonJoin::ParamsToString() const {
-	string result = JoinTypeToString(join_type);
+	string result = EnumUtil::ToChars(join_type);
 	for (auto &condition : conditions) {
 		result += "\n";
 		auto expr =
@@ -23,15 +23,17 @@ string LogicalComparisonJoin::ParamsToString() const {
 
 void LogicalComparisonJoin::Serialize(FieldWriter &writer) const {
 	LogicalJoin::Serialize(writer);
+	writer.WriteRegularSerializableList(mark_types);
 	writer.WriteRegularSerializableList(conditions);
-	writer.WriteRegularSerializableList(delim_types);
+	writer.WriteSerializableList(duplicate_eliminated_columns);
 }
 
 void LogicalComparisonJoin::Deserialize(LogicalComparisonJoin &comparison_join, LogicalDeserializationState &state,
                                         FieldReader &reader) {
 	LogicalJoin::Deserialize(comparison_join, state, reader);
+	comparison_join.mark_types = reader.ReadRequiredSerializableList<LogicalType, LogicalType>();
 	comparison_join.conditions = reader.ReadRequiredSerializableList<JoinCondition, JoinCondition>(state.gstate);
-	comparison_join.delim_types = reader.ReadRequiredSerializableList<LogicalType, LogicalType>();
+	comparison_join.duplicate_eliminated_columns = reader.ReadRequiredSerializableList<Expression>(state.gstate);
 }
 
 unique_ptr<LogicalOperator> LogicalComparisonJoin::Deserialize(LogicalDeserializationState &state,

@@ -13,6 +13,7 @@
 #include "duckdb/planner/table_filter.hpp"
 #include "duckdb/storage/checkpoint/table_data_writer.hpp"
 #include "duckdb/storage/storage_manager.hpp"
+#include "duckdb/storage/table_storage_info.hpp"
 #include "duckdb/storage/table/persistent_table_data.hpp"
 #include "duckdb/storage/table/row_group.hpp"
 #include "duckdb/storage/table/standard_column_data.hpp"
@@ -55,7 +56,7 @@ DataTable::DataTable(AttachedDatabase &db, shared_ptr<TableIOManager> table_io_m
 	row_groups->Verify();
 }
 
-DataTable::DataTable(ClientContext &context, DataTable &parent, ColumnDefinition &new_column, Expression *default_value)
+DataTable::DataTable(ClientContext &context, DataTable &parent, ColumnDefinition &new_column, Expression &default_value)
     : info(parent.info), db(parent.db), is_root(true) {
 	// add the column definitions from this DataTable
 	for (auto &column_def : parent.column_definitions) {
@@ -302,7 +303,7 @@ static void VerifyCheckConstraint(ClientContext &context, TableCatalogEntry &tab
 	UnifiedVectorFormat vdata;
 	result.ToUnifiedFormat(chunk.size(), vdata);
 
-	auto dataptr = (int32_t *)vdata.data;
+	auto dataptr = UnifiedVectorFormat::GetData<int32_t>(vdata);
 	for (idx_t i = 0; i < chunk.size(); i++) {
 		auto idx = vdata.sel->get_index(i);
 		if (vdata.validity.RowIsValid(idx) && dataptr[idx] == 0) {
@@ -530,6 +531,75 @@ void DataTable::VerifyNewConstraint(ClientContext &context, DataTable &parent, c
 	local_storage.VerifyNewConstraint(parent, *constraint);
 }
 
+bool HasUniqueIndexes(TableIndexList &list) {
+	bool has_unique_index = false;
+	list.Scan([&](Index &index) {
+		if (index.IsUnique()) {
+			return has_unique_index = true;
+			return true;
+		}
+		return false;
+	});
+	return has_unique_index;
+}
+
+void DataTable::VerifyUniqueIndexes(TableIndexList &indexes, ClientContext &context, DataChunk &chunk,
+                                    ConflictManager *conflict_manager) {
+	//! check whether or not the chunk can be inserted into the indexes
+	if (!conflict_manager) {
+		// Only need to verify that no unique constraints are violated
+		indexes.Scan([&](Index &index) {
+			if (!index.IsUnique()) {
+				return false;
+			}
+			index.VerifyAppend(chunk);
+			return false;
+		});
+		return;
+	}
+
+	D_ASSERT(conflict_manager);
+	// The conflict manager is only provided when a ON CONFLICT clause was provided to the INSERT statement
+
+	idx_t matching_indexes = 0;
+	auto &conflict_info = conflict_manager->GetConflictInfo();
+	// First we figure out how many indexes match our conflict target
+	// So we can optimize accordingly
+	indexes.Scan([&](Index &index) {
+		matching_indexes += conflict_info.ConflictTargetMatches(index);
+		return false;
+	});
+	conflict_manager->SetMode(ConflictManagerMode::SCAN);
+	conflict_manager->SetIndexCount(matching_indexes);
+	// First we verify only the indexes that match our conflict target
+	unordered_set<Index *> checked_indexes;
+	indexes.Scan([&](Index &index) {
+		if (!index.IsUnique()) {
+			return false;
+		}
+		if (conflict_info.ConflictTargetMatches(index)) {
+			index.VerifyAppend(chunk, *conflict_manager);
+			checked_indexes.insert(&index);
+		}
+		return false;
+	});
+
+	conflict_manager->SetMode(ConflictManagerMode::THROW);
+	// Then we scan the other indexes, throwing if they cause conflicts on tuples that were not found during
+	// the scan
+	indexes.Scan([&](Index &index) {
+		if (!index.IsUnique()) {
+			return false;
+		}
+		if (checked_indexes.count(&index)) {
+			// Already checked this constraint
+			return false;
+		}
+		index.VerifyAppend(chunk, *conflict_manager);
+		return false;
+	});
+}
+
 void DataTable::VerifyAppendConstraints(TableCatalogEntry &table, ClientContext &context, DataChunk &chunk,
                                         ConflictManager *conflict_manager) {
 	if (table.HasGeneratedColumns()) {
@@ -548,6 +618,11 @@ void DataTable::VerifyAppendConstraints(TableCatalogEntry &table, ClientContext 
 			VerifyGeneratedExpressionSuccess(context, table, chunk, *bound_expression, col.Oid());
 		}
 	}
+
+	if (HasUniqueIndexes(info->indexes)) {
+		VerifyUniqueIndexes(info->indexes, context, chunk, conflict_manager);
+	}
+
 	auto &constraints = table.GetConstraints();
 	auto &bound_constraints = table.GetBoundConstraints();
 	for (idx_t i = 0; i < bound_constraints.size(); i++) {
@@ -567,50 +642,7 @@ void DataTable::VerifyAppendConstraints(TableCatalogEntry &table, ClientContext 
 			break;
 		}
 		case ConstraintType::UNIQUE: {
-			//! check whether or not the chunk can be inserted into the indexes
-			if (conflict_manager) {
-				// This is only provided when a ON CONFLICT clause was provided
-				idx_t matching_indexes = 0;
-				auto &conflict_info = conflict_manager->GetConflictInfo();
-				// First we figure out how many indexes match our conflict target
-				// So we can optimize accordingly
-				info->indexes.Scan([&](Index &index) {
-					matching_indexes += conflict_info.ConflictTargetMatches(index);
-					return false;
-				});
-				conflict_manager->SetMode(ConflictManagerMode::SCAN);
-				conflict_manager->SetIndexCount(matching_indexes);
-				// First we verify only the indexes that match our conflict target
-				info->indexes.Scan([&](Index &index) {
-					if (!index.IsUnique()) {
-						return false;
-					}
-					if (conflict_info.ConflictTargetMatches(index)) {
-						index.VerifyAppend(chunk, *conflict_manager);
-					}
-					return false;
-				});
-
-				conflict_manager->SetMode(ConflictManagerMode::THROW);
-				// Then we scan the other indexes, throwing if they cause conflicts on tuples that were not found during
-				// the scan
-				info->indexes.Scan([&](Index &index) {
-					if (!index.IsUnique()) {
-						return false;
-					}
-					index.VerifyAppend(chunk, *conflict_manager);
-					return false;
-				});
-			} else {
-				// Only need to verify that no unique constraints are violated
-				info->indexes.Scan([&](Index &index) {
-					if (!index.IsUnique()) {
-						return false;
-					}
-					index.VerifyAppend(chunk);
-					return false;
-				});
-			}
+			// These were handled earlier on
 			break;
 		}
 		case ConstraintType::FOREIGN_KEY: {
@@ -803,7 +835,7 @@ void DataTable::RevertAppend(idx_t start_row, idx_t count) {
 	if (!info->indexes.Empty()) {
 		idx_t current_row_base = start_row;
 		row_t row_data[STANDARD_VECTOR_SIZE];
-		Vector row_identifiers(LogicalType::ROW_TYPE, (data_ptr_t)row_data);
+		Vector row_identifiers(LogicalType::ROW_TYPE, data_ptr_cast(row_data));
 		ScanTableSegment(start_row, count, [&](DataChunk &chunk) {
 			for (idx_t i = 0; i < chunk.size(); i++) {
 				row_data[i] = current_row_base + i;
@@ -1041,20 +1073,19 @@ void DataTable::VerifyUpdateConstraints(ClientContext &context, TableCatalogEntr
                                         const vector<PhysicalIndex> &column_ids) {
 	auto &constraints = table.GetConstraints();
 	auto &bound_constraints = table.GetBoundConstraints();
-	for (idx_t i = 0; i < bound_constraints.size(); i++) {
-		auto &base_constraint = constraints[i];
-		auto &constraint = bound_constraints[i];
+	for (idx_t constr_idx = 0; constr_idx < bound_constraints.size(); constr_idx++) {
+		auto &base_constraint = constraints[constr_idx];
+		auto &constraint = bound_constraints[constr_idx];
 		switch (constraint->type) {
 		case ConstraintType::NOT_NULL: {
 			auto &bound_not_null = *reinterpret_cast<BoundNotNullConstraint *>(constraint.get());
 			auto &not_null = *reinterpret_cast<NotNullConstraint *>(base_constraint.get());
 			// check if the constraint is in the list of column_ids
-			// FIXME: double usage of 'i'?
-			for (idx_t i = 0; i < column_ids.size(); i++) {
-				if (column_ids[i] == bound_not_null.index) {
+			for (idx_t col_idx = 0; col_idx < column_ids.size(); col_idx++) {
+				if (column_ids[col_idx] == bound_not_null.index) {
 					// found the column id: check the data in
 					auto &col = table.GetColumn(LogicalIndex(not_null.index));
-					VerifyNotNullConstraint(table, chunk.data[i], chunk.size(), col.Name());
+					VerifyNotNullConstraint(table, chunk.data[col_idx], chunk.size(), col.Name());
 					break;
 				}
 			}
@@ -1090,10 +1121,10 @@ void DataTable::VerifyUpdateConstraints(ClientContext &context, TableCatalogEntr
 void DataTable::Update(TableCatalogEntry &table, ClientContext &context, Vector &row_ids,
                        const vector<PhysicalIndex> &column_ids, DataChunk &updates) {
 	D_ASSERT(row_ids.GetType().InternalType() == ROW_TYPE);
-
 	D_ASSERT(column_ids.size() == updates.ColumnCount());
-	auto count = updates.size();
 	updates.Verify();
+
+	auto count = updates.size();
 	if (count == 0) {
 		return;
 	}
@@ -1106,24 +1137,36 @@ void DataTable::Update(TableCatalogEntry &table, ClientContext &context, Vector 
 	VerifyUpdateConstraints(context, table, updates, column_ids);
 
 	// now perform the actual update
-	auto &transaction = DuckTransaction::Get(context, db);
+	Vector max_row_id_vec(Value::BIGINT(MAX_ROW_ID));
+	Vector row_ids_slice(LogicalType::BIGINT);
+	DataChunk updates_slice;
+	updates_slice.InitializeEmpty(updates.GetTypes());
 
-	updates.Flatten();
-	row_ids.Flatten(count);
-	auto ids = FlatVector::GetData<row_t>(row_ids);
-	auto first_id = FlatVector::GetValue<row_t>(row_ids, 0);
-	if (first_id >= MAX_ROW_ID) {
-		// update is in transaction-local storage: push update into local storage
-		auto &local_storage = LocalStorage::Get(context, db);
-		local_storage.Update(*this, row_ids, column_ids, updates);
-		return;
+	SelectionVector sel_local_update(count), sel_global_update(count);
+	auto n_local_update = VectorOperations::GreaterThanEquals(row_ids, max_row_id_vec, nullptr, count,
+	                                                          &sel_local_update, &sel_global_update);
+	auto n_global_update = count - n_local_update;
+
+	// row id > MAX_ROW_ID? transaction-local storage
+	if (n_local_update > 0) {
+		updates_slice.Slice(updates, sel_local_update, n_local_update);
+		updates_slice.Flatten();
+		row_ids_slice.Slice(row_ids, sel_local_update, n_local_update);
+		row_ids_slice.Flatten(n_local_update);
+
+		LocalStorage::Get(context, db).Update(*this, row_ids_slice, column_ids, updates_slice);
 	}
 
-	// update is in the row groups
-	// we need to figure out for each id to which row group it belongs
-	// usually all (or many) ids belong to the same row group
-	// we iterate over the ids and check for every id if it belongs to the same row group as their predecessor
-	row_groups->Update(transaction, ids, column_ids, updates);
+	// otherwise global storage
+	if (n_global_update > 0) {
+		updates_slice.Slice(updates, sel_global_update, n_global_update);
+		updates_slice.Flatten();
+		row_ids_slice.Slice(row_ids, sel_global_update, n_global_update);
+		row_ids_slice.Flatten(n_global_update);
+
+		row_groups->Update(DuckTransaction::Get(context, db), FlatVector::GetData<row_t>(row_ids_slice), column_ids,
+		                   updates_slice);
+	}
 }
 
 void DataTable::UpdateColumn(TableCatalogEntry &table, ClientContext &context, Vector &row_ids,
@@ -1170,13 +1213,14 @@ void DataTable::WALAddIndex(ClientContext &context, unique_ptr<Index> index,
 	// intermediate holds scanned chunks of the underlying data to create the index
 	DataChunk intermediate;
 	vector<LogicalType> intermediate_types;
-	auto column_ids = index->column_ids;
-	column_ids.push_back(COLUMN_IDENTIFIER_ROW_ID);
-	for (auto &id : index->column_ids) {
-		auto &col = column_definitions[id];
-		intermediate_types.push_back(col.Type());
+	vector<column_t> column_ids;
+	for (auto &it : column_definitions) {
+		intermediate_types.push_back(it.Type());
+		column_ids.push_back(it.Oid());
 	}
+	column_ids.push_back(COLUMN_IDENTIFIER_ROW_ID);
 	intermediate_types.emplace_back(LogicalType::ROW_TYPE);
+
 	intermediate.Initialize(allocator, intermediate_types);
 
 	// holds the result of executing the index expression on the intermediate chunks
@@ -1268,10 +1312,10 @@ void DataTable::CommitDropTable() {
 }
 
 //===--------------------------------------------------------------------===//
-// GetStorageInfo
+// GetColumnSegmentInfo
 //===--------------------------------------------------------------------===//
-void DataTable::GetStorageInfo(TableStorageInfo &result) {
-	row_groups->GetStorageInfo(result);
+vector<ColumnSegmentInfo> DataTable::GetColumnSegmentInfo() {
+	return row_groups->GetColumnSegmentInfo();
 }
 
 } // namespace duckdb

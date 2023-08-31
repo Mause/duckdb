@@ -7,6 +7,7 @@ namespace duckdb {
 class JsonDeserializer : public FormatDeserializer {
 public:
 	JsonDeserializer(yyjson_val *val, yyjson_doc *doc) : doc(doc) {
+		deserialize_enum_from_string = true;
 		stack.emplace_back(val);
 	}
 	~JsonDeserializer() {
@@ -47,7 +48,7 @@ private:
 	void ThrowTypeError(yyjson_val *val, const char *expected);
 
 	// Set the 'tag' of the property to read
-	void SetTag(const char *tag) final;
+	void SetTag(const field_id_t, const char *tag) final;
 
 	//===--------------------------------------------------------------------===//
 	// Nested Types Hooks

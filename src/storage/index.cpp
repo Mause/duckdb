@@ -4,7 +4,6 @@
 #include "duckdb/planner/expression/bound_columnref_expression.hpp"
 #include "duckdb/planner/expression/bound_reference_expression.hpp"
 #include "duckdb/storage/table/append_state.hpp"
-#include "duckdb/execution/index/art/art.hpp"
 
 namespace duckdb {
 
@@ -27,9 +26,7 @@ Index::Index(AttachedDatabase &db, IndexType type, TableIOManager &table_io_mana
 	}
 
 	// create the column id set
-	for (auto column_id : column_ids) {
-		column_id_set.insert(column_id);
-	}
+	column_id_set.insert(column_ids.begin(), column_ids.end());
 }
 
 void Index::InitializeLock(IndexLock &state) {
@@ -49,29 +46,21 @@ void Index::Delete(DataChunk &entries, Vector &row_identifiers) {
 }
 
 bool Index::MergeIndexes(Index &other_index) {
-
 	IndexLock state;
 	InitializeLock(state);
+	return MergeIndexes(state, other_index);
+}
 
-	switch (this->type) {
-	case IndexType::ART:
-		return Cast<ART>().MergeIndexes(state, other_index);
-	default:
-		throw InternalException("Unimplemented index type for merge");
-	}
+string Index::VerifyAndToString(const bool only_verify) {
+	IndexLock state;
+	InitializeLock(state);
+	return VerifyAndToString(state, only_verify);
 }
 
 void Index::Vacuum() {
-
 	IndexLock state;
 	InitializeLock(state);
-
-	switch (this->type) {
-	case IndexType::ART:
-		return Cast<ART>().Vacuum(state);
-	default:
-		throw InternalException("Unimplemented index type for vacuum");
-	}
+	Vacuum(state);
 }
 
 void Index::ExecuteExpressions(DataChunk &input, DataChunk &result) {
@@ -97,7 +86,7 @@ bool Index::IndexIsUpdated(const vector<PhysicalIndex> &column_ids) const {
 	return false;
 }
 
-BlockPointer Index::Serialize(MetaBlockWriter &writer) {
+BlockPointer Index::Serialize(MetadataWriter &writer) {
 	throw NotImplementedException("The implementation of this index serialization does not exist.");
 }
 

@@ -5,7 +5,7 @@ on:
   push:
     branches:
       - '**'
-      - '!master'
+      - '!main'
       - '!feature'
     tags:
       - '**'
@@ -16,9 +16,12 @@ on:
       - 'test/**'
       - 'tools/**'
       - '!tools/nodejs/**'
+      - '.github/patches/duckdb-wasm/**'
       - '.github/workflows/**'
       - '!.github/workflows/NodeJS.yml'
+      - '.github/config/uncovered_files.csv'
   pull_request:
+    types: [opened, reopened, ready_for_review]
     paths-ignore:
       - '**.md'
       - 'data/**'
@@ -26,11 +29,13 @@ on:
       - 'test/**'
       - 'tools/**'
       - '!tools/nodejs/**'
+      - '.github/patches/duckdb-wasm/**'
       - '.github/workflows/**'
       - '!.github/workflows/NodeJS.yml'
+      - '.github/config/uncovered_files.csv'
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.head_ref || '' }}-${{ github.base_ref || '' }}-${{ github.ref != 'refs/heads/master' || github.sha }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.head_ref || '' }}-${{ github.base_ref || '' }}-${{ github.ref != 'refs/heads/main' || github.sha }}
   cancel-in-progress: true
 
 env:
@@ -65,19 +70,20 @@ jobs:
       DUCKDB_NODE_BUILD_CACHE: 0
     strategy:
       matrix:
-        node: [ '10', '12', '14', '15', '16', '17', '18', '19', '20' ]
+        # node.js current support policy to be found at https://github.com/duckdb/duckdb/tree/main/tools/nodejs#Supported-Node-versions
+        node: [ '10', '12', '14', '16', '17', '18', '19', '20' ]
         target_arch: [ x64, arm64 ]
         isRelease:
-          - ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/master' }}
+          - ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
         exclude:
           - isRelease: false
+            node: 10
+            target_arch: x64
+          - isRelease: false
             node: 12
             target_arch: x64
           - isRelease: false
             node: 14
-            target_arch: x64
-          - isRelease: false
-            node: 15
             target_arch: x64
           - isRelease: false
             node: 16
@@ -92,13 +98,13 @@ jobs:
             node: 19
             target_arch: x64
           - isRelease: false
+            node: 10
+            target_arch: arm64
+          - isRelease: false
             node: 12
             target_arch: arm64
           - isRelease: false
             node: 14
-            target_arch: arm64
-          - isRelease: false
-            node: 15
             target_arch: arm64
           - isRelease: false
             node: 16
@@ -111,6 +117,9 @@ jobs:
             target_arch: arm64
           - isRelease: false
             node: 19
+            target_arch: arm64
+          - isRelease: false
+            node: 20
             target_arch: arm64
 
     steps:
@@ -139,12 +148,16 @@ jobs:
         uses: hendrikmuhs/ccache-action@main
         with:
           key: ${{ github.job }}
-          save: ${{ ( github.ref == 'refs/heads/master' || github.repository != 'duckdb/duckdb' ) && ( matrix.node == '19' ) }}
+          save: ${{ ( github.ref == 'refs/heads/main' || github.repository != 'duckdb/duckdb' ) && ( matrix.node == '19' ) }}
 
       - name: Build DuckDB
         shell: bash
         run: |
           GEN=ninja EXTENSION_STATIC_BUILD=1 BUILD_TPCH=1 BUILD_HTTPFS=1 STATIC_OPENSSL=1 BUILD_NODE=1 make
+
+      - name: Print platform
+        shell: bash
+        run: ./build/release/duckdb -c "PRAGMA platform;"
 
       - name: Setup
         shell: bash
@@ -163,23 +176,23 @@ jobs:
         run: ./scripts/node_build.sh ${{ matrix.node }}
 
   osx-nodejs:
-    if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/master'
+    if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' || github.repository != 'duckdb/duckdb'
     name: node.js OSX
     runs-on: macos-latest
     needs: linux-nodejs
     strategy:
       matrix:
         target_arch: [ x64, arm64 ]
-        node: [ '10', '12', '14', '15', '16', '17', '18', '19', '20' ]
+        node: [ '10', '12', '14', '16', '17', '18', '19', '20' ]
         isRelease:
-          - ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/master' }}
+          - ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
         exclude:
+          - isRelease: false
+            node: 10
           - isRelease: false
             node: 12
           - isRelease: false
             node: 14
-          - isRelease: false
-            node: 15
           - isRelease: false
             node: 16
           - isRelease: false
@@ -192,8 +205,6 @@ jobs:
             node: 12
           - target_arch: arm64
             node: 14
-          - target_arch: arm64
-            node: 15
         # these older versions of NodeJS don't have M1 support
 
     env:
@@ -208,7 +219,7 @@ jobs:
         uses: hendrikmuhs/ccache-action@main
         with:
           key: ${{ github.job }}-${{ matrix.target_arch }}
-          save: ${{ ( github.ref == 'refs/heads/master' || github.repository != 'duckdb/duckdb' ) && ( matrix.node == '19' ) }}
+          save: ${{ ( github.ref == 'refs/heads/main' || github.repository != 'duckdb/duckdb' ) && ( matrix.node == '19' ) }}
 
       - name: Build DuckDB
         shell: bash
@@ -226,6 +237,10 @@ jobs:
           brew install ninja
           GEN=ninja BUILD_TPCH=1 BUILD_NODE=1 make
 
+      - name: Print platform
+        shell: bash
+        run: ./build/release/duckdb -c "PRAGMA platform;"
+
       - name: Setup
         shell: bash
         run: ./scripts/node_version.sh
@@ -233,7 +248,6 @@ jobs:
           NODE_AUTH_TOKEN: ${{secrets.NODE_AUTH_TOKEN}}
 
       - name: Node ${{ matrix.node }}
-        if: matrix.target_arch != 'arm64'
         shell: bash
         run: ./scripts/node_build.sh ${{ matrix.node }}
 
@@ -246,16 +260,16 @@ jobs:
 
     strategy:
       matrix:
-        node: [ '10', '12', '14', '15', '16', '17', '18', '19', '20' ]
+        node: [ '10', '12', '14', '16', '17', '18', '19', '20' ]
         isRelease:
-          - ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/master' }}
+          - ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
         exclude:
+          - isRelease: false
+            node: 10
           - isRelease: false
             node: 12
           - isRelease: false
             node: 14
-          - isRelease: false
-            node: 15
           - isRelease: false
             node: 16
           - isRelease: false
@@ -301,7 +315,7 @@ jobs:
         uses: hendrikmuhs/ccache-action@main
         with:
           key: ${{ github.job }}-${{ matrix.node }}
-          save: ${{ github.ref == 'refs/heads/master' || github.repository != 'duckdb/duckdb' }}
+          save: ${{ github.ref == 'refs/heads/main' || github.repository != 'duckdb/duckdb' }}
           variant: sccache
 
       - name: Node

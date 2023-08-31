@@ -96,7 +96,7 @@ struct ICUCalendarSub : public ICUDateFunc {
 		auto &enddate_arg = args.data[2];
 
 		auto &func_expr = state.expr.Cast<BoundFunctionExpression>();
-		auto &info = (BindData &)*func_expr.bind_info;
+		auto &info = func_expr.bind_info->Cast<BindData>();
 		CalendarPtr calendar(info.calendar->clone());
 
 		if (part_arg.GetVectorType() == VectorType::CONSTANT_VECTOR) {
@@ -171,6 +171,7 @@ ICUDateFunc::part_sub_t ICUDateFunc::SubtractFactory(DatePartSpecifier type) {
 	case DatePartSpecifier::DOW:
 	case DatePartSpecifier::ISODOW:
 	case DatePartSpecifier::DOY:
+	case DatePartSpecifier::JULIAN_DAY:
 		return ICUCalendarSub::SubtractDay;
 	case DatePartSpecifier::HOUR:
 		return ICUCalendarSub::SubtractHour;
@@ -218,7 +219,7 @@ struct ICUCalendarDiff : public ICUDateFunc {
 		auto &enddate_arg = args.data[2];
 
 		auto &func_expr = state.expr.Cast<BoundFunctionExpression>();
-		auto &info = (BindData &)*func_expr.bind_info;
+		auto &info = func_expr.bind_info->Cast<BindData>();
 		CalendarPtr calendar_ptr(info.calendar->clone());
 		auto calendar = calendar_ptr.get();
 

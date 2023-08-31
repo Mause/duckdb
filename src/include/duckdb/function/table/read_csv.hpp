@@ -54,6 +54,8 @@ struct WriteCSVData : public BaseCSVData {
 	bool is_simple;
 	//! The size of the CSV file (in bytes) that we buffer before we flush it to disk
 	idx_t flush_size = 4096 * 8;
+	//! For each byte whether or not the CSV file requires quotes when containing the byte
+	unsafe_unique_array<bool> requires_quotes;
 };
 
 struct ColumnInfo {
@@ -63,7 +65,7 @@ struct ColumnInfo {
 		names = std::move(names_p);
 		types = std::move(types_p);
 	}
-	void Serialize(FieldWriter &writer) {
+	void Serialize(FieldWriter &writer) const {
 		writer.WriteList<string>(names);
 		writer.WriteRegularSerializableList<LogicalType>(types);
 	}
@@ -74,6 +76,10 @@ struct ColumnInfo {
 		info.types = reader.ReadRequiredSerializableList<LogicalType, LogicalType>();
 		return info;
 	}
+
+	void FormatSerialize(FormatSerializer &serializer) const;
+	static ColumnInfo FormatDeserialize(FormatDeserializer &deserializer);
+
 	vector<std::string> names;
 	vector<LogicalType> types;
 };
@@ -97,14 +103,15 @@ struct ReadCSVData : public BaseCSVData {
 	bool single_threaded = false;
 	//! Reader bind data
 	MultiFileReaderBindData reader_bind;
-	//! If all files are On-Disk file (e.g., not a pipe)
-	bool file_exists = true;
 	vector<ColumnInfo> column_info;
 
 	void Initialize(unique_ptr<BufferedCSVReader> &reader) {
 		this->initial_reader = std::move(reader);
 	}
 	void FinalizeRead(ClientContext &context);
+
+	void FormatSerialize(FormatSerializer &serializer) const;
+	static unique_ptr<ReadCSVData> FormatDeserialize(FormatDeserializer &deserializer);
 };
 
 struct CSVCopyFunction {

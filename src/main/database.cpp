@@ -13,9 +13,9 @@
 #include "duckdb/main/extension_helper.hpp"
 #include "duckdb/parallel/task_scheduler.hpp"
 #include "duckdb/parser/parsed_data/attach_info.hpp"
-#include "duckdb/storage/magic_bytes.hpp"
 #include "duckdb/storage/object_cache.hpp"
 #include "duckdb/storage/standard_buffer_manager.hpp"
+#include "duckdb/main/database_path_and_type.hpp"
 #include "duckdb/storage/storage_extension.hpp"
 #include "duckdb/storage/storage_manager.hpp"
 #include "duckdb/transaction/transaction_manager.hpp"
@@ -129,22 +129,6 @@ ConnectionManager &ConnectionManager::Get(ClientContext &context) {
 	return ConnectionManager::Get(DatabaseInstance::GetDatabase(context));
 }
 
-string DatabaseInstance::ExtractDatabaseType(string &path) {
-	// first check if there is an existing prefix
-	auto extension = ExtensionHelper::ExtractExtensionPrefixFromPath(path);
-	if (!extension.empty()) {
-		// path is prefixed with an extension - remove it
-		path = StringUtil::Replace(path, extension + ":", "");
-		return extension;
-	}
-	// if there isn't - check the magic bytes of the file (if any)
-	auto file_type = MagicBytes::CheckMagicBytes(config.file_system.get(), path);
-	if (file_type == DataFileType::SQLITE_FILE) {
-		return "sqlite";
-	}
-	return string();
-}
-
 duckdb::unique_ptr<AttachedDatabase> DatabaseInstance::CreateAttachedDatabase(AttachInfo &info, const string &type,
                                                                               AccessMode access_mode) {
 	duckdb::unique_ptr<AttachedDatabase> attached_database;
@@ -172,12 +156,12 @@ duckdb::unique_ptr<AttachedDatabase> DatabaseInstance::CreateAttachedDatabase(At
 	return attached_database;
 }
 
-void DatabaseInstance::CreateDatabase(const string &database_type) {
+void DatabaseInstance::CreateMainDatabase() {
 	AttachInfo info;
-	info.name = AttachedDatabase::ExtractDatabaseName(config.options.database_path);
+	info.name = AttachedDatabase::ExtractDatabaseName(config.options.database_path, GetFileSystem());
 	info.path = config.options.database_path;
 
-	auto attached_database = CreateAttachedDatabase(info, database_type, config.options.access_mode);
+	auto attached_database = CreateAttachedDatabase(info, config.options.database_type, config.options.access_mode);
 	auto initial_database = attached_database.get();
 	{
 		Connection con(*this);
@@ -187,13 +171,14 @@ void DatabaseInstance::CreateDatabase(const string &database_type) {
 	}
 
 	// initialize the database
+	initial_database->SetInitialDatabase();
 	initial_database->Initialize();
 }
 
 void ThrowExtensionSetUnrecognizedOptions(const unordered_map<string, Value> &unrecognized_options) {
 	auto unrecognized_options_iter = unrecognized_options.begin();
 	string unrecognized_option_keys = unrecognized_options_iter->first;
-	for (; unrecognized_options_iter == unrecognized_options.end(); ++unrecognized_options_iter) {
+	while (++unrecognized_options_iter != unrecognized_options.end()) {
 		unrecognized_option_keys = "," + unrecognized_options_iter->first;
 	}
 	throw InvalidInputException("Unrecognized configuration property \"%s\"", unrecognized_option_keys);
@@ -235,14 +220,21 @@ void DatabaseInstance::Initialize(const char *database_path, DBConfig *user_conf
 	connection_manager = make_uniq<ConnectionManager>();
 
 	// check if we are opening a standard DuckDB database or an extension database
-	auto database_type = ExtractDatabaseType(config.options.database_path);
+	if (config.options.database_type.empty()) {
+		auto path_and_type = DBPathAndType::Parse(config.options.database_path, config);
+		config.options.database_type = path_and_type.type;
+		config.options.database_path = path_and_type.path;
+	}
 
 	// initialize the system catalog
 	db_manager->InitializeSystemCatalog();
 
-	if (!database_type.empty()) {
+	if (!config.options.database_type.empty()) {
 		// if we are opening an extension database - load the extension
-		ExtensionHelper::LoadExternalExtension(*this, nullptr, database_type);
+		if (!config.file_system) {
+			throw InternalException("No file system!?");
+		}
+		ExtensionHelper::LoadExternalExtension(*this, *config.file_system, config.options.database_type);
 	}
 
 	if (!config.options.unrecognized_options.empty()) {
@@ -250,7 +242,7 @@ void DatabaseInstance::Initialize(const char *database_path, DBConfig *user_conf
 	}
 
 	if (!db_manager->HasDefaultDatabase()) {
-		CreateDatabase(database_type);
+		CreateMainDatabase();
 	}
 
 	// only increase thread count after storage init because we get races on catalog otherwise
@@ -403,15 +395,6 @@ bool DatabaseInstance::TryGetCurrentSetting(const std::string &key, Value &resul
 	}
 	result = global_value->second;
 	return true;
-}
-
-string ClientConfig::ExtractTimezone() const {
-	auto entry = set_variables.find("TimeZone");
-	if (entry == set_variables.end()) {
-		return "UTC";
-	} else {
-		return entry->second.GetValue<std::string>();
-	}
 }
 
 ValidChecker &DatabaseInstance::GetValidChecker() {

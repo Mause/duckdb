@@ -17,6 +17,7 @@ namespace duckdb {
 class TupleDataAllocator;
 struct TupleDataScatterFunction;
 struct TupleDataGatherFunction;
+struct RowOperationsState;
 
 typedef void (*tuple_data_scatter_function_t)(const Vector &source, const TupleDataVectorFormat &source_format,
                                               const SelectionVector &append_sel, const idx_t append_count,
@@ -229,7 +230,7 @@ private:
 	//! The number of entries stored in the TupleDataCollection
 	idx_t count;
 	//! The data segments of the TupleDataCollection
-	vector<TupleDataSegment> segments;
+	unsafe_vector<TupleDataSegment> segments;
 	//! The set of scatter functions
 	vector<TupleDataScatterFunction> scatter_functions;
 	//! The set of gather functions

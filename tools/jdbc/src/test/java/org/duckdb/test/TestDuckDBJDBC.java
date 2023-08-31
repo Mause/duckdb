@@ -1,5 +1,18 @@
 package org.duckdb.test;
 
+import org.duckdb.DuckDBAppender;
+import org.duckdb.DuckDBColumnType;
+import org.duckdb.DuckDBConnection;
+import org.duckdb.DuckDBDriver;
+import org.duckdb.DuckDBNative;
+import org.duckdb.DuckDBResultSet;
+import org.duckdb.DuckDBResultSetMetaData;
+import org.duckdb.DuckDBTimestamp;
+import org.duckdb.JsonNode;
+
+import javax.sql.rowset.CachedRowSet;
+import javax.sql.rowset.RowSetProvider;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -8,6 +21,7 @@ import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.sql.Array;
 import java.sql.Blob;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -22,30 +36,48 @@ import java.sql.Statement;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.sql.Types;
-import java.time.*;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.OffsetDateTime;
+import java.time.OffsetTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
+import java.time.format.ResolverStyle;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Comparator;
 import java.util.GregorianCalendar;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.TimeZone;
 import java.util.UUID;
-import javax.sql.rowset.RowSetProvider;
-import javax.sql.rowset.CachedRowSet;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
+import java.util.logging.Logger;
 
-import org.duckdb.DuckDBAppender;
-import org.duckdb.DuckDBConnection;
-import org.duckdb.DuckDBDriver;
-import org.duckdb.DuckDBResultSet;
-import org.duckdb.DuckDBTimestamp;
-import org.duckdb.DuckDBColumnType;
-import org.duckdb.DuckDBResultSetMetaData;
-import org.duckdb.DuckDBNative;
-import org.duckdb.JsonNode;
+import static java.time.format.DateTimeFormatter.ISO_LOCAL_TIME;
+import static java.time.temporal.ChronoField.DAY_OF_MONTH;
+import static java.time.temporal.ChronoField.MILLI_OF_SECOND;
+import static java.time.temporal.ChronoField.MONTH_OF_YEAR;
+import static java.time.temporal.ChronoField.OFFSET_SECONDS;
+import static java.time.temporal.ChronoField.YEAR_OF_ERA;
+import static java.util.Arrays.asList;
+import static java.util.Collections.emptyList;
+import static java.util.Collections.singletonList;
 
 public class TestDuckDBJDBC {
 
@@ -63,15 +95,20 @@ public class TestDuckDBJDBC {
         assertTrue(!val);
     }
 
-    private static void assertEquals(Object a, Object b) throws Exception {
-        if (a == null && b == null) {
-            return;
-        }
-        assertTrue(a.equals(b), String.format("\"%s\" should equal \"%s\"", a, b));
+    private static void assertEquals(Object actual, Object expected) throws Exception {
+        Function<Object, String> getClass = (Object a) -> a == null ? "null" : a.getClass().toString();
+
+        String message = String.format("\"%s\" (of %s) should equal \"%s\" (of %s)", actual, getClass.apply(actual),
+                                       expected, getClass.apply(expected));
+        assertTrue(Objects.equals(actual, expected), message);
+    }
+
+    private static void assertNotNull(Object a) throws Exception {
+        assertFalse(a == null);
     }
 
     private static void assertNull(Object a) throws Exception {
-        assertTrue(a == null);
+        assertEquals(a, null);
     }
 
     private static void assertEquals(double a, double b, double epsilon) throws Exception {
@@ -89,12 +126,12 @@ public class TestDuckDBJDBC {
     private static <T extends Throwable> String assertThrows(Thrower thrower, Class<T> exception) throws Exception {
         try {
             thrower.run();
-            fail("Expected to throw " + exception.getName());
-            return null;
         } catch (Throwable e) {
             assertEquals(e.getClass(), exception);
             return e.getMessage();
         }
+        fail("Expected to throw " + exception.getName());
+        return null;
     }
 
     static {
@@ -508,6 +545,43 @@ public class TestDuckDBJDBC {
         conn.close();
     }
 
+    public static void test_timestamptz_as_long() throws Exception {
+        Connection conn = DriverManager.getConnection("jdbc:duckdb:");
+        Statement stmt = conn.createStatement();
+
+        ResultSet rs;
+
+        stmt.execute("SET CALENDAR='gregorian'");
+        stmt.execute("SET TIMEZONE='America/Los_Angeles'");
+        stmt.execute("CREATE TABLE t (id INT, t1 TIMESTAMPTZ)");
+        stmt.execute("INSERT INTO t (id, t1) VALUES (1, '2022-01-01T12:11:10Z')");
+        stmt.execute("INSERT INTO t (id, t1) VALUES (2, '2022-01-01T12:11:11Z')");
+
+        rs = stmt.executeQuery("SELECT * FROM t ORDER BY id");
+        rs.next();
+        assertEquals(rs.getLong(2), 1641039070000000L);
+        rs.next();
+        assertEquals(rs.getLong(2), 1641039071000000L);
+
+        rs.close();
+        stmt.close();
+        conn.close();
+    }
+
+    public static void test_consecutive_timestamps() throws Exception {
+        long expected = 986860800000L;
+        try (Connection conn = DriverManager.getConnection("jdbc:duckdb:"); Statement stmt = conn.createStatement()) {
+            try (ResultSet rs = stmt.executeQuery(
+                     "select range from range(TIMESTAMP '2001-04-10', TIMESTAMP '2001-04-11', INTERVAL 30 MINUTE)")) {
+                while (rs.next()) {
+                    Timestamp actual = rs.getTimestamp(1, Calendar.getInstance());
+                    assertEquals(expected, actual.getTime());
+                    expected += 30 * 60 * 1_000;
+                }
+            }
+        }
+    }
+
     public static void test_throw_wrong_datatype() throws Exception {
         Connection conn = DriverManager.getConnection("jdbc:duckdb:");
         Statement stmt = conn.createStatement();
@@ -520,7 +594,7 @@ public class TestDuckDBJDBC {
         rs.next();
 
         try {
-            rs.getTimestamp(2);
+            rs.getShort(2);
             fail();
         } catch (IllegalArgumentException e) {
         }
@@ -1144,7 +1218,7 @@ public class TestDuckDBJDBC {
         Connection conn = DriverManager.getConnection("jdbc:duckdb:");
         Statement stmt = conn.createStatement();
         // Create the table
-        stmt.execute("CREATE TABLE q (id	DECIMAL(4,0),dec32 DECIMAL(9,4),dec64 DECIMAL(18,7),dec128 DECIMAL(38,10))");
+        stmt.execute("CREATE TABLE q (id DECIMAL(4,0),dec32 DECIMAL(9,4),dec64 DECIMAL(18,7),dec128 DECIMAL(38,10))");
         stmt.close();
 
         // Create the INSERT prepared statement we will use
@@ -1612,12 +1686,12 @@ public class TestDuckDBJDBC {
         assertEquals(rs.getObject("ts"), Timestamp.valueOf("2019-11-26 21:11:00"));
         assertEquals(rs.getTimestamp("ts"), Timestamp.valueOf("2019-11-26 21:11:00"));
 
-        assertEquals(rs.getObject("dt"), Date.valueOf("2019-11-26"));
+        assertEquals(rs.getObject("dt"), LocalDate.parse("2019-11-26"));
         assertEquals(rs.getDate("dt"), Date.valueOf("2019-11-26"));
 
         assertEquals(rs.getObject("iv"), "5 days");
 
-        assertEquals(rs.getObject("te"), Time.valueOf("21:11:00"));
+        assertEquals(rs.getObject("te"), LocalTime.parse("21:11:00"));
         assertEquals(rs.getTime("te"), Time.valueOf("21:11:00"));
 
         assertFalse(rs.next());
@@ -1889,10 +1963,18 @@ public class TestDuckDBJDBC {
                 assertEquals(rs.getInt("DATA_TYPE"), Types.JAVA_OBJECT);
             }
 
-            s.execute("INSERT INTO t VALUES ('01:01:00');");
+            s.execute("INSERT INTO t VALUES ('01:01:00'), ('01:02:03+12:30:45'), ('04:05:06-03:10'), ('07:08:09+20');");
             try (ResultSet rs = s.executeQuery("SELECT * FROM t")) {
                 rs.next();
                 assertEquals(rs.getObject(1), OffsetTime.of(LocalTime.of(1, 1), ZoneOffset.UTC));
+                rs.next();
+                assertEquals(rs.getObject(1),
+                             OffsetTime.of(LocalTime.of(1, 2, 3), ZoneOffset.ofHoursMinutesSeconds(12, 30, 45)));
+                rs.next();
+                assertEquals(rs.getObject(1),
+                             OffsetTime.of(LocalTime.of(4, 5, 6), ZoneOffset.ofHoursMinutesSeconds(-3, -10, 0)));
+                rs.next();
+                assertEquals(rs.getObject(1), OffsetTime.of(LocalTime.of(7, 8, 9), ZoneOffset.UTC));
             }
         }
     }
@@ -2000,7 +2082,7 @@ public class TestDuckDBJDBC {
 
     public static void test_get_table_types() throws Exception {
         String[] tableTypesArray = new String[] {"BASE TABLE", "LOCAL TEMPORARY", "VIEW"};
-        List<String> tableTypesList = new ArrayList<String>(Arrays.asList(tableTypesArray));
+        List<String> tableTypesList = new ArrayList<>(asList(tableTypesArray));
         tableTypesList.sort(Comparator.naturalOrder());
 
         Connection conn = DriverManager.getConnection("jdbc:duckdb:");
@@ -2665,7 +2747,7 @@ public class TestDuckDBJDBC {
             assertEquals(rs.getMetaData().getColumnType(1), Types.JAVA_OBJECT);
             JsonNode jsonNode = (JsonNode) rs.getObject(1);
             assertTrue(jsonNode.isArray());
-            assertEquals(jsonNode.toString(), "[1, 5]");
+            assertEquals(jsonNode.toString(), "[1,5]");
         }
 
         try (Statement stmt = conn.createStatement()) {
@@ -2737,7 +2819,16 @@ public class TestDuckDBJDBC {
 
         String message = assertThrows(() -> DriverManager.getConnection("jdbc:duckdb:", info), SQLException.class);
 
-        assertTrue(message.contains("unrecognized configuration parameter \"invalid config name\""));
+        assertTrue(message.contains("Unrecognized configuration property \"invalid config name\""));
+    }
+
+    public static void test_valid_but_local_config_throws_exception() throws Exception {
+        Properties info = new Properties();
+        info.put("ordered_aggregate_threshold", "123");
+
+        String message = assertThrows(() -> DriverManager.getConnection("jdbc:duckdb:", info), SQLException.class);
+
+        assertTrue(message.contains("Failed to set configuration option \"ordered_aggregate_threshold\""));
     }
 
     private static String getSetting(Connection conn, String settingName) throws Exception {
@@ -3161,11 +3252,45 @@ public class TestDuckDBJDBC {
 
     public static void test_list() throws Exception {
         try (Connection connection = DriverManager.getConnection("jdbc:duckdb:");
-             PreparedStatement statement = connection.prepareStatement("select [1]")) {
-            ResultSet rs = statement.executeQuery();
-            assertTrue(rs.next());
-            assertEquals(rs.getObject(1), "[1]");
+             Statement statement = connection.createStatement()) {
+            try (ResultSet rs = statement.executeQuery("select [1]")) {
+                assertTrue(rs.next());
+                assertEquals(arrayToList(rs.getArray(1)), singletonList(1));
+            }
+            try (ResultSet rs = statement.executeQuery("select unnest([[1], [42, 69]])")) {
+                assertTrue(rs.next());
+                assertEquals(arrayToList(rs.getArray(1)), singletonList(1));
+                assertTrue(rs.next());
+                assertEquals(arrayToList(rs.getArray(1)), asList(42, 69));
+            }
+            try (ResultSet rs = statement.executeQuery("select unnest([[[42], [69]]])")) {
+                assertTrue(rs.next());
+
+                List<List<Integer>> expected = asList(singletonList(42), singletonList(69));
+                List<Array> actual = arrayToList(rs.getArray(1));
+
+                for (int i = 0; i < actual.size(); i++) {
+                    assertEquals(actual.get(i), expected.get(i));
+                }
+            }
+            try (ResultSet rs = statement.executeQuery("select unnest([[], [69]])")) {
+                assertTrue(rs.next());
+                assertTrue(arrayToList(rs.getArray(1)).isEmpty());
+            }
         }
+    }
+
+    private static <T> List<T> arrayToList(Array actual) throws SQLException {
+        @SuppressWarnings("unchecked") T[] array = (T[]) actual.getArray();
+        List<Object> out = new ArrayList<>();
+        for (T t : array) {
+            if (t instanceof Array) {
+                out.add(arrayToList((Array) t));
+            } else {
+                out.add(t);
+            }
+        }
+        return (List<T>) out;
     }
 
     public static void test_map() throws Exception {
@@ -3214,9 +3339,6 @@ public class TestDuckDBJDBC {
                 rs.next();
                 for (int i = 1; i <= rsmd.getColumnCount(); i++) {
                     Object value = rs.getObject(i);
-                    if (value == null) {
-                        continue; // FIXME: when we add a complete test_all_types() test
-                    }
 
                     assertEquals(rsmd.getColumnClassName(i), value.getClass().getName());
                 }
@@ -3227,22 +3349,322 @@ public class TestDuckDBJDBC {
     public static void test_update_count() throws Exception {
         try (Connection connection = DriverManager.getConnection("jdbc:duckdb:");
              Statement s = connection.createStatement()) {
-            s.executeUpdate("create table t (i int)");
+            s.execute("create table t (i int)");
+            assertEquals(s.getUpdateCount(), -1);
             assertEquals(s.executeUpdate("insert into t values (1)"), 1);
             assertFalse(s.execute("insert into t values (1)"));
             assertEquals(s.getUpdateCount(), 1);
+
+            // result is invalidated after a call
+            assertEquals(s.getUpdateCount(), -1);
         }
     }
 
     public static void test_get_binary_stream() throws Exception {
-        try (Connection connection = DriverManager.getConnection("jdbc:duckdb:");
-             PreparedStatement s = connection.prepareStatement("select ?")) {
-            s.setObject(1, "YWJj".getBytes());
+      try (Connection connection = DriverManager.getConnection("jdbc:duckdb:");
+           PreparedStatement s = connection.prepareStatement("select ?")) {
+          s.setObject(1, "YWJj".getBytes());
 
-            try (ResultSet rs = s.executeQuery()) {
-                while (rs.next()) {
-                    rs.getBlob(1).getBinaryStream().transferTo(System.out);
+          try (ResultSet rs = s.executeQuery()) {
+            while (rs.next()) {
+              rs.getBlob(1).getBinaryStream().transferTo(System.out);
+            }
+          }
+      }
+    }
+
+    public static void test_get_result_set() throws Exception {
+        try (Connection conn = DriverManager.getConnection("jdbc:duckdb:")) {
+            try (PreparedStatement p = conn.prepareStatement("select 1")) {
+                p.executeQuery();
+                try (ResultSet resultSet = p.getResultSet()) {
+                    assertNotNull(resultSet);
                 }
+                assertNull(p.getResultSet()); // returns null after initial call
+            }
+
+            try (Statement s = conn.createStatement()) {
+                s.execute("select 1");
+                try (ResultSet resultSet = s.getResultSet()) {
+                    assertNotNull(resultSet);
+                }
+                assertFalse(s.getMoreResults());
+                assertNull(s.getResultSet()); // returns null after initial call
+            }
+        }
+    }
+
+    // https://github.com/duckdb/duckdb/issues/7218
+    public static void test_unknown_result_type() throws Exception {
+        try (Connection connection = DriverManager.getConnection("jdbc:duckdb:");
+             PreparedStatement p = connection.prepareStatement(
+                 "select generate_series.generate_series from generate_series(?, ?) order by 1")) {
+            p.setInt(1, 0);
+            p.setInt(2, 1);
+
+            try (ResultSet rs = p.executeQuery()) {
+                rs.next();
+                assertEquals(rs.getInt(1), 0);
+                rs.next();
+                assertEquals(rs.getInt(1), 1);
+            }
+        }
+    }
+
+    static List<Object> trio(Object... max) {
+        return asList(emptyList(), asList(max), null);
+    }
+
+    static DuckDBResultSet.DuckDBBlobResult blobOf(String source) {
+        return new DuckDBResultSet.DuckDBBlobResult(ByteBuffer.wrap(source.getBytes()));
+    }
+
+    private static final DateTimeFormatter FORMAT_DATE = new DateTimeFormatterBuilder()
+                                                             .parseCaseInsensitive()
+                                                             .appendValue(YEAR_OF_ERA)
+                                                             .appendLiteral('-')
+                                                             .appendValue(MONTH_OF_YEAR, 2)
+                                                             .appendLiteral('-')
+                                                             .appendValue(DAY_OF_MONTH, 2)
+                                                             .toFormatter()
+                                                             .withResolverStyle(ResolverStyle.LENIENT);
+    public static final DateTimeFormatter FORMAT_DATETIME = new DateTimeFormatterBuilder()
+                                                                .append(FORMAT_DATE)
+                                                                .appendLiteral('T')
+                                                                .append(ISO_LOCAL_TIME)
+                                                                .toFormatter()
+                                                                .withResolverStyle(ResolverStyle.LENIENT);
+    public static final DateTimeFormatter FORMAT_TZ = new DateTimeFormatterBuilder()
+                                                          .append(FORMAT_DATETIME)
+                                                          .appendLiteral('+')
+                                                          .appendValue(OFFSET_SECONDS)
+                                                          .toFormatter()
+                                                          .withResolverStyle(ResolverStyle.LENIENT);
+
+    static Map<String, List<Object>> correct_answer_map = new HashMap<>();
+    static {
+        correct_answer_map.put("int_array", trio(42, 999, null, null, -42));
+        correct_answer_map.put("double_array",
+                               trio(42.0, Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY, null, -42.0));
+        correct_answer_map.put(
+            "date_array", trio(LocalDate.parse("1970-01-01"), LocalDate.parse("999999999-12-31", FORMAT_DATE),
+                               LocalDate.parse("-999999999-01-01", FORMAT_DATE), null, LocalDate.parse("2022-05-12")));
+        correct_answer_map.put("timestamp_array", trio(Timestamp.valueOf("1970-01-01 00:00:00.0"),
+                                                       DuckDBTimestamp.toSqlTimestamp(9223372036854775807L),
+                                                       DuckDBTimestamp.toSqlTimestamp(-9223372036854775807L), null,
+                                                       Timestamp.valueOf("2022-05-12 16:23:45.0")));
+        correct_answer_map.put("timestamptz_array", trio(OffsetDateTime.parse("1970-01-01T00:00Z"),
+                                                         OffsetDateTime.parse("+294247-01-10T04:00:54.775807Z"),
+                                                         OffsetDateTime.parse("-290308-12-21T19:59:05.224193Z"), null,
+                                                         OffsetDateTime.parse("2022-05-12T23:23:45Z")));
+        correct_answer_map.put("varchar_array", trio("🦆🦆🦆🦆🦆🦆", "goose", null, ""));
+        correct_answer_map.put("nested_int_array", trio(emptyList(), asList(42, 999, null, null, -42), null,
+                                                        emptyList(), asList(42, 999, null, null, -42)));
+        correct_answer_map.put(
+            "struct_of_arrays",
+            asList("{'a': NULL, 'b': NULL}",
+                   "{'a': [42, 999, NULL, NULL, -42], 'b': [🦆🦆🦆🦆🦆🦆, goose, NULL, ]}", null));
+        correct_answer_map.put("array_of_structs",
+                               trio("{'a': NULL, 'b': NULL}", "{'a': 42, 'b': 🦆🦆🦆🦆🦆🦆}", null));
+        correct_answer_map.put("bool", asList(false, true, null));
+        correct_answer_map.put("tinyint", asList((byte) -128, (byte) 127, null));
+        correct_answer_map.put("smallint", asList((short) -32768, (short) 32767, null));
+        correct_answer_map.put("int", asList(-2147483648, 2147483647, null));
+        correct_answer_map.put("bigint", asList(-9223372036854775808L, 9223372036854775807L, null));
+        correct_answer_map.put("hugeint", asList(new BigInteger("-170141183460469231731687303715884105727"),
+                                                 new BigInteger("170141183460469231731687303715884105727"), null));
+        correct_answer_map.put("utinyint", asList((short) 0, (short) 255, null));
+        correct_answer_map.put("usmallint", asList(0, 65535, null));
+        correct_answer_map.put("uint", asList(0L, 4294967295L, null));
+        correct_answer_map.put("ubigint", asList(BigInteger.ZERO, new BigInteger("18446744073709551615"), null));
+        correct_answer_map.put("time", asList(LocalTime.of(0, 0), LocalTime.parse("23:59:59.999999"), null));
+        correct_answer_map.put("float", asList(-3.4028234663852886e+38f, 3.4028234663852886e+38f, null));
+        correct_answer_map.put("double", asList(-1.7976931348623157e+308d, 1.7976931348623157e+308d, null));
+        correct_answer_map.put("dec_4_1", asList(new BigDecimal("-999.9"), (new BigDecimal("999.9")), null));
+        correct_answer_map.put("dec_9_4", asList(new BigDecimal("-99999.9999"), (new BigDecimal("99999.9999")), null));
+        correct_answer_map.put(
+            "dec_18_6", asList(new BigDecimal("-999999999999.999999"), (new BigDecimal("999999999999.999999")), null));
+        correct_answer_map.put("dec38_10", asList(new BigDecimal("-9999999999999999999999999999.9999999999"),
+                                                  (new BigDecimal("9999999999999999999999999999.9999999999")), null));
+        correct_answer_map.put("uuid", asList(UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                                              (UUID.fromString("ffffffff-ffff-ffff-ffff-ffffffffffff")), null));
+        correct_answer_map.put("varchar", asList("🦆🦆🦆🦆🦆🦆", "goo\u0000se", null));
+        correct_answer_map.put("json", asList("🦆🦆🦆🦆🦆", "goose", null));
+        correct_answer_map.put(
+            "blob", asList(blobOf("thisisalongblob\u0000withnullbytes"), blobOf("\u0000\u0000\u0000a"), null));
+        correct_answer_map.put("bit", asList("0010001001011100010101011010111", "10101", null));
+        correct_answer_map.put("small_enum", asList("DUCK_DUCK_ENUM", "GOOSE", null));
+        correct_answer_map.put("medium_enum", asList("enum_0", "enum_299", null));
+        correct_answer_map.put("large_enum", asList("enum_0", "enum_69999", null));
+        correct_answer_map.put("struct",
+                               asList("{'a': NULL, 'b': NULL}", "{'a': 42, 'b': 🦆🦆🦆🦆🦆🦆}", null));
+        correct_answer_map.put("map", asList("{}", "{key1=🦆🦆🦆🦆🦆🦆, key2=goose}", null));
+        correct_answer_map.put("union", asList("Frank", "5", null));
+        correct_answer_map.put(
+            "time_tz", asList(OffsetTime.parse("00:00+00:00"), OffsetTime.parse("23:59:59.999999+00:00"), null));
+        correct_answer_map.put("interval", asList("00:00:00", "83 years 3 months 999 days 00:16:39.999999", null));
+        correct_answer_map.put("timestamp", asList(DuckDBTimestamp.toSqlTimestamp(-9223372022400000000L),
+                                                   DuckDBTimestamp.toSqlTimestamp(9223372036854775807L), null));
+        correct_answer_map.put("date", asList(LocalDate.of(-5877641, 6, 25), LocalDate.of(5881580, 7, 10), null));
+        correct_answer_map.put("timestamp_s",
+                               asList(Timestamp.valueOf(LocalDateTime.of(-290308, 12, 22, 0, 0)),
+                                      Timestamp.valueOf(LocalDateTime.of(294247, 1, 10, 4, 0, 54)), null));
+        correct_answer_map.put("timestamp_ns",
+                               asList(Timestamp.valueOf(LocalDateTime.parse("1677-09-21T00:12:43.145225")),
+                                      Timestamp.valueOf(LocalDateTime.parse("2262-04-11T23:47:16.854775")), null));
+        correct_answer_map.put("timestamp_ms",
+                               asList(Timestamp.valueOf(LocalDateTime.of(-290308, 12, 22, 0, 0, 0)),
+                                      Timestamp.valueOf(LocalDateTime.of(294247, 1, 10, 4, 0, 54, 775000000)), null));
+        correct_answer_map.put(
+            "timestamp_tz",
+            asList(OffsetDateTime.of(LocalDateTime.of(-290308, 12, 22, 0, 0, 0), ZoneOffset.UTC),
+                   OffsetDateTime.of(LocalDateTime.of(294247, 1, 10, 4, 0, 54, 776806000), ZoneOffset.UTC), null));
+    }
+
+    public static void test_all_types() throws Exception {
+        Logger logger = Logger.getAnonymousLogger();
+
+        try (Connection conn = DriverManager.getConnection("jdbc:duckdb:");
+             PreparedStatement stmt = conn.prepareStatement("select * from test_all_types()")) {
+            conn.createStatement().execute("set timezone = 'UTC'");
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                ResultSetMetaData metaData = rs.getMetaData();
+
+                int rowIdx = 0;
+                while (rs.next()) {
+                    for (int i = 0; i < metaData.getColumnCount(); i++) {
+                        String columnName = metaData.getColumnName(i + 1);
+                        List<Object> answers = correct_answer_map.get(columnName);
+                        Object expected = answers.get(rowIdx);
+
+                        Object actual = rs.getObject(i + 1);
+                        if (actual instanceof Array) {
+                            actual = arrayToList((Array) actual);
+                        }
+
+                        if (actual instanceof Timestamp && expected instanceof Timestamp) {
+                            assertEquals(((Timestamp) actual).getTime(), ((Timestamp) expected).getTime(), 500);
+                        } else if (actual instanceof OffsetDateTime && expected instanceof OffsetDateTime) {
+                            assertEquals(((OffsetDateTime) actual).getLong(MILLI_OF_SECOND),
+                                         ((OffsetDateTime) expected).getLong(MILLI_OF_SECOND), 5000);
+                        } else if (actual instanceof List) {
+                            assertListsEqual((List) actual, (List) expected);
+                        } else {
+                            assertEquals(actual, expected);
+                        }
+                    }
+                    rowIdx++;
+                }
+            }
+        }
+    }
+
+    private static <T> void assertListsEqual(List<T> actual, List<T> expected) throws Exception {
+        assertEquals(actual.size(), expected.size());
+
+        ListIterator<T> itera = actual.listIterator();
+        ListIterator<T> itere = expected.listIterator();
+
+        while (itera.hasNext()) {
+            assertEquals(itera.next(), itere.next());
+        }
+    }
+
+    public static void test_cancel() throws Exception {
+        ExecutorService service = Executors.newFixedThreadPool(1);
+        try (Connection conn = DriverManager.getConnection("jdbc:duckdb:"); Statement stmt = conn.createStatement()) {
+            Future<String> thread = service.submit(
+                ()
+                    -> assertThrows(()
+                                        -> stmt.execute("select count(*) from range(10000000) t1, range(1000000) t2;"),
+                                    SQLException.class));
+            Thread.sleep(500); // wait for query to start running
+            stmt.cancel();
+            String message = thread.get(1, TimeUnit.SECONDS);
+            assertEquals(message, "INTERRUPT Error: Interrupted!");
+        }
+    }
+
+    public static void test_prepared_statement_metadata() throws Exception {
+        try (Connection conn = DriverManager.getConnection("jdbc:duckdb:");
+             PreparedStatement stmt = conn.prepareStatement("SELECT 'hello' as world")) {
+            ResultSetMetaData metadata = stmt.getMetaData();
+            assertEquals(metadata.getColumnCount(), 1);
+            assertEquals(metadata.getColumnName(1), "world");
+            assertEquals(metadata.getColumnType(1), Types.VARCHAR);
+        }
+    }
+
+    public static void test_unbindable_query() throws Exception {
+        try (Connection conn = DriverManager.getConnection("jdbc:duckdb:");
+             PreparedStatement stmt = conn.prepareStatement("SELECT ?, ?")) {
+            stmt.setString(1, "word1");
+            stmt.setInt(2, 42);
+
+            ResultSetMetaData meta = stmt.getMetaData();
+            assertEquals(meta.getColumnCount(), 1);
+            assertEquals(meta.getColumnName(1), "unknown");
+            assertEquals(meta.getColumnTypeName(1), "UNKNOWN");
+            assertEquals(meta.getColumnType(1), Types.JAVA_OBJECT);
+
+            try (ResultSet resultSet = stmt.executeQuery()) {
+                ResultSetMetaData metadata = resultSet.getMetaData();
+
+                assertEquals(metadata.getColumnCount(), 2);
+
+                assertEquals(metadata.getColumnName(1), "$1");
+                assertEquals(metadata.getColumnTypeName(1), "VARCHAR");
+                assertEquals(metadata.getColumnType(1), Types.VARCHAR);
+
+                assertEquals(metadata.getColumnName(2), "$2");
+                assertEquals(metadata.getColumnTypeName(2), "INTEGER");
+                assertEquals(metadata.getColumnType(2), Types.INTEGER);
+
+                resultSet.next();
+                assertEquals(resultSet.getString(1), "word1");
+                assertEquals(resultSet.getInt(2), 42);
+            }
+        }
+    }
+
+    public static void test_labels_with_prepped_statement() throws Exception {
+        try (Connection conn = DriverManager.getConnection("jdbc:duckdb:")) {
+            try (PreparedStatement stmt = conn.prepareStatement("SELECT ? as result")) {
+                stmt.setString(1, "Quack");
+                try (ResultSet rs = stmt.executeQuery()) {
+                    while (rs.next()) {
+                        assertEquals(rs.getObject("result"), "Quack");
+                    }
+                }
+            }
+        }
+    }
+
+    public static void test_execute_updated_on_prep_stmt() throws SQLException {
+        try (Connection conn = DriverManager.getConnection("jdbc:duckdb:"); Statement s = conn.createStatement()) {
+            s.executeUpdate("create table t (i int)");
+
+            try (PreparedStatement p = conn.prepareStatement("insert into t (i) select ?")) {
+                p.setInt(1, 1);
+                p.executeUpdate();
+            }
+        }
+    }
+
+    public static void test_invalid_execute_calls() throws Exception {
+        try (Connection conn = DriverManager.getConnection("jdbc:duckdb:")) {
+            try (Statement s = conn.createStatement()) {
+                s.execute("create table test (id int)");
+            }
+            try (PreparedStatement s = conn.prepareStatement("select 1")) {
+                String msg = assertThrows(s::executeUpdate, SQLException.class);
+                assertTrue(msg.contains("can only be used with queries that return nothing") &&
+                           msg.contains("or update rows"));
+            }
+            try (PreparedStatement s = conn.prepareStatement("insert into test values (1)")) {
+                String msg = assertThrows(s::executeQuery, SQLException.class);
+                assertTrue(msg.contains("can only be used with queries that return a ResultSet"));
             }
         }
     }
@@ -3278,6 +3700,9 @@ public class TestDuckDBJDBC {
                     System.out.println("success in " + Duration.between(start, LocalDateTime.now()).getSeconds() +
                                        " seconds");
                 } catch (Throwable t) {
+                    if (t instanceof InvocationTargetException) {
+                        t = t.getCause();
+                    }
                     System.out.println("failed with " + t);
                     t.printStackTrace(System.out);
                     anyFailed = true;
@@ -3289,7 +3714,7 @@ public class TestDuckDBJDBC {
             System.out.println("No tests found that match " + specific_test);
             System.exit(1);
         }
-        System.out.println("OK");
+        System.out.println(anyFailed ? "FAILED" : "OK");
 
         System.exit(anyFailed ? 1 : 0);
     }

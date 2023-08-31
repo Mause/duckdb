@@ -9,11 +9,12 @@
 #pragma once
 
 #include "duckdb/common/exception.hpp"
+#include "duckdb/common/stack_checker.hpp"
+#include "duckdb/common/unordered_map.hpp"
 #include "duckdb/parser/expression/bound_expression.hpp"
 #include "duckdb/parser/parsed_expression.hpp"
 #include "duckdb/parser/tokens.hpp"
 #include "duckdb/planner/expression.hpp"
-#include "duckdb/common/unordered_map.hpp"
 
 namespace duckdb {
 
@@ -51,6 +52,8 @@ struct BindResult {
 };
 
 class ExpressionBinder {
+	friend class StackChecker<ExpressionBinder>;
+
 public:
 	ExpressionBinder(Binder &binder, ClientContext &context, bool replace_binder = false);
 	virtual ~ExpressionBinder();
@@ -101,12 +104,23 @@ public:
 	static bool ContainsType(const LogicalType &type, LogicalTypeId target);
 	static LogicalType ExchangeType(const LogicalType &type, LogicalTypeId target, LogicalType new_type);
 
+	virtual bool QualifyColumnAlias(const ColumnRefExpression &colref);
+
 	//! Bind the given expresion. Unlike Bind(), this does *not* mute the given ParsedExpression.
 	//! Exposed to be used from sub-binders that aren't subclasses of ExpressionBinder.
 	virtual BindResult BindExpression(unique_ptr<ParsedExpression> &expr_ptr, idx_t depth,
 	                                  bool root_expression = false);
 
 	void ReplaceMacroParametersRecursive(unique_ptr<ParsedExpression> &expr);
+
+private:
+	//! Maximum stack depth
+	static constexpr const idx_t MAXIMUM_STACK_DEPTH = 128;
+	//! Current stack depth
+	idx_t stack_depth = DConstants::INVALID_INDEX;
+
+	void InitializeStackCheck();
+	StackChecker<ExpressionBinder> StackCheck(const ParsedExpression &expr, idx_t extra_stack = 1);
 
 protected:
 	BindResult BindExpression(BetweenExpression &expr, idx_t depth);
@@ -122,8 +136,8 @@ protected:
 	                          const LogicalType &list_child_type);
 	BindResult BindExpression(OperatorExpression &expr, idx_t depth);
 	BindResult BindExpression(ParameterExpression &expr, idx_t depth);
-	BindResult BindExpression(PositionalReferenceExpression &ref, idx_t depth);
 	BindResult BindExpression(SubqueryExpression &expr, idx_t depth);
+	BindResult BindPositionalReference(unique_ptr<ParsedExpression> &expr, idx_t depth, bool root_expression);
 
 	void TransformCapturedLambdaColumn(unique_ptr<Expression> &original, unique_ptr<Expression> &replacement,
 	                                   vector<unique_ptr<Expression>> &captures, LogicalType &list_child_type);
