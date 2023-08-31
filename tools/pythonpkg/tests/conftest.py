@@ -48,6 +48,9 @@ def pytest_collection_modifyitems(config, items):
             # the class is named specifically
             item.add_marker(skip_listed)
 
+        if item.get_marker('timeout') is None:
+            item.add_marker(pytest.mark.timeout(3))
+
 
 @pytest.fixture(scope="function")
 def duckdb_empty_cursor(request):
