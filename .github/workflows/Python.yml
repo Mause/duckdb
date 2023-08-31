@@ -62,7 +62,7 @@ jobs:
 
     - name: Install
       shell: bash
-      run: pip install cibuildwheel>=2.15.0 twine
+      run: pip install cibuildwheel twine
 
     - name: Setup Ccache
       uses: hendrikmuhs/ccache-action@main
@@ -172,7 +172,7 @@ jobs:
 
     - name: Install
       shell: bash
-      run: pip install cibuildwheel>=2.15.0 twine pip setuptools wheel -U
+      run: pip install cibuildwheel twine pip setuptools wheel -U
 
     - run: pip install git+https://github.com/pypa/pip#egg=pip
 
@@ -243,7 +243,7 @@ jobs:
 
       - name: Install
         shell: bash
-        run: pip install cibuildwheel>=2.15.0 twine
+        run: pip install cibuildwheel twine
 
       - name: Setup Ccache
         uses: hendrikmuhs/ccache-action@main
@@ -310,7 +310,7 @@ jobs:
 
       - name: Install
         shell: bash
-        run: pip install cibuildwheel>=2.15.0 twine
+        run: pip install cibuildwheel twine
 
       - name: Setup Ccache
         uses: hendrikmuhs/ccache-action@main
