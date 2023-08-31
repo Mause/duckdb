@@ -37,7 +37,11 @@ jobs:
         signing_pk: ${{ secrets.DUCKDB_EXTENSION_SIGNING_PK }}
         treat_warn_as_error: 0
 
+    - if: always()
+      run: cat build/release/vcpkg_installed/vcpkg/issue_body.md
+
     - uses: actions/upload-artifact@v3
+      if: always()
       with:
         name: manylinux-extensions-x64
         path: |
