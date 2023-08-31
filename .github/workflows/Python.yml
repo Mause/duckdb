@@ -89,7 +89,7 @@ jobs:
     name: Linux Extensions (ggc4)
     runs-on: ubuntu-latest
     container: quay.io/pypa/manylinux2014_x86_64
-#    needs: linux-python3-9
+    needs: linux-python3-9
     env:
       GEN: ninja
 
@@ -142,12 +142,10 @@ jobs:
           - isRelease: false
             python_build: 'cp311-*'
           - isRelease: false
-            python_build: 'cp310-*'
-          - isRelease: false
             arch: i686
           - isRelease: false
             arch: aarch64
-#    needs: manylinux-extensions-x64
+    needs: manylinux-extensions-x64
     env:
       CIBW_BUILD: ${{ matrix.python_build}}
       CIBW_SKIP: '*-musllinux_aarch64'
@@ -172,9 +170,10 @@ jobs:
 
     - name: Install
       shell: bash
-      run: pip install cibuildwheel twine pip setuptools wheel -U
+      run: pip install cibuildwheel twine
 
     - run: pip install git+https://github.com/pypa/pip#egg=pip
+      name: Install pre-pre-release pip
 
 #    - uses: actions/download-artifact@v3
 #      if: ${{ matrix.arch == 'x86_64' }}
