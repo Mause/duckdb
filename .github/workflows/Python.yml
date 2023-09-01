@@ -145,7 +145,7 @@ jobs:
             arch: i686
               #  - isRelease: false
               #    arch: aarch64
-    needs: manylinux-extensions-x64
+              #needs: manylinux-extensions-x64
     env:
       CIBW_BUILD: ${{ matrix.python_build}}
       CIBW_SKIP: '*-musllinux_aarch64'
@@ -172,11 +172,11 @@ jobs:
       shell: bash
       run: pip install cibuildwheel twine
 
-    - uses: actions/download-artifact@v3
-      if: ${{ matrix.arch == 'x86_64' }}
-      with:
-        name: manylinux-extensions-x64
-        path: tools/pythonpkg
+        #  - uses: actions/download-artifact@v3
+        #    if: ${{ matrix.arch == 'x86_64' }}
+        #     with:
+        #     name: manylinux-extensions-x64
+        #   path: tools/pythonpkg
 
     - name: List extensions to be tested
       shell: bash
