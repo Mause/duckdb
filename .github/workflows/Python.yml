@@ -143,13 +143,14 @@ jobs:
             python_build: 'cp311-*'
           - isRelease: false
             arch: i686
-          - isRelease: false
-            arch: aarch64
+              #  - isRelease: false
+              #    arch: aarch64
     needs: manylinux-extensions-x64
     env:
       CIBW_BUILD: ${{ matrix.python_build}}
       CIBW_SKIP: '*-musllinux_aarch64'
       CIBW_ARCHS: ${{ matrix.arch == 'i686' && 'auto32' || matrix.arch == 'aarch64' && 'aarch64' || 'auto64' }}
+      CIBW_MANYLINUX_AARCH64_IMAGE: manylinux_2_24
       SETUPTOOLS_SCM_NO_LOCAL: 'yes'
       PYTEST_TIMEOUT: '600'
       DUCKDB_BUILD_UNITY: 1
