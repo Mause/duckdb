@@ -525,9 +525,9 @@ void ParquetMetaDataOperatorData::LoadFileLevelMetadata(ClientContext &context, 
 template <int DATA_TYPE>
 unique_ptr<FunctionData> ParquetMetaDataBind(ClientContext &context, TableFunctionBindInput &input,
                                              vector<LogicalType> &return_types, vector<string> &names) {
-	if (DATA_TYPE == 0) {
+	if (DATA_TYPE == 1) {
 		ParquetMetaDataOperatorData::BindSchema(return_types, names);
-	} else if (DATA_TYPE == 1) {
+	} else if (DATA_TYPE == 0) {
 		ParquetMetaDataOperatorData::BindMetaData(return_types, names);
 	} else if (DATA_TYPE == 2) {
 		ParquetMetaDataOperatorData::BindFileLevelMetaData(return_types, names);
@@ -547,9 +547,9 @@ unique_ptr<GlobalTableFunctionState> ParquetMetaDataInit(ClientContext &context,
 	D_ASSERT(!bind_data.files.empty());
 
 	auto result = make_uniq<ParquetMetaDataOperatorData>(context, bind_data.return_types);
-	if (DATA_TYPE == 0) {
+	if (DATA_TYPE == 1) {
 		result->LoadSchemaData(context, bind_data.return_types, bind_data.files[0]);
-	} else if (DATA_TYPE == 1) {
+	} else if (DATA_TYPE == 0) {
 		result->LoadFileMetaData(context, bind_data.return_types, bind_data.files[0]);
 	} else if (DATA_TYPE == 2) {
 		result->LoadFileLevelMetadata(context, bind_data.return_types, bind_data.files[0]);
@@ -571,9 +571,9 @@ void ParquetMetaDataImplementation(ClientContext &context, TableFunctionInput &d
 				// load the metadata for the next file
 				data.file_index++;
 				ClientContext &context_1 = context;
-				if (DATA_TYPE == 0) {
+				if (DATA_TYPE == 1) {
 					data.LoadSchemaData(context_1, bind_data.return_types, bind_data.files[data.file_index]);
-				} else if (DATA_TYPE == 1) {
+				} else if (DATA_TYPE == 0) {
 					data.LoadFileMetaData(context_1, bind_data.return_types, bind_data.files[data.file_index]);
 				} else if (DATA_TYPE == 2) {
 					data.LoadFileLevelMetadata(context_1, bind_data.return_types, bind_data.files[data.file_index]);
