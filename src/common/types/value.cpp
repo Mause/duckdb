@@ -679,8 +679,12 @@ Value Value::STRUCT(child_list_t<Value> values) {
 	return Value::STRUCT(LogicalType::STRUCT(child_types), std::move(struct_values));
 }
 
-Value Value::KEYVALUE(const Value &key, const Value &value) {
-	return Value::STRUCT({{"key", key}, {"value", value}});
+Value Value::MAP(const LogicalType &child_type, vector<Value> keys, vector<Value> values) {
+	vector<Value> entries;
+	for (size_t i = 0; i < keys.size(); i++) {
+		entries.push_back(STRUCT({{"key", keys[i]}, {"value", values[i]}}));
+	}
+	return Value::MAP(child_type, entries);
 }
 
 Value Value::MAP(const LogicalType &child_type, vector<Value> values) { // NOLINT
