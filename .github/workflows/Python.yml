@@ -143,8 +143,6 @@ jobs:
           - isRelease: false
             python_build: 'cp311-*'
           - isRelease: false
-            python_build: 'cp312-*'
-          - isRelease: false
             arch: i686
           - isRelease: false
             arch: aarch64
