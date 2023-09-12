@@ -143,8 +143,6 @@ jobs:
           - isRelease: false
             python_build: 'cp311-*'
           - isRelease: false
-            python_build: 'cp312-*'
-          - isRelease: false
             arch: i686
           - isRelease: false
             arch: aarch64
@@ -173,7 +171,7 @@ jobs:
 
     - name: Install
       shell: bash
-      run: pip install cibuildwheel twine
+      run: pip install cibuildwheel twine build
 
     - run: pip install git+https://github.com/pypa/pip#egg=pip
       name: Install pre-pre-release pip
@@ -199,7 +197,7 @@ jobs:
       shell: bash
       run: |
         cd tools/pythonpkg
-        python setup.py sdist
+        pyproject-build --sdist
         mkdir duckdb_tarball && tar xvf dist/duckdb-*.tar.gz --strip-components=1 -C duckdb_tarball
         ls duckdb_tarball
         export DISTUTILS_C_COMPILER_LAUNCHER=ccache
