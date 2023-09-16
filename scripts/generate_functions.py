@@ -73,30 +73,35 @@ for path in all_function_types:
     new_text = header.replace('{HEADER}', path)
     for entry in parsed_json:
         function_text = ''
+        entry_name_ = entry['name']
         if 'struct' in entry:
             struct_name = entry['struct']
         else:
-            struct_name = get_struct_name(entry['name'])
+            struct_name = get_struct_name(entry_name_)
         if not legal_struct_name(struct_name):
             print(f'Struct name {struct_name} is not a valid struct name!')
             exit(1)
         if struct_name in function_type_set:
             raise Exception("Duplicate entry " + struct_name)
-        function_type_set[struct_name] = entry['type']
-        if entry['type'] == 'scalar_function':
+        entry_type = entry['type']
+        function_type_set[struct_name] = entry_type
+        if entry_type == 'scalar_function':
             function_text = 'static ScalarFunction GetFunction();'
-            all_function_list.append([entry['name'], f"DUCKDB_SCALAR_FUNCTION({struct_name})"])
-        elif entry['type'] == 'scalar_function_set':
+            all_function_list.append([entry_name_, f"DUCKDB_SCALAR_FUNCTION({struct_name})"])
+        elif entry_type == 'scalar_function_set':
             function_text = 'static ScalarFunctionSet GetFunctions();'
-            all_function_list.append([entry['name'], f"DUCKDB_SCALAR_FUNCTION_SET({struct_name})"])
-        elif entry['type'] == 'aggregate_function':
+            all_function_list.append([entry_name_, f"DUCKDB_SCALAR_FUNCTION_SET({struct_name})"])
+        elif entry_type == 'aggregate_function':
             function_text = 'static AggregateFunction GetFunction();'
-            all_function_list.append([entry['name'], f"DUCKDB_AGGREGATE_FUNCTION({struct_name})"])
-        elif entry['type'] == 'aggregate_function_set':
+            all_function_list.append([entry_name_, f"DUCKDB_AGGREGATE_FUNCTION({struct_name})"])
+        elif entry_type == 'aggregate_function_set':
             function_text = 'static AggregateFunctionSet GetFunctions();'
-            all_function_list.append([entry['name'], f"DUCKDB_AGGREGATE_FUNCTION_SET({struct_name})"])
+            all_function_list.append([entry_name_, f"DUCKDB_AGGREGATE_FUNCTION_SET({struct_name})"])
+        elif entry_type == 'table_function':
+            function_text = 'static TableFunction GetFunction();'
+            all_function_list.append([entry_name_, f"DUCKDB_TABLE_FUNCTION({struct_name})"])
         else:
-            print("Unknown entry type " + entry['type'] + ' for entry ' + struct_name)
+            print("Unknown entry type " + entry_type + ' for entry ' + struct_name)
             exit(1)
         if 'extra_functions' in entry:
             for func_text in entry['extra_functions']:
@@ -114,7 +119,7 @@ for path in all_function_types:
 '''.replace(
                 '{STRUCT}', struct_name
             )
-            .replace('{NAME}', entry['name'])
+            .replace('{NAME}', entry_name_)
             .replace('{PARAMETERS}', entry['parameters'] if 'parameters' in entry else '')
             .replace('{DESCRIPTION}', sanitize_string(entry['description']))
             .replace('{EXAMPLE}', sanitize_string(entry['example']))
@@ -130,7 +135,7 @@ for path in all_function_types:
                         alias_struct_name += str(alias_count)
                     alias_count += 1
 
-                aliased_type = entry['type']
+                aliased_type = entry_type
                 if aliased_type == 'scalar_function':
                     all_function_list.append([alias, f"DUCKDB_SCALAR_FUNCTION_ALIAS({alias_struct_name})"])
                 elif aliased_type == 'scalar_function_set':

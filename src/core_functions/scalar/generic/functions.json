@@ -21,6 +21,18 @@
         "type": "scalar_function"
     },
     {
+        "name": "assertions_enabled_check",
+        "description": "Returns true if assertions are enabled",
+        "example": "assertions_enabled_check()",
+        "type": "scalar_function"
+    },
+    {
+        "name": "compile_flags",
+        "example": "compile_flags()",
+        "description": "Returns rows with the state of various compilation flags",
+        "type": "table_function"
+    },
+    {
         "name": "hash",
         "parameters": "param",
         "description": "Returns an integer with the hash of the value. Note that this is not a cryptographic hash.",
