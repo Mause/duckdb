@@ -52,7 +52,7 @@ struct DateDiffFun {
 	static constexpr const char *Name = "date_diff";
 	static constexpr const char *Parameters = "part,startdate,enddate";
 	static constexpr const char *Description = "The number of partition boundaries between the timestamps";
-	static constexpr const char *Example = "date_diff('hour', TIMESTAMPTZ '1992-09-30 23:59:59', TIMESTAMPTZ '1992-10-01 01:58:00')";
+	static constexpr const char *Example = "date_diff('hour', TIMESTAMP '1992-09-30 23:59:59', TIMESTAMP '1992-10-01 01:58:00')";
 
 	static ScalarFunctionSet GetFunctions();
 };
@@ -82,7 +82,7 @@ struct DateSubFun {
 	static constexpr const char *Name = "date_sub";
 	static constexpr const char *Parameters = "part,startdate,enddate";
 	static constexpr const char *Description = "The number of complete partitions between the timestamps";
-	static constexpr const char *Example = "date_sub('hour', TIMESTAMPTZ '1992-09-30 23:59:59', TIMESTAMPTZ '1992-10-01 01:58:00')";
+	static constexpr const char *Example = "date_sub('hour', TIMESTAMP '1992-09-30 23:59:59', TIMESTAMP '1992-10-01 01:58:00')";
 
 	static ScalarFunctionSet GetFunctions();
 };
@@ -97,7 +97,7 @@ struct DateTruncFun {
 	static constexpr const char *Name = "date_trunc";
 	static constexpr const char *Parameters = "part,timestamp";
 	static constexpr const char *Description = "Truncate to specified precision";
-	static constexpr const char *Example = "date_trunc('hour', TIMESTAMPTZ '1992-09-20 20:38:40')";
+	static constexpr const char *Example = "date_trunc('hour', TIMESTAMP '1992-09-20 20:38:40')";
 
 	static ScalarFunctionSet GetFunctions();
 };
@@ -268,7 +268,7 @@ struct JulianDayFun {
 	static constexpr const char *Name = "julian";
 	static constexpr const char *Parameters = "ts";
 	static constexpr const char *Description = "Extract the Julian Day number from a date or timestamp";
-	static constexpr const char *Example = "julian(timestamp '2006-01-01 12:00')";
+	static constexpr const char *Example = "julian(timestamp '2006-01-01 12:00:00')";
 
 	static ScalarFunctionSet GetFunctions();
 };
@@ -402,7 +402,7 @@ struct StrpTimeFun {
 struct TimeBucketFun {
 	static constexpr const char *Name = "time_bucket";
 	static constexpr const char *Parameters = "bucket_width,timestamp,origin";
-	static constexpr const char *Description = "Truncate TIMESTAMPTZ by the specified interval bucket_width. Buckets are aligned relative to origin TIMESTAMPTZ. The origin defaults to 2000-01-03 00:00:00+00 for buckets that do not include a month or year interval, and to 2000-01-01 00:00:00+00 for month and year buckets";
+	static constexpr const char *Description = "Truncate TIMESTAMP by the specified interval bucket_width. Buckets are aligned relative to origin TIMESTAMP. The origin defaults to 2000-01-03 00:00:00+00 for buckets that do not include a month or year interval, and to 2000-01-01 00:00:00+00 for month and year buckets";
 	static constexpr const char *Example = "time_bucket(INTERVAL '2 weeks', TIMESTAMP '1992-04-20 15:26:00-07', TIMESTAMP '1992-04-01 00:00:00-07')";
 
 	static ScalarFunctionSet GetFunctions();
