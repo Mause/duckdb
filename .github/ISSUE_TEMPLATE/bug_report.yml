@@ -96,8 +96,9 @@ body:
         * **R**: `install.packages('duckdb', repos=c('https://duckdb.r-universe.dev', 'https://cloud.r-project.org'))`
         * **Other Platforms**: You can find links to binaries [here](https://duckdb.org/docs/installation/) or compile from source.
       options:
-        - I have tested with a main build
-        - I have tested with a release build (and could not test with a main build)
+        - ''
+        - I have tested with a dev build
+        - I have tested with a release build (and could not test with a dev build)
         - I have not tested with any build
     validations:
       required: true
