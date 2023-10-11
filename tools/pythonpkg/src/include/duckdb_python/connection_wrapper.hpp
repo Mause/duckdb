@@ -115,6 +115,7 @@ public:
 	static shared_ptr<DuckDBPyConnection> Cursor(shared_ptr<DuckDBPyConnection> conn = nullptr);
 
 	static Optional<py::list> GetDescription(shared_ptr<DuckDBPyConnection> conn = nullptr);
+	static int64_t RowCount(shared_ptr<DuckDBPyConnection> conn = nullptr);
 
 	static int GetRowcount(shared_ptr<DuckDBPyConnection> conn = nullptr);
 

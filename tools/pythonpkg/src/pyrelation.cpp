@@ -483,6 +483,10 @@ unique_ptr<DuckDBPyRelation> DuckDBPyRelation::FSum(const std::string &column, c
 	return ApplyAggOrWin("fsum", column, "", groups, window_spec, projected_columns);
 }
 
+int64_t DuckDBPyRelation::RowCount() {
+	return result ? result->RowCount() : -1;
+}
+
 unique_ptr<DuckDBPyRelation> DuckDBPyRelation::GeoMean(const std::string &column, const std::string &groups,
                                                        const std::string &projected_columns) {
 	return GenericAggregator("geomean", column, groups, "", projected_columns);
