@@ -2,10 +2,9 @@
 
 #include "duckdb/common/file_system.hpp"
 #include "duckdb/common/string_util.hpp"
-#include "duckdb_python/pybind_wrapper.hpp"
-#include "duckdb_python/python_object_container.hpp"
-
-#include <vector>
+#include "duckdb_python/pybind11/pybind_wrapper.hpp"
+#include "duckdb_python/pybind11/gil_wrapper.hpp"
+#include "duckdb/common/vector.hpp"
 
 namespace duckdb {
 
@@ -33,7 +32,7 @@ public:
 
 class PythonFileHandle : public FileHandle {
 public:
-	PythonFileHandle(FileSystem &file_system, const string &path, const py::object handle);
+	PythonFileHandle(FileSystem &file_system, const string &path, const py::object &handle);
 	~PythonFileHandle() override;
 	void Close() override {
 		PythonGILWrapper gil;
@@ -86,6 +85,7 @@ public:
 	bool OnDiskFile(FileHandle &handle) override {
 		return false;
 	}
+	string PathSeparator(const string &path) override;
 	int64_t GetFileSize(FileHandle &handle) override;
 	void RemoveFile(const string &filename) override;
 	void MoveFile(const string &source, const string &dest) override;

@@ -14,8 +14,14 @@
 #include <execinfo.h>
 #endif
 
-#if defined(BUILD_JEMALLOC_EXTENSION) && !defined(WIN32)
-#include "jemalloc-extension.hpp"
+#ifndef USE_JEMALLOC
+#if defined(DUCKDB_EXTENSION_JEMALLOC_LINKED) && DUCKDB_EXTENSION_JEMALLOC_LINKED && !defined(WIN32)
+#define USE_JEMALLOC
+#endif
+#endif
+
+#ifdef USE_JEMALLOC
+#include "jemalloc_extension.hpp"
 #endif
 
 namespace duckdb {
@@ -89,9 +95,9 @@ PrivateAllocatorData::~PrivateAllocatorData() {
 //===--------------------------------------------------------------------===//
 // Allocator
 //===--------------------------------------------------------------------===//
-#if defined(BUILD_JEMALLOC_EXTENSION) && !defined(WIN32)
+#ifdef USE_JEMALLOC
 Allocator::Allocator()
-    : Allocator(JEMallocExtension::Allocate, JEMallocExtension::Free, JEMallocExtension::Reallocate, nullptr) {
+    : Allocator(JemallocExtension::Allocate, JemallocExtension::Free, JemallocExtension::Reallocate, nullptr) {
 }
 #else
 Allocator::Allocator()
@@ -108,9 +114,9 @@ Allocator::Allocator(allocate_function_ptr_t allocate_function_p, free_function_
 	D_ASSERT(reallocate_function);
 #ifdef DEBUG
 	if (!private_data) {
-		private_data = make_unique<PrivateAllocatorData>();
+		private_data = make_uniq<PrivateAllocatorData>();
 	}
-	private_data->debug_info = make_unique<AllocatorDebugInfo>();
+	private_data->debug_info = make_uniq<AllocatorDebugInfo>();
 #endif
 }
 
@@ -175,6 +181,12 @@ shared_ptr<Allocator> &Allocator::DefaultAllocatorReference() {
 
 Allocator &Allocator::DefaultAllocator() {
 	return *DefaultAllocatorReference();
+}
+
+void Allocator::ThreadFlush(idx_t threshold) {
+#ifdef USE_JEMALLOC
+	JemallocExtension::ThreadFlush(threshold);
+#endif
 }
 
 //===--------------------------------------------------------------------===//

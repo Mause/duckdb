@@ -12,16 +12,12 @@
 #include "duckdb/common/types/data_chunk.hpp"
 #include "duckdb/common/winapi.hpp"
 #include "duckdb/common/preserved_error.hpp"
+#include "duckdb/main/client_properties.hpp"
 
 namespace duckdb {
 struct BoxRendererConfig;
 
 enum class QueryResultType : uint8_t { MATERIALIZED_RESULT, STREAM_RESULT, PENDING_RESULT };
-
-//! A set of properties from the client context that can be used to interpret the query result
-struct ClientProperties {
-	string timezone;
-};
 
 class BaseQueryResult {
 public:
@@ -44,7 +40,7 @@ public:
 	vector<string> names;
 
 public:
-	DUCKDB_API void ThrowError(const string &prepended_message = "") const;
+	[[noreturn]] DUCKDB_API void ThrowError(const string &prepended_message = "") const;
 	DUCKDB_API void SetError(PreservedError error);
 	DUCKDB_API bool HasError() const;
 	DUCKDB_API const ExceptionType &GetErrorType() const;
@@ -77,6 +73,23 @@ public:
 	unique_ptr<QueryResult> next;
 
 public:
+	template <class TARGET>
+	TARGET &Cast() {
+		if (type != TARGET::TYPE) {
+			throw InternalException("Failed to cast query result to type - query result type mismatch");
+		}
+		return reinterpret_cast<TARGET &>(*this);
+	}
+
+	template <class TARGET>
+	const TARGET &Cast() const {
+		if (type != TARGET::TYPE) {
+			throw InternalException("Failed to cast query result to type - query result type mismatch");
+		}
+		return reinterpret_cast<const TARGET &>(*this);
+	}
+
+public:
 	//! Returns the name of the column for the given index
 	DUCKDB_API const string &ColumnName(idx_t index) const;
 	//! Fetches a DataChunk of normalized (flat) vectors from the query result.
@@ -95,7 +108,7 @@ public:
 	//! Fetch() until both results are exhausted. The data in the results will be lost.
 	DUCKDB_API bool Equals(QueryResult &other);
 
-	DUCKDB_API bool TryFetch(unique_ptr<DataChunk> &result, PreservedError &error) {
+	bool TryFetch(unique_ptr<DataChunk> &result, PreservedError &error) {
 		try {
 			result = Fetch();
 			return success;
@@ -110,8 +123,6 @@ public:
 			return false;
 		}
 	}
-
-	static string GetConfigTimezone(QueryResult &query_result);
 
 private:
 	class QueryResultIterator;
@@ -131,7 +142,8 @@ private:
 	//! The row-based query result iterator. Invoking the
 	class QueryResultIterator {
 	public:
-		explicit QueryResultIterator(QueryResult *result_p) : current_row(*this, 0), result(result_p), base_row(0) {
+		explicit QueryResultIterator(optional_ptr<QueryResult> result_p)
+		    : current_row(*this, 0), result(result_p), base_row(0) {
 			if (result) {
 				chunk = shared_ptr<DataChunk>(result->Fetch().release());
 				if (!chunk) {
@@ -142,7 +154,7 @@ private:
 
 		QueryResultRow current_row;
 		shared_ptr<DataChunk> chunk;
-		QueryResult *result;
+		optional_ptr<QueryResult> result;
 		idx_t base_row;
 
 	public:
@@ -153,7 +165,7 @@ private:
 			current_row.row++;
 			if (current_row.row >= chunk->size()) {
 				base_row += chunk->size();
-				chunk = result->Fetch();
+				chunk = shared_ptr<DataChunk>(result->Fetch().release());
 				current_row.row = 0;
 				if (!chunk || chunk->size() == 0) {
 					// exhausted all rows
@@ -177,10 +189,10 @@ private:
 	};
 
 public:
-	DUCKDB_API QueryResultIterator begin() {
+	QueryResultIterator begin() {
 		return QueryResultIterator(this);
 	}
-	DUCKDB_API QueryResultIterator end() {
+	QueryResultIterator end() {
 		return QueryResultIterator(nullptr);
 	}
 

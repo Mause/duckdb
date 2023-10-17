@@ -13,14 +13,14 @@
 
 namespace duckdb {
 
-class FieldReader;
-class FieldWriter;
-
 //! A BoundLambdaRef expression represents a LambdaRef expression that was bound to an lambda parameter
 //! in the lambda bindings vector. When capturing lambdas the BoundLambdaRef becomes a
 //! BoundReferenceExpresssion, indexing the corresponding lambda parameter in the lambda bindings vector,
 //! which refers to the physical chunk of the lambda parameter during execution.
 class BoundLambdaRefExpression : public Expression {
+public:
+	static constexpr const ExpressionClass TYPE = ExpressionClass::BOUND_LAMBDA_REF;
+
 public:
 	BoundLambdaRefExpression(LogicalType type, ColumnBinding binding, idx_t lambda_index, idx_t depth = 0);
 	BoundLambdaRefExpression(string alias, LogicalType type, ColumnBinding binding, idx_t lambda_index,
@@ -43,12 +43,12 @@ public:
 
 	string ToString() const override;
 
-	bool Equals(const BaseExpression *other) const override;
+	bool Equals(const BaseExpression &other) const override;
 	hash_t Hash() const override;
 
 	unique_ptr<Expression> Copy() override;
 
-	void Serialize(FieldWriter &writer) const override;
-	static unique_ptr<Expression> Deserialize(ExpressionDeserializationState &state, FieldReader &reader);
+	void Serialize(Serializer &serializer) const override;
+	static unique_ptr<Expression> Deserialize(Deserializer &deserializer);
 };
 } // namespace duckdb

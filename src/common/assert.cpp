@@ -14,6 +14,9 @@ void DuckDBAssertInternal(bool condition, const char *condition_name, const std:
 }
 
 void DuckDBAssertInternal(bool condition, const char *condition_name, const char *file, int linenr) {
+#ifdef DISABLE_ASSERTIONS
+	return;
+#endif
 	if (condition) {
 		return;
 	}

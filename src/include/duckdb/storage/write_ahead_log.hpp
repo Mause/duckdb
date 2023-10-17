@@ -24,7 +24,6 @@ namespace duckdb {
 struct AlterInfo;
 
 class AttachedDatabase;
-class BufferedSerializer;
 class Catalog;
 class DatabaseInstance;
 class SchemaCatalogEntry;
@@ -38,54 +37,52 @@ class TransactionManager;
 
 class ReplayState {
 public:
-	ReplayState(AttachedDatabase &db, ClientContext &context, Deserializer &source)
-	    : db(db), context(context), catalog(db.GetCatalog()), source(source), current_table(nullptr),
-	      deserialize_only(false), checkpoint_id(INVALID_BLOCK) {
+	ReplayState(AttachedDatabase &db, ClientContext &context)
+	    : db(db), context(context), catalog(db.GetCatalog()), deserialize_only(false) {
 	}
 
 	AttachedDatabase &db;
 	ClientContext &context;
 	Catalog &catalog;
-	Deserializer &source;
-	TableCatalogEntry *current_table;
+	optional_ptr<TableCatalogEntry> current_table;
 	bool deserialize_only;
-	block_id_t checkpoint_id;
+	MetaBlockPointer checkpoint_id;
 
 public:
-	void ReplayEntry(WALType entry_type);
+	void ReplayEntry(WALType entry_type, BinaryDeserializer &deserializer);
 
 protected:
-	virtual void ReplayCreateTable();
-	void ReplayDropTable();
-	void ReplayAlter();
+	virtual void ReplayCreateTable(BinaryDeserializer &deserializer);
+	void ReplayDropTable(BinaryDeserializer &deserializer);
+	void ReplayAlter(BinaryDeserializer &deserializer);
 
-	void ReplayCreateView();
-	void ReplayDropView();
+	void ReplayCreateView(BinaryDeserializer &deserializer);
+	void ReplayDropView(BinaryDeserializer &deserializer);
 
-	void ReplayCreateSchema();
-	void ReplayDropSchema();
+	void ReplayCreateSchema(BinaryDeserializer &deserializer);
+	void ReplayDropSchema(BinaryDeserializer &deserializer);
 
-	void ReplayCreateType();
-	void ReplayDropType();
+	void ReplayCreateType(BinaryDeserializer &deserializer);
+	void ReplayDropType(BinaryDeserializer &deserializer);
 
-	void ReplayCreateSequence();
-	void ReplayDropSequence();
-	void ReplaySequenceValue();
+	void ReplayCreateSequence(BinaryDeserializer &deserializer);
+	void ReplayDropSequence(BinaryDeserializer &deserializer);
+	void ReplaySequenceValue(BinaryDeserializer &deserializer);
 
-	void ReplayCreateMacro();
-	void ReplayDropMacro();
+	void ReplayCreateMacro(BinaryDeserializer &deserializer);
+	void ReplayDropMacro(BinaryDeserializer &deserializer);
 
-	void ReplayCreateTableMacro();
-	void ReplayDropTableMacro();
+	void ReplayCreateTableMacro(BinaryDeserializer &deserializer);
+	void ReplayDropTableMacro(BinaryDeserializer &deserializer);
 
-	void ReplayCreateIndex();
-	void ReplayDropIndex();
+	void ReplayCreateIndex(BinaryDeserializer &deserializer);
+	void ReplayDropIndex(BinaryDeserializer &deserializer);
 
-	void ReplayUseTable();
-	void ReplayInsert();
-	void ReplayDelete();
-	void ReplayUpdate();
-	void ReplayCheckpoint();
+	void ReplayUseTable(BinaryDeserializer &deserializer);
+	void ReplayInsert(BinaryDeserializer &deserializer);
+	void ReplayDelete(BinaryDeserializer &deserializer);
+	void ReplayUpdate(BinaryDeserializer &deserializer);
+	void ReplayCheckpoint(BinaryDeserializer &deserializer);
 };
 
 //! The WriteAheadLog (WAL) is a log that is used to provide durability. Prior
@@ -110,34 +107,34 @@ public:
 	//! Gets the total bytes written to the WAL since startup
 	idx_t GetTotalWritten();
 
-	virtual void WriteCreateTable(TableCatalogEntry *entry);
-	void WriteDropTable(TableCatalogEntry *entry);
+	virtual void WriteCreateTable(const TableCatalogEntry &entry);
+	void WriteDropTable(const TableCatalogEntry &entry);
 
-	void WriteCreateSchema(SchemaCatalogEntry *entry);
-	void WriteDropSchema(SchemaCatalogEntry *entry);
+	void WriteCreateSchema(const SchemaCatalogEntry &entry);
+	void WriteDropSchema(const SchemaCatalogEntry &entry);
 
-	void WriteCreateView(ViewCatalogEntry *entry);
-	void WriteDropView(ViewCatalogEntry *entry);
+	void WriteCreateView(const ViewCatalogEntry &entry);
+	void WriteDropView(const ViewCatalogEntry &entry);
 
-	void WriteCreateSequence(SequenceCatalogEntry *entry);
-	void WriteDropSequence(SequenceCatalogEntry *entry);
-	void WriteSequenceValue(SequenceCatalogEntry *entry, SequenceValue val);
+	void WriteCreateSequence(const SequenceCatalogEntry &entry);
+	void WriteDropSequence(const SequenceCatalogEntry &entry);
+	void WriteSequenceValue(const SequenceCatalogEntry &entry, SequenceValue val);
 
-	void WriteCreateMacro(ScalarMacroCatalogEntry *entry);
-	void WriteDropMacro(ScalarMacroCatalogEntry *entry);
+	void WriteCreateMacro(const ScalarMacroCatalogEntry &entry);
+	void WriteDropMacro(const ScalarMacroCatalogEntry &entry);
 
-	void WriteCreateTableMacro(TableMacroCatalogEntry *entry);
-	void WriteDropTableMacro(TableMacroCatalogEntry *entry);
+	void WriteCreateTableMacro(const TableMacroCatalogEntry &entry);
+	void WriteDropTableMacro(const TableMacroCatalogEntry &entry);
 
-	void WriteCreateIndex(IndexCatalogEntry *entry);
-	void WriteDropIndex(IndexCatalogEntry *entry);
+	void WriteCreateIndex(const IndexCatalogEntry &entry);
+	void WriteDropIndex(const IndexCatalogEntry &entry);
 
-	void WriteCreateType(TypeCatalogEntry *entry);
-	void WriteDropType(TypeCatalogEntry *entry);
+	void WriteCreateType(const TypeCatalogEntry &entry);
+	void WriteDropType(const TypeCatalogEntry &entry);
 	//! Sets the table used for subsequent insert/delete/update commands
 	void WriteSetTable(string &schema, string &table);
 
-	void WriteAlter(data_ptr_t ptr, idx_t data_size);
+	void WriteAlter(const AlterInfo &info);
 
 	void WriteInsert(DataChunk &chunk);
 	void WriteDelete(DataChunk &chunk);
@@ -157,7 +154,7 @@ public:
 	void Delete();
 	void Flush();
 
-	void WriteCheckpoint(block_id_t meta_block);
+	void WriteCheckpoint(MetaBlockPointer meta_block);
 
 protected:
 	AttachedDatabase &database;

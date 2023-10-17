@@ -15,11 +15,23 @@
 #include "duckdb/execution/expression_executor_state.hpp"
 #include "duckdb/function/function.hpp"
 #include "duckdb/storage/statistics/base_statistics.hpp"
+#include "duckdb/common/optional_ptr.hpp"
 
 namespace duckdb {
 
 struct FunctionLocalState {
 	DUCKDB_API virtual ~FunctionLocalState();
+
+	template <class TARGET>
+	TARGET &Cast() {
+		D_ASSERT(dynamic_cast<TARGET *>(this));
+		return reinterpret_cast<TARGET &>(*this);
+	}
+	template <class TARGET>
+	const TARGET &Cast() const {
+		D_ASSERT(dynamic_cast<const TARGET *>(this));
+		return reinterpret_cast<const TARGET &>(*this);
+	}
 };
 
 class Binder;
@@ -28,13 +40,13 @@ class DependencyList;
 class ScalarFunctionCatalogEntry;
 
 struct FunctionStatisticsInput {
-	FunctionStatisticsInput(BoundFunctionExpression &expr_p, FunctionData *bind_data_p,
+	FunctionStatisticsInput(BoundFunctionExpression &expr_p, optional_ptr<FunctionData> bind_data_p,
 	                        vector<BaseStatistics> &child_stats_p, unique_ptr<Expression> *expr_ptr_p)
 	    : expr(expr_p), bind_data(bind_data_p), child_stats(child_stats_p), expr_ptr(expr_ptr_p) {
 	}
 
 	BoundFunctionExpression &expr;
-	FunctionData *bind_data;
+	optional_ptr<FunctionData> bind_data;
 	vector<BaseStatistics> &child_stats;
 	unique_ptr<Expression> *expr_ptr;
 };
@@ -51,10 +63,9 @@ typedef unique_ptr<BaseStatistics> (*function_statistics_t)(ClientContext &conte
 //! Adds the dependencies of this BoundFunctionExpression to the set of dependencies
 typedef void (*dependency_function_t)(BoundFunctionExpression &expr, DependencyList &dependencies);
 
-typedef void (*function_serialize_t)(FieldWriter &writer, const FunctionData *bind_data,
+typedef void (*function_serialize_t)(Serializer &serializer, const optional_ptr<FunctionData> bind_data,
                                      const ScalarFunction &function);
-typedef unique_ptr<FunctionData> (*function_deserialize_t)(ClientContext &context, FieldReader &reader,
-                                                           ScalarFunction &function);
+typedef unique_ptr<FunctionData> (*function_deserialize_t)(Deserializer &deserializer, ScalarFunction &function);
 
 class ScalarFunction : public BaseScalarFunction {
 public:
@@ -91,9 +102,6 @@ public:
 	DUCKDB_API bool operator!=(const ScalarFunction &rhs) const;
 
 	DUCKDB_API bool Equal(const ScalarFunction &rhs) const;
-
-private:
-	bool CompareScalarFunctionT(const scalar_function_t &other) const;
 
 public:
 	DUCKDB_API static void NopFunction(DataChunk &input, ExpressionState &state, Vector &result);

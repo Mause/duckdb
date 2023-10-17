@@ -15,40 +15,17 @@ CreateViewInfo::CreateViewInfo(string catalog_p, string schema_p, string view_na
       view_name(std::move(view_name_p)) {
 }
 
-CreateViewInfo::CreateViewInfo(SchemaCatalogEntry *schema, string view_name)
-    : CreateViewInfo(schema->catalog->GetName(), schema->name, std::move(view_name)) {
+CreateViewInfo::CreateViewInfo(SchemaCatalogEntry &schema, string view_name)
+    : CreateViewInfo(schema.catalog.GetName(), schema.name, std::move(view_name)) {
 }
 
 unique_ptr<CreateInfo> CreateViewInfo::Copy() const {
-	auto result = make_unique<CreateViewInfo>(catalog, schema, view_name);
+	auto result = make_uniq<CreateViewInfo>(catalog, schema, view_name);
 	CopyProperties(*result);
 	result->aliases = aliases;
 	result->types = types;
 	result->query = unique_ptr_cast<SQLStatement, SelectStatement>(query->Copy());
 	return std::move(result);
-}
-
-unique_ptr<CreateViewInfo> CreateViewInfo::Deserialize(Deserializer &deserializer) {
-	auto result = make_unique<CreateViewInfo>();
-	result->DeserializeBase(deserializer);
-
-	FieldReader reader(deserializer);
-	result->view_name = reader.ReadRequired<string>();
-	result->aliases = reader.ReadRequiredList<string>();
-	result->types = reader.ReadRequiredSerializableList<LogicalType, LogicalType>();
-	result->query = reader.ReadOptional<SelectStatement>(nullptr);
-	reader.Finalize();
-
-	return result;
-}
-
-void CreateViewInfo::SerializeInternal(Serializer &serializer) const {
-	FieldWriter writer(serializer);
-	writer.WriteString(view_name);
-	writer.WriteList<string>(aliases);
-	writer.WriteRegularSerializableList(types);
-	writer.WriteOptional(query);
-	writer.Finalize();
 }
 
 unique_ptr<CreateViewInfo> CreateViewInfo::FromSelect(ClientContext &context, unique_ptr<CreateViewInfo> info) {
@@ -85,7 +62,7 @@ unique_ptr<CreateViewInfo> CreateViewInfo::FromCreateView(ClientContext &context
 		    "Failed to create view from SQL string - \"%s\" - statement did not contain a single CREATE VIEW statement",
 		    sql);
 	}
-	auto &create_statement = (CreateStatement &)*parser.statements[0];
+	auto &create_statement = parser.statements[0]->Cast<CreateStatement>();
 	if (create_statement.info->type != CatalogType::VIEW_ENTRY) {
 		throw BinderException(
 		    "Failed to create view from SQL string - \"%s\" - view did not contain a CREATE VIEW statement", sql);

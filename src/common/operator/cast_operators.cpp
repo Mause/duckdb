@@ -1,4 +1,5 @@
 #include "duckdb/common/operator/cast_operators.hpp"
+#include "duckdb/common/hugeint.hpp"
 #include "duckdb/common/operator/string_cast.hpp"
 #include "duckdb/common/operator/numeric_cast.hpp"
 #include "duckdb/common/operator/decimal_cast_operators.hpp"
@@ -1097,7 +1098,7 @@ static inline bool TrySimpleIntegerCast(const char *buf, idx_t len, T &result, b
 
 template <>
 bool TryCast::Operation(string_t input, bool &result, bool strict) {
-	auto input_data = input.GetDataUnsafe();
+	auto input_data = input.GetData();
 	auto input_size = input.GetSize();
 
 	switch (input_size) {
@@ -1141,36 +1142,36 @@ bool TryCast::Operation(string_t input, bool &result, bool strict) {
 }
 template <>
 bool TryCast::Operation(string_t input, int8_t &result, bool strict) {
-	return TrySimpleIntegerCast<int8_t>(input.GetDataUnsafe(), input.GetSize(), result, strict);
+	return TrySimpleIntegerCast<int8_t>(input.GetData(), input.GetSize(), result, strict);
 }
 template <>
 bool TryCast::Operation(string_t input, int16_t &result, bool strict) {
-	return TrySimpleIntegerCast<int16_t>(input.GetDataUnsafe(), input.GetSize(), result, strict);
+	return TrySimpleIntegerCast<int16_t>(input.GetData(), input.GetSize(), result, strict);
 }
 template <>
 bool TryCast::Operation(string_t input, int32_t &result, bool strict) {
-	return TrySimpleIntegerCast<int32_t>(input.GetDataUnsafe(), input.GetSize(), result, strict);
+	return TrySimpleIntegerCast<int32_t>(input.GetData(), input.GetSize(), result, strict);
 }
 template <>
 bool TryCast::Operation(string_t input, int64_t &result, bool strict) {
-	return TrySimpleIntegerCast<int64_t>(input.GetDataUnsafe(), input.GetSize(), result, strict);
+	return TrySimpleIntegerCast<int64_t>(input.GetData(), input.GetSize(), result, strict);
 }
 
 template <>
 bool TryCast::Operation(string_t input, uint8_t &result, bool strict) {
-	return TrySimpleIntegerCast<uint8_t, false>(input.GetDataUnsafe(), input.GetSize(), result, strict);
+	return TrySimpleIntegerCast<uint8_t, false>(input.GetData(), input.GetSize(), result, strict);
 }
 template <>
 bool TryCast::Operation(string_t input, uint16_t &result, bool strict) {
-	return TrySimpleIntegerCast<uint16_t, false>(input.GetDataUnsafe(), input.GetSize(), result, strict);
+	return TrySimpleIntegerCast<uint16_t, false>(input.GetData(), input.GetSize(), result, strict);
 }
 template <>
 bool TryCast::Operation(string_t input, uint32_t &result, bool strict) {
-	return TrySimpleIntegerCast<uint32_t, false>(input.GetDataUnsafe(), input.GetSize(), result, strict);
+	return TrySimpleIntegerCast<uint32_t, false>(input.GetData(), input.GetSize(), result, strict);
 }
 template <>
 bool TryCast::Operation(string_t input, uint64_t &result, bool strict) {
-	return TrySimpleIntegerCast<uint64_t, false>(input.GetDataUnsafe(), input.GetSize(), result, strict);
+	return TrySimpleIntegerCast<uint64_t, false>(input.GetData(), input.GetSize(), result, strict);
 }
 
 template <class T, char decimal_separator = '.'>
@@ -1213,17 +1214,17 @@ static bool TryDoubleCast(const char *buf, idx_t len, T &result, bool strict) {
 
 template <>
 bool TryCast::Operation(string_t input, float &result, bool strict) {
-	return TryDoubleCast<float>(input.GetDataUnsafe(), input.GetSize(), result, strict);
+	return TryDoubleCast<float>(input.GetData(), input.GetSize(), result, strict);
 }
 
 template <>
 bool TryCast::Operation(string_t input, double &result, bool strict) {
-	return TryDoubleCast<double>(input.GetDataUnsafe(), input.GetSize(), result, strict);
+	return TryDoubleCast<double>(input.GetData(), input.GetSize(), result, strict);
 }
 
 template <>
 bool TryCastErrorMessageCommaSeparated::Operation(string_t input, float &result, string *error_message, bool strict) {
-	if (!TryDoubleCast<float, ','>(input.GetDataUnsafe(), input.GetSize(), result, strict)) {
+	if (!TryDoubleCast<float, ','>(input.GetData(), input.GetSize(), result, strict)) {
 		HandleCastError::AssignError(StringUtil::Format("Could not cast string to float: \"%s\"", input.GetString()),
 		                             error_message);
 		return false;
@@ -1233,7 +1234,7 @@ bool TryCastErrorMessageCommaSeparated::Operation(string_t input, float &result,
 
 template <>
 bool TryCastErrorMessageCommaSeparated::Operation(string_t input, double &result, string *error_message, bool strict) {
-	if (!TryDoubleCast<double, ','>(input.GetDataUnsafe(), input.GetSize(), result, strict)) {
+	if (!TryDoubleCast<double, ','>(input.GetData(), input.GetSize(), result, strict)) {
 		HandleCastError::AssignError(StringUtil::Format("Could not cast string to double: \"%s\"", input.GetString()),
 		                             error_message);
 		return false;
@@ -1271,6 +1272,27 @@ bool TryCast::Operation(dtime_t input, dtime_t &result, bool strict) {
 	return true;
 }
 
+template <>
+bool TryCast::Operation(dtime_t input, dtime_tz_t &result, bool strict) {
+	result = dtime_tz_t(input, 0);
+	return true;
+}
+
+//===--------------------------------------------------------------------===//
+// Cast From Time With Time Zone (Offset)
+//===--------------------------------------------------------------------===//
+template <>
+bool TryCast::Operation(dtime_tz_t input, dtime_tz_t &result, bool strict) {
+	result = input;
+	return true;
+}
+
+template <>
+bool TryCast::Operation(dtime_tz_t input, dtime_t &result, bool strict) {
+	result = input.time();
+	return true;
+}
+
 //===--------------------------------------------------------------------===//
 // Cast From Timestamps
 //===--------------------------------------------------------------------===//
@@ -1292,6 +1314,15 @@ bool TryCast::Operation(timestamp_t input, dtime_t &result, bool strict) {
 template <>
 bool TryCast::Operation(timestamp_t input, timestamp_t &result, bool strict) {
 	result = input;
+	return true;
+}
+
+template <>
+bool TryCast::Operation(timestamp_t input, dtime_tz_t &result, bool strict) {
+	if (!Timestamp::IsFinite(input)) {
+		return false;
+	}
+	result = dtime_tz_t(Timestamp::GetTime(input), 0);
 	return true;
 }
 
@@ -1343,6 +1374,12 @@ timestamp_t CastTimestampMsToUs::Operation(timestamp_t input) {
 }
 
 template <>
+timestamp_t CastTimestampMsToNs::Operation(timestamp_t input) {
+	auto us = CastTimestampMsToUs::Operation<timestamp_t, timestamp_t>(input);
+	return CastTimestampUsToNs::Operation<timestamp_t, timestamp_t>(us);
+}
+
+template <>
 timestamp_t CastTimestampNsToUs::Operation(timestamp_t input) {
 	return Timestamp::FromEpochNanoSeconds(input.value);
 }
@@ -1350,6 +1387,18 @@ timestamp_t CastTimestampNsToUs::Operation(timestamp_t input) {
 template <>
 timestamp_t CastTimestampSecToUs::Operation(timestamp_t input) {
 	return Timestamp::FromEpochSeconds(input.value);
+}
+
+template <>
+timestamp_t CastTimestampSecToMs::Operation(timestamp_t input) {
+	auto us = CastTimestampSecToUs::Operation<timestamp_t, timestamp_t>(input);
+	return CastTimestampUsToMs::Operation<timestamp_t, timestamp_t>(us);
+}
+
+template <>
+timestamp_t CastTimestampSecToNs::Operation(timestamp_t input) {
+	auto us = CastTimestampSecToUs::Operation<timestamp_t, timestamp_t>(input);
+	return CastTimestampUsToNs::Operation<timestamp_t, timestamp_t>(us);
 }
 
 //===--------------------------------------------------------------------===//
@@ -1425,11 +1474,20 @@ string_t CastFromBlob::Operation(string_t input, Vector &vector) {
 	return result;
 }
 
+template <>
+string_t CastFromBlobToBit::Operation(string_t input, Vector &vector) {
+	idx_t result_size = input.GetSize() + 1;
+	if (result_size <= 1) {
+		throw ConversionException("Cannot cast empty BLOB to BIT");
+	}
+	return StringVector::AddStringOrBlob(vector, Bit::BlobToBit(input));
+}
+
 //===--------------------------------------------------------------------===//
 // Cast From Bit
 //===--------------------------------------------------------------------===//
 template <>
-string_t CastFromBit::Operation(string_t input, Vector &vector) {
+string_t CastFromBitToString::Operation(string_t input, Vector &vector) {
 
 	idx_t result_size = Bit::BitLength(input);
 	string_t result = StringVector::EmptyString(vector, result_size);
@@ -1460,7 +1518,7 @@ bool TryCastToBlob::Operation(string_t input, string_t &result, Vector &result_v
 	}
 
 	result = StringVector::EmptyString(result_vector, result_size);
-	Blob::ToBlob(input, (data_ptr_t)result.GetDataWriteable());
+	Blob::ToBlob(input, data_ptr_cast(result.GetDataWriteable()));
 	result.Finalize();
 	return true;
 }
@@ -1477,9 +1535,33 @@ bool TryCastToBit::Operation(string_t input, string_t &result, Vector &result_ve
 	}
 
 	result = StringVector::EmptyString(result_vector, result_size);
-	Bit::ToBit(input, (data_ptr_t)result.GetDataWriteable());
+	Bit::ToBit(input, result);
 	result.Finalize();
 	return true;
+}
+
+template <>
+bool CastFromBitToNumeric::Operation(string_t input, bool &result, bool strict) {
+	D_ASSERT(input.GetSize() > 1);
+
+	uint8_t value;
+	bool success = CastFromBitToNumeric::Operation(input, value, strict);
+	result = (value > 0);
+	return (success);
+}
+
+template <>
+bool CastFromBitToNumeric::Operation(string_t input, hugeint_t &result, bool strict) {
+	D_ASSERT(input.GetSize() > 1);
+
+	if (input.GetSize() - 1 > sizeof(hugeint_t)) {
+		throw ConversionException("Bitstring doesn't fit inside of %s", GetTypeId<hugeint_t>());
+	}
+	Bit::BitToNumeric(input, result);
+	if (result < NumericLimits<hugeint_t>::Minimum()) {
+		throw ConversionException("Minimum limit for HUGEINT is %s", NumericLimits<hugeint_t>::Minimum().ToString());
+	}
+	return (true);
 }
 
 //===--------------------------------------------------------------------===//
@@ -1518,12 +1600,12 @@ template <>
 bool TryCast::Operation(string_t input, date_t &result, bool strict) {
 	idx_t pos;
 	bool special = false;
-	return Date::TryConvertDate(input.GetDataUnsafe(), input.GetSize(), pos, result, special, strict);
+	return Date::TryConvertDate(input.GetData(), input.GetSize(), pos, result, special, strict);
 }
 
 template <>
 date_t Cast::Operation(string_t input) {
-	return Date::FromCString(input.GetDataUnsafe(), input.GetSize());
+	return Date::FromCString(input.GetData(), input.GetSize());
 }
 
 //===--------------------------------------------------------------------===//
@@ -1541,12 +1623,39 @@ bool TryCastErrorMessage::Operation(string_t input, dtime_t &result, string *err
 template <>
 bool TryCast::Operation(string_t input, dtime_t &result, bool strict) {
 	idx_t pos;
-	return Time::TryConvertTime(input.GetDataUnsafe(), input.GetSize(), pos, result, strict);
+	return Time::TryConvertTime(input.GetData(), input.GetSize(), pos, result, strict);
 }
 
 template <>
 dtime_t Cast::Operation(string_t input) {
-	return Time::FromCString(input.GetDataUnsafe(), input.GetSize());
+	return Time::FromCString(input.GetData(), input.GetSize());
+}
+
+//===--------------------------------------------------------------------===//
+// Cast To TimeTZ
+//===--------------------------------------------------------------------===//
+template <>
+bool TryCastErrorMessage::Operation(string_t input, dtime_tz_t &result, string *error_message, bool strict) {
+	if (!TryCast::Operation<string_t, dtime_tz_t>(input, result, strict)) {
+		HandleCastError::AssignError(Time::ConversionError(input), error_message);
+		return false;
+	}
+	return true;
+}
+
+template <>
+bool TryCast::Operation(string_t input, dtime_tz_t &result, bool strict) {
+	idx_t pos;
+	return Time::TryConvertTimeTZ(input.GetData(), input.GetSize(), pos, result, strict);
+}
+
+template <>
+dtime_tz_t Cast::Operation(string_t input) {
+	dtime_tz_t result;
+	if (!TryCast::Operation(input, result, false)) {
+		throw ConversionException(Time::ConversionError(input));
+	}
+	return result;
 }
 
 //===--------------------------------------------------------------------===//
@@ -1554,7 +1663,7 @@ dtime_t Cast::Operation(string_t input) {
 //===--------------------------------------------------------------------===//
 template <>
 bool TryCastErrorMessage::Operation(string_t input, timestamp_t &result, string *error_message, bool strict) {
-	auto cast_result = Timestamp::TryConvertTimestamp(input.GetDataUnsafe(), input.GetSize(), result);
+	auto cast_result = Timestamp::TryConvertTimestamp(input.GetData(), input.GetSize(), result);
 	if (cast_result == TimestampCastResult::SUCCESS) {
 		return true;
 	}
@@ -1568,13 +1677,12 @@ bool TryCastErrorMessage::Operation(string_t input, timestamp_t &result, string 
 
 template <>
 bool TryCast::Operation(string_t input, timestamp_t &result, bool strict) {
-	return Timestamp::TryConvertTimestamp(input.GetDataUnsafe(), input.GetSize(), result) ==
-	       TimestampCastResult::SUCCESS;
+	return Timestamp::TryConvertTimestamp(input.GetData(), input.GetSize(), result) == TimestampCastResult::SUCCESS;
 }
 
 template <>
 timestamp_t Cast::Operation(string_t input) {
-	return Timestamp::FromCString(input.GetDataUnsafe(), input.GetSize());
+	return Timestamp::FromCString(input.GetData(), input.GetSize());
 }
 
 //===--------------------------------------------------------------------===//
@@ -1582,7 +1690,7 @@ timestamp_t Cast::Operation(string_t input) {
 //===--------------------------------------------------------------------===//
 template <>
 bool TryCastErrorMessage::Operation(string_t input, interval_t &result, string *error_message, bool strict) {
-	return Interval::FromCString(input.GetDataUnsafe(), input.GetSize(), result, error_message, strict);
+	return Interval::FromCString(input.GetData(), input.GetSize(), result, error_message, strict);
 }
 
 //===--------------------------------------------------------------------===//
@@ -1715,8 +1823,8 @@ struct HugeIntegerCastOperation {
 template <>
 bool TryCast::Operation(string_t input, hugeint_t &result, bool strict) {
 	HugeIntCastData data;
-	if (!TryIntegerCast<HugeIntCastData, true, true, HugeIntegerCastOperation>(input.GetDataUnsafe(), input.GetSize(),
-	                                                                           data, strict)) {
+	if (!TryIntegerCast<HugeIntCastData, true, true, HugeIntegerCastOperation>(input.GetData(), input.GetSize(), data,
+	                                                                           strict)) {
 		return false;
 	}
 	result = data.hugeint;
@@ -1916,7 +2024,7 @@ bool TryDecimalStringCast(string_t input, T &result, string *error_message, uint
 	state.round_set = false;
 	state.should_round = false;
 	if (!TryIntegerCast<DecimalCastData<T>, true, true, DecimalCastOperation, false, decimal_separator>(
-	        input.GetDataUnsafe(), input.GetSize(), state, false)) {
+	        input.GetData(), input.GetSize(), state, false)) {
 		string error = StringUtil::Format("Could not convert string \"%s\" to DECIMAL(%d,%d)", input.GetString(),
 		                                  (int)width, (int)scale);
 		HandleCastError::AssignError(error, error_message);

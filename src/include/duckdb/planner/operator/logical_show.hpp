@@ -16,6 +16,9 @@ class LogicalShow : public LogicalOperator {
 	LogicalShow() : LogicalOperator(LogicalOperatorType::LOGICAL_SHOW) {};
 
 public:
+	static constexpr const LogicalOperatorType TYPE = LogicalOperatorType::LOGICAL_SHOW;
+
+public:
 	explicit LogicalShow(unique_ptr<LogicalOperator> plan) : LogicalOperator(LogicalOperatorType::LOGICAL_SHOW) {
 		children.push_back(std::move(plan));
 	}
@@ -24,8 +27,8 @@ public:
 	vector<string> aliases;
 
 public:
-	void Serialize(FieldWriter &writer) const override;
-	static unique_ptr<LogicalOperator> Deserialize(LogicalDeserializationState &state, FieldReader &reader);
+	void Serialize(Serializer &serializer) const override;
+	static unique_ptr<LogicalOperator> Deserialize(Deserializer &deserializer);
 
 protected:
 	void ResolveTypes() override {

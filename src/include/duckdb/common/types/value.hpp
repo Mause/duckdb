@@ -20,8 +20,6 @@
 namespace duckdb {
 
 class CastFunctionSet;
-class Deserializer;
-class Serializer;
 struct GetCastFunctionInput;
 struct ExtraValueInfo;
 
@@ -67,7 +65,7 @@ public:
 	inline LogicalType &GetTypeMutable() {
 		return type_;
 	}
-	inline const LogicalType &type() const {
+	inline const LogicalType &type() const { // NOLINT
 		return type_;
 	}
 	inline bool IsNull() const {
@@ -78,6 +76,10 @@ public:
 	DUCKDB_API static Value MinimumValue(const LogicalType &type);
 	//! Create the highest possible value of a given type (numeric only)
 	DUCKDB_API static Value MaximumValue(const LogicalType &type);
+	//! Create the negative infinite value of a given type (numeric only)
+	DUCKDB_API static Value NegativeInfinity(const LogicalType &type);
+	//! Create the positive infinite value of a given type (numeric only)
+	DUCKDB_API static Value Infinity(const LogicalType &type);
 	//! Create a Numeric value of the specified type with the specified value
 	DUCKDB_API static Value Numeric(const LogicalType &type, int64_t value);
 	DUCKDB_API static Value Numeric(const LogicalType &type, hugeint_t value);
@@ -116,7 +118,7 @@ public:
 	DUCKDB_API static Value DATE(int32_t year, int32_t month, int32_t day);
 	//! Create a time Value from a specified time
 	DUCKDB_API static Value TIME(dtime_t time);
-	DUCKDB_API static Value TIMETZ(dtime_t time);
+	DUCKDB_API static Value TIMETZ(dtime_tz_t time);
 	//! Create a time Value from a specified time
 	DUCKDB_API static Value TIME(int32_t hour, int32_t min, int32_t sec, int32_t micros);
 	//! Create a timestamp Value from a specified date/time combination
@@ -161,8 +163,8 @@ public:
 
 	//! Create a blob Value from a data pointer and a length: no bytes are interpreted
 	DUCKDB_API static Value BLOB(const_data_ptr_t data, idx_t len);
-	DUCKDB_API static Value BLOB_RAW(const string &data) {
-		return Value::BLOB((const_data_ptr_t)data.c_str(), data.size());
+	static Value BLOB_RAW(const string &data) { // NOLINT
+		return Value::BLOB(const_data_ptr_cast(data.c_str()), data.size());
 	}
 	//! Creates a blob by casting a specified string to a blob (i.e. interpreting \x characters)
 	DUCKDB_API static Value BLOB(const string &data);
@@ -171,24 +173,19 @@ public:
 	DUCKDB_API static Value BIT(const string &data);
 
 	template <class T>
-	T GetValue() const {
-		throw InternalException("Unimplemented template type for Value::GetValue");
-	}
+	T GetValue() const;
 	template <class T>
 	static Value CreateValue(T value) {
-		throw InternalException("Unimplemented template type for Value::CreateValue");
+		static_assert(AlwaysFalse<T>::value, "No specialization exists for this type");
+		return Value(nullptr);
 	}
 	// Returns the internal value. Unlike GetValue(), this method does not perform casting, and assumes T matches the
 	// type of the value. Only use this if you know what you are doing.
 	template <class T>
-	T GetValueUnsafe() const {
-		throw InternalException("Unimplemented template type for Value::GetValueUnsafe");
-	}
+	T GetValueUnsafe() const;
 	//! Returns a reference to the internal value. This can only be used for primitive types.
 	template <class T>
-	T &GetReferenceUnsafe() {
-		throw InternalException("Unimplemented template type for Value::GetReferenceUnsafe");
-	}
+	T &GetReferenceUnsafe();
 
 	//! Return a copy of this value
 	Value Copy() const {
@@ -226,10 +223,8 @@ public:
 
 	//! Serializes a Value to a stand-alone binary blob
 	DUCKDB_API void Serialize(Serializer &serializer) const;
-	DUCKDB_API void FormatSerialize(FormatSerializer &serializer) const;
-	DUCKDB_API static Value FormatDeserialize(FormatDeserializer &deserializer);
 	//! Deserializes a Value from a blob
-	DUCKDB_API static Value Deserialize(Deserializer &source);
+	DUCKDB_API static Value Deserialize(Deserializer &deserializer);
 
 	//===--------------------------------------------------------------------===//
 	// Comparison Operators
@@ -280,7 +275,7 @@ public:
 
 private:
 	//! The logical of the value
-	LogicalType type_;
+	LogicalType type_; // NOLINT
 
 	//! Whether or not the value is NULL
 	bool is_null;
@@ -297,17 +292,18 @@ private:
 		uint32_t uinteger;
 		uint64_t ubigint;
 		hugeint_t hugeint;
-		float float_;
-		double double_;
+		float float_;   // NOLINT
+		double double_; // NOLINT
 		uintptr_t pointer;
 		uint64_t hash;
 		date_t date;
 		dtime_t time;
+		dtime_tz_t timetz;
 		timestamp_t timestamp;
 		interval_t interval;
-	} value_;
+	} value_; // NOLINT
 
-	shared_ptr<ExtraValueInfo> value_info_;
+	shared_ptr<ExtraValueInfo> value_info_; // NOLINT
 
 private:
 	template <class T>
@@ -398,6 +394,7 @@ struct ListValue {
 struct UnionValue {
 	DUCKDB_API static const Value &GetValue(const Value &value);
 	DUCKDB_API static uint8_t GetTag(const Value &value);
+	DUCKDB_API static const LogicalType &GetType(const Value &value);
 };
 
 //! Return the internal integral value for any type that is stored as an integral value internally
@@ -530,37 +527,6 @@ template <>
 DUCKDB_API timestamp_t Value::GetValueUnsafe() const;
 template <>
 DUCKDB_API interval_t Value::GetValueUnsafe() const;
-
-template <>
-DUCKDB_API int8_t &Value::GetReferenceUnsafe();
-template <>
-DUCKDB_API int16_t &Value::GetReferenceUnsafe();
-template <>
-DUCKDB_API int32_t &Value::GetReferenceUnsafe();
-template <>
-DUCKDB_API int64_t &Value::GetReferenceUnsafe();
-template <>
-DUCKDB_API hugeint_t &Value::GetReferenceUnsafe();
-template <>
-DUCKDB_API uint8_t &Value::GetReferenceUnsafe();
-template <>
-DUCKDB_API uint16_t &Value::GetReferenceUnsafe();
-template <>
-DUCKDB_API uint32_t &Value::GetReferenceUnsafe();
-template <>
-DUCKDB_API uint64_t &Value::GetReferenceUnsafe();
-template <>
-DUCKDB_API float &Value::GetReferenceUnsafe();
-template <>
-DUCKDB_API double &Value::GetReferenceUnsafe();
-template <>
-DUCKDB_API date_t &Value::GetReferenceUnsafe();
-template <>
-DUCKDB_API dtime_t &Value::GetReferenceUnsafe();
-template <>
-DUCKDB_API timestamp_t &Value::GetReferenceUnsafe();
-template <>
-DUCKDB_API interval_t &Value::GetReferenceUnsafe();
 
 template <>
 DUCKDB_API bool Value::IsNan(float input);

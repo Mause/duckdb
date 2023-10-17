@@ -30,9 +30,13 @@ enum class PhysicalOperatorType : uint8_t {
 	FILTER,
 	PROJECTION,
 	COPY_TO_FILE,
+	BATCH_COPY_TO_FILE,
+	FIXED_BATCH_COPY_TO_FILE,
 	RESERVOIR_SAMPLE,
 	STREAMING_SAMPLE,
 	STREAMING_WINDOW,
+	PIVOT,
+
 	// -----------------------------
 	// Scans
 	// -----------------------------
@@ -41,6 +45,7 @@ enum class PhysicalOperatorType : uint8_t {
 	COLUMN_DATA_SCAN,
 	CHUNK_SCAN,
 	RECURSIVE_CTE_SCAN,
+	CTE_SCAN,
 	DELIM_SCAN,
 	EXPRESSION_SCAN,
 	POSITIONAL_SCAN,
@@ -56,11 +61,13 @@ enum class PhysicalOperatorType : uint8_t {
 	DELIM_JOIN,
 	INDEX_JOIN,
 	POSITIONAL_JOIN,
+	ASOF_JOIN,
 	// -----------------------------
 	// SetOps
 	// -----------------------------
 	UNION,
 	RECURSIVE_CTE,
+	CTE,
 
 	// -----------------------------
 	// Updates

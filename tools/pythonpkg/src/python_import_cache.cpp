@@ -11,36 +11,30 @@ py::handle PythonImportCacheItem::operator()(void) const {
 	return object;
 }
 
-bool PythonImportCacheItem::LoadAttempted() const {
-	return load_attempted;
+bool PythonImportCacheItem::LoadSucceeded() const {
+	return load_succeeded;
 }
 
 bool PythonImportCacheItem::IsLoaded() const {
 	auto type = (*this)();
-	return type.ptr() != nullptr;
-}
-
-bool PythonImportCacheItem::IsInstance(py::handle object) const {
-	auto type = (*this)();
-	if (!IsLoaded()) {
-		// Type was not imported
+	bool loaded = type.ptr() != nullptr;
+	if (!loaded) {
 		return false;
 	}
-	return py::isinstance(object, type);
+	return true;
 }
 
-PyObject *PythonImportCacheItem::AddCache(PythonImportCache &cache, py::object object) {
+py::handle PythonImportCacheItem::AddCache(PythonImportCache &cache, py::object object) {
 	return cache.AddCache(std::move(object));
 }
 
 void PythonImportCacheItem::LoadModule(const string &name, PythonImportCache &cache) {
-	load_attempted = true;
 	try {
 		py::gil_assert();
 		object = AddCache(cache, std::move(py::module::import(name.c_str())));
+		load_succeeded = true;
 	} catch (py::error_already_set &e) {
 		if (IsRequired()) {
-			PyErr_PrintEx(1);
 			throw InvalidInputException(
 			    "Required module '%s' failed to import, due to the following Python exception:\n%s", name, e.what());
 		}
@@ -51,7 +45,12 @@ void PythonImportCacheItem::LoadModule(const string &name, PythonImportCache &ca
 
 void PythonImportCacheItem::LoadAttribute(const string &name, PythonImportCache &cache, PythonImportCacheItem &source) {
 	auto source_object = source();
-	object = AddCache(cache, std::move(source_object.attr(name.c_str())));
+	if (py::hasattr(source_object, name.c_str())) {
+		object = AddCache(cache, std::move(source_object.attr(name.c_str())));
+	} else {
+		object = nullptr;
+		return;
+	}
 	LoadSubtypes(cache);
 }
 
@@ -64,7 +63,7 @@ PythonImportCache::~PythonImportCache() {
 	owned_objects.clear();
 }
 
-PyObject *PythonImportCache::AddCache(py::object item) {
+py::handle PythonImportCache::AddCache(py::object item) {
 	auto object_ptr = item.ptr();
 	owned_objects.push_back(std::move(item));
 	return object_ptr;

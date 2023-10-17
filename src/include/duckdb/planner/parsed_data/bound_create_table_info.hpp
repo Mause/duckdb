@@ -23,12 +23,13 @@ namespace duckdb {
 class CatalogEntry;
 
 struct BoundCreateTableInfo {
-	explicit BoundCreateTableInfo(unique_ptr<CreateInfo> base_p) : base(std::move(base_p)) {
+	explicit BoundCreateTableInfo(SchemaCatalogEntry &schema, unique_ptr<CreateInfo> base_p)
+	    : schema(schema), base(std::move(base_p)) {
 		D_ASSERT(base);
 	}
 
 	//! The schema to create the table in
-	SchemaCatalogEntry *schema;
+	SchemaCatalogEntry &schema;
 	//! The base CreateInfo object
 	unique_ptr<CreateInfo> base;
 	//! Column dependency manager of the table
@@ -47,11 +48,6 @@ struct BoundCreateTableInfo {
 	unique_ptr<LogicalOperator> query;
 	//! Indexes created by this table <Block_ID, Offset>
 	vector<BlockPointer> indexes;
-
-	//! Serializes a BoundCreateTableInfo to a stand-alone binary blob
-	void Serialize(Serializer &serializer) const;
-	//! Deserializes a blob back into a BoundCreateTableInfo
-	static unique_ptr<BoundCreateTableInfo> Deserialize(Deserializer &source, PlanDeserializationState &state);
 
 	CreateTableInfo &Base() {
 		D_ASSERT(base);
