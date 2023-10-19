@@ -64,12 +64,12 @@ std::string ExtensionApiExtension::Name() {
 
 extern "C" {
 
-DUCKDB_EXTENSION_API void fts_init(duckdb::DatabaseInstance &db) {
+DUCKDB_EXTENSION_API void extension_api_init(duckdb::DatabaseInstance &db) {
 	duckdb::DuckDB db_wrapper(db);
 	db_wrapper.LoadExtension<duckdb::ExtensionApiExtension>();
 }
 
-DUCKDB_EXTENSION_API const char *fts_version() {
+DUCKDB_EXTENSION_API const char *extension_api_version() {
 	return duckdb::DuckDB::LibraryVersion();
 }
 }
