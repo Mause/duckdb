@@ -1,0 +1,1 @@
+add_library(duckdb_extension_api SHARED duckdb_extension_api.c)
