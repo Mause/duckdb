@@ -1,6 +1,4 @@
 #pragma once
-#include <stdint.h>
-
 #include "duckdb_extension_api.h"
 
 duckdb_logical_type duckdb_create_logical_type(duckdb_extension_api *env, duckdb_type type);
