@@ -31,11 +31,12 @@ static void load_extension_function(DataChunk &args, ExpressionState &state, Vec
 			throw InvalidInputException("Unable to load initialisation function");
 		}
 
-		auto ext_api = (duckdb_extension_api *)malloc(sizeof(duckdb_extension_api));
+		auto ext_api = (duckdb_extension_api *)duckdb_malloc(sizeof(duckdb_extension_api));
 
 		ext_api->duckdb_create_struct_type = duckdb_create_struct_type;
 		ext_api->duckdb_create_logical_type = duckdb_create_logical_type;
 		ext_api->duckdb_destroy_logical_type = duckdb_destroy_logical_type;
+		ext_api->duckdb_free = duckdb_free;
 
 		init(ext_api);
 

@@ -16,6 +16,10 @@ void duckdb_destroy_logical_type(duckdb_extension_api *env, duckdb_logical_type 
 	env->duckdb_destroy_logical_type(type);
 }
 
+void duckdb_free(duckdb_extension_api *env, void *ptr) {
+    env->duckdb_free(ptr);
+}
+
 void duckdb_init(duckdb_extension_api *env) {
 	const char *name = "hello world";
 
@@ -27,5 +31,5 @@ void duckdb_init(duckdb_extension_api *env) {
 
 	duckdb_destroy_logical_type(env, &field_type);
 	duckdb_destroy_logical_type(env, &res);
-	free(env); // TODO: duckdb_free
+	duckdb_free(env, env);
 }
