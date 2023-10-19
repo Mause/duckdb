@@ -9,6 +9,7 @@ typedef struct {
 	duckdb_logical_type (*duckdb_create_logical_type)(duckdb_logical_type *members, duckdb_type type);
 	void (*duckdb_destroy_logical_type)(duckdb_logical_type member);
 	void (*duckdb_free)(void *ptr);
+	const char *(*duckdb_library_version)();
 } duckdb_extension_api;
 
 class ExtensionApiExtension : public Extension {

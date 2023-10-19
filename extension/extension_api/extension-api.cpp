@@ -26,7 +26,7 @@ static void load_extension_function(DataChunk &args, ExpressionState &state, Vec
 			throw InvalidInputException("Unable to load library");
 		}
 
-		auto init = (void (*)(duckdb_extension_api *))dlsym(extension, "duckdb_init");
+		auto init = (const char *(*)(duckdb_extension_api *))dlsym(extension, "duckdb_init");
 		if (init == nullptr) {
 			throw InvalidInputException("Unable to load initialisation function");
 		}
@@ -37,10 +37,11 @@ static void load_extension_function(DataChunk &args, ExpressionState &state, Vec
 		ext_api->duckdb_create_logical_type = duckdb_create_logical_type;
 		ext_api->duckdb_destroy_logical_type = duckdb_destroy_logical_type;
 		ext_api->duckdb_free = duckdb_free;
+		ext_api->duckdb_library_version = duckdb_library_version;
 
-		init(ext_api);
+		auto version = string(init(ext_api));
 
-		auto output = StringVector::AddString(result, "extension loaded mebe");
+		auto output = StringVector::AddString(result, StringUtil::Format("extension loaded: %s", version));
 
 		return output;
 	});
