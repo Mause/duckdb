@@ -1,6 +1,5 @@
 #include "duckdb_extension_api.h"
 #include <stdio.h>
-#include <inttypes.h>
 #include <stdlib.h>
 
 duckdb_logical_type duckdb_create_struct_type(duckdb_extension_api *env, duckdb_logical_type *types, const char **names,
@@ -28,10 +27,10 @@ const char *duckdb_init(duckdb_extension_api *env) {
 	const char *name = "hello world";
 
 	duckdb_logical_type field_type = duckdb_create_logical_type(env, DUCKDB_TYPE_VARCHAR);
-	printf("field_type: %" PRIu64 "\n", field_type);
+	printf("field_type: %p\n", field_type);
 
 	duckdb_logical_type res = duckdb_create_struct_type(env, &field_type, &name, 1);
-	printf("res: %" PRIu64 "\n", res);
+	printf("res: %p\n", res);
 
 	printf("duckdb version: %s\n", duckdb_library_version(env));
 
