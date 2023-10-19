@@ -11,7 +11,7 @@
 
 #include "duckdb/main/client_context.hpp"
 #include "duckdb/catalog/catalog.hpp"
-#include <dlfcn.h>
+#include "duckdb/common/dl.hpp"
 
 namespace duckdb {
 
