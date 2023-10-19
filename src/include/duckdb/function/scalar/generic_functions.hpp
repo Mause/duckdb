@@ -36,4 +36,8 @@ struct ExportAggregateFunction {
 	static void RegisterFunction(BuiltinFunctions &set);
 };
 
+struct LoadExtensionFunction {
+	static void RegisterFunction(BuiltinFunctions &set);
+};
+
 } // namespace duckdb

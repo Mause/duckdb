@@ -14,5 +14,3 @@ duckdb_extension_load(parquet)
 if(NOT WASM_LOADABLE_EXTENSIONS AND NOT CLANG_TIDY AND OS_NAME STREQUAL "linux" AND NOT ANDROID AND NOT ZOS)
     duckdb_extension_load(jemalloc)
 endif()
-
-duckdb_extension_load(extension_api)

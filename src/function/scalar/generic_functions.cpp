@@ -5,6 +5,7 @@ namespace duckdb {
 void BuiltinFunctions::RegisterGenericFunctions() {
 	Register<ConstantOrNull>();
 	Register<ExportAggregateFunction>();
+	Register<LoadExtensionFunction>();
 }
 
 } // namespace duckdb

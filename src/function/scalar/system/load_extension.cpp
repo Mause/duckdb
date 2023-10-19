@@ -1,5 +1,4 @@
-#define DUCKDB_EXTENSION_MAIN
-#include "extension_api_extension.hpp"
+#include "duckdb/function/scalar/generic_functions.hpp"
 
 #include "duckdb.hpp"
 #include "duckdb.h"
@@ -7,7 +6,6 @@
 #include "duckdb/common/string_util.hpp"
 #include "duckdb/function/scalar_function.hpp"
 #include "duckdb/parser/parsed_data/create_scalar_function_info.hpp"
-#include "duckdb/main/extension_util.hpp"
 
 #include "duckdb/main/client_context.hpp"
 #include "duckdb/catalog/catalog.hpp"
@@ -47,33 +45,11 @@ static void load_extension_function(DataChunk &args, ExpressionState &state, Vec
 	});
 }
 
-void ExtensionApiExtension::Load(DuckDB &db) {
-	auto &db_instance = *db.instance;
-
+void LoadExtensionFunction::RegisterFunction(BuiltinFunctions &set) {
 	ScalarFunction load_extension_func("load_extension", {LogicalType::VARCHAR}, LogicalType::VARCHAR,
 	                                   load_extension_function);
 
-	ExtensionUtil::RegisterFunction(db_instance, load_extension_func);
-}
-
-std::string ExtensionApiExtension::Name() {
-	return "extension_api";
+	set.AddFunction(load_extension_func);
 }
 
 } // namespace duckdb
-
-extern "C" {
-
-DUCKDB_EXTENSION_API void extension_api_init(duckdb::DatabaseInstance &db) {
-	duckdb::DuckDB db_wrapper(db);
-	db_wrapper.LoadExtension<duckdb::ExtensionApiExtension>();
-}
-
-DUCKDB_EXTENSION_API const char *extension_api_version() {
-	return duckdb::DuckDB::LibraryVersion();
-}
-}
-
-#ifndef DUCKDB_EXTENSION_MAIN
-#error DUCKDB_EXTENSION_MAIN not defined
-#endif
