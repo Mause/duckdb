@@ -8,7 +8,6 @@ include_directories(include)
 
 set(PARAMETERS "-warnings")
 build_static_extension(extension_api STATIC ${EXTENSION_API_SOURCES})
-target_compile_options(extension_api_extension PRIVATE -fpermissive)
 # build_loadable_extension(extension_api ${PARAMETERS} ${EXTENSION_API_SOURCES})
 
 install(
