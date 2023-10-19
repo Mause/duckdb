@@ -1,4 +1,4 @@
-#include "duckdb_extension_api.h"
+#include "extension_api_demo.h"
 #include <stdio.h>
 #include <stdlib.h>
 
