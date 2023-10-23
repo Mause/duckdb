@@ -30,7 +30,7 @@ def third_party_includes():
         os.path.join('third_party', 'mbedtls', 'library'),
         os.path.join('third_party', 'jaro_winkler'),
         os.path.join('third_party', 'jaro_winkler', 'details'),
-        os.path.join('third_party', 'uri-library')
+        os.path.join('third_party', 'uri-library'),
     ]
 
 
@@ -45,7 +45,7 @@ def third_party_sources():
         os.path.join('third_party', 'utf8proc'),
         os.path.join('third_party', 'libpg_query'),
         os.path.join('third_party', 'uri-library'),
-        os.path.join('third_party', 'mbedtls')
+        os.path.join('third_party', 'mbedtls'),
     ]
 
 
