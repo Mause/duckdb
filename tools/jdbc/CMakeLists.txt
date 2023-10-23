@@ -29,13 +29,10 @@ endif()
 
 include_directories(../../extension/parquet/include)
 
-add_library(duckdb_java SHARED src/jni/duckdb_java.cpp)
+add_library(duckdb_java SHARED src/jni/duckdb_java.cpp src/jni/functions.cpp)
 target_compile_options(duckdb_java PRIVATE -fexceptions)
 target_link_libraries(duckdb_java duckdb-native duckdb_static parquet_extension)
-if(OS_NAME STREQUAL "linux")
-  target_link_libraries(duckdb_java -static-libgcc -static-libstdc++
-  )# static link to libstdc++ to target more linux distro
-endif()
+
 if(APPLE)
   set(OS_ARCH universal)
 endif()

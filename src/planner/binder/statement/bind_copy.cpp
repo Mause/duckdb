@@ -5,7 +5,7 @@
 #include "duckdb/common/bind_helpers.hpp"
 #include "duckdb/common/filename_pattern.hpp"
 #include "duckdb/common/local_file_system.hpp"
-#include "duckdb/execution/operator/persistent/parallel_csv_reader.hpp"
+#include "duckdb/execution/operator/scan/csv/parallel_csv_reader.hpp"
 #include "duckdb/function/table/read_csv.hpp"
 #include "duckdb/main/client_context.hpp"
 #include "duckdb/main/database.hpp"
@@ -145,7 +145,7 @@ BoundStatement Binder::BindCopyTo(CopyStatement &stmt) {
 	auto function_data =
 	    copy_function.function.copy_to_bind(context, *stmt.info, unique_column_names, select_node.types);
 	// now create the copy information
-	auto copy = make_uniq<LogicalCopyToFile>(copy_function.function, std::move(function_data));
+	auto copy = make_uniq<LogicalCopyToFile>(copy_function.function, std::move(function_data), stmt.info->Copy());
 	copy->file_path = stmt.info->file_path;
 	copy->use_tmp_file = use_tmp_file;
 	copy->overwrite_or_ignore = overwrite_or_ignore;

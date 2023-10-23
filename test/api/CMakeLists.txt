@@ -16,20 +16,20 @@ set(TEST_API_OBJECTS
     test_appender_api.cpp
     test_pending_query.cpp
     test_plan_serialization.cpp
-    test_plan_serialization_across_versions.cpp
     test_relation_api.cpp
     test_query_profiler.cpp
     test_dbdir.cpp
     test_progress_bar.cpp
     test_threads.cpp
     test_windows_header_compatibility.cpp
-    test_windows_unicode_path.cpp)
+    test_windows_unicode_path.cpp
+    test_object_cache.cpp)
 
 if(NOT WIN32)
   set(TEST_API_OBJECTS ${TEST_API_OBJECTS} test_read_only.cpp)
 endif()
 
-if(${BUILD_TPCH_EXTENSION} AND NOT ${DISABLE_BUILTIN_EXTENSIONS})
+if(DUCKDB_EXTENSION_TPCH_SHOULD_LINK)
   include_directories(../../extension/tpch/include)
   set(TEST_API_OBJECTS ${TEST_API_OBJECTS} test_tpch_with_relations.cpp
                        serialized_plans/test_plan_serialization_bwc.cpp)
