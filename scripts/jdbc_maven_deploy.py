@@ -64,7 +64,7 @@ is_release = True
 if release_tag == 'main':
     # for SNAPSHOT builds we increment the minor version and set patch level to zero.
     # seemed the most sensible
-    last_tag = exec('git tag --sort=-committerdate').decode('utf8').split('\n')[0]
+    last_tag = exec('git tag --sort=-committerdate').split('\n')[0]
     re_result = version_regex.search(last_tag)
     if re_result is None:
         raise ValueError("Could not parse last tag %s" % last_tag)
