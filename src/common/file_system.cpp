@@ -94,6 +94,14 @@ idx_t FileSystem::GetAvailableMemory() {
 	idx_t max_memory = MinValue<idx_t>(limit.rlim_max, UINTPTR_MAX);
 #else
 	idx_t max_memory = MinValue<idx_t>((idx_t)sysconf(_SC_PHYS_PAGES) * (idx_t)sysconf(_SC_PAGESIZE), UINTPTR_MAX);
+
+	auto mem_per_cpu = getenv("SLURM_MEM_PER_CPU");
+	printf("mem_per_cpu: %s\n", mem_per_cpu);
+	if (mem_per_cpu != nullptr) {
+		if (std::sscanf(mem_per_cpu, "%" SCNu64, &max_memory) != -1) {
+			max_memory /= 4;
+		}
+	}
 #endif
 	if (errno != 0) {
 		return DConstants::INVALID_INDEX;

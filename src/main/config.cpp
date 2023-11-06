@@ -264,7 +264,13 @@ idx_t CGroupBandwidthQuota(idx_t physical_cores, FileSystem &fs) {
 	unique_ptr<FileHandle> handle;
 	int64_t read_bytes;
 
-	if (fs.FileExists(CPU_MAX)) {
+	auto cpus_per_task = getenv("SLURM_CPUS_PER_TASK");
+	if (cpus_per_task != nullptr) {
+		if (std::sscanf(cpus_per_task, "%" SCNd64 "", &quota) != 1) {
+			return physical_cores;
+		}
+
+	} else if (fs.FileExists(CPU_MAX)) {
 		// cgroup v2
 		// https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html
 		handle =
