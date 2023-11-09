@@ -12,6 +12,7 @@ import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 import java.sql.Statement;
 import java.sql.Types;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -1265,8 +1266,7 @@ public class DuckDBDatabaseMetaData implements DatabaseMetaData {
 
     static String dataMap;
     static {
-        dataMap = DuckDBColumnType.values()
-                      .stream()
+        dataMap = Arrays.stream(DuckDBColumnType.values())
                       .map(ty
                            -> String.format("WHEN '%s' THEN %s ", ty.name().replaceAll("_", " "),
                                             DuckDBResultSetMetadata.type_to_int(ty)))
