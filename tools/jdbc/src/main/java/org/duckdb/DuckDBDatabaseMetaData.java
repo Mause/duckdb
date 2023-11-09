@@ -1269,7 +1269,7 @@ public class DuckDBDatabaseMetaData implements DatabaseMetaData {
         dataMap = Arrays.stream(DuckDBColumnType.values())
                       .map(ty
                            -> String.format("WHEN '%s' THEN %s ", ty.name().replaceAll("_", " "),
-                                            DuckDBResultSetMetadata.type_to_int(ty)))
+                                            DuckDBResultSetMetaData.type_to_int(ty)))
                       .collect(Collectors.joining());
     }
 
