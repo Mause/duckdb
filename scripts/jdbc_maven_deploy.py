@@ -189,6 +189,7 @@ exec(
     f"-DpomFile={pom} "
     f"-Dfile={binary_jar} "
     f"-Dclassifiers=sources,javadoc "
+    f"-Dtypes=jar,jar "
     f"-Dfiles={sources_jar},{javadoc_jar}"
 )
 
