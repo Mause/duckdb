@@ -1265,32 +1265,12 @@ public class DuckDBDatabaseMetaData implements DatabaseMetaData {
 
     static String dataMap;
     static {
-        Map<DuckDBColumnType, Integer> inter = new HashMap<>();
-        inter.put(DuckDBColumnType.BOOLEAN, Types.BOOLEAN);
-        inter.put(DuckDBColumnType.TINYINT, Types.TINYINT);
-        inter.put(DuckDBColumnType.SMALLINT, Types.SMALLINT);
-        inter.put(DuckDBColumnType.INTEGER, Types.INTEGER);
-        inter.put(DuckDBColumnType.BIGINT, Types.BIGINT);
-        inter.put(DuckDBColumnType.LIST, Types.ARRAY);
-        inter.put(DuckDBColumnType.STRUCT, Types.STRUCT);
-        inter.put(DuckDBColumnType.FLOAT, Types.FLOAT);
-        inter.put(DuckDBColumnType.DOUBLE, Types.DOUBLE);
-        inter.put(DuckDBColumnType.DECIMAL, Types.DECIMAL);
-        inter.put(DuckDBColumnType.VARCHAR, Types.VARCHAR);
-        inter.put(DuckDBColumnType.TIME, Types.TIME);
-        inter.put(DuckDBColumnType.DATE, Types.DATE);
-        inter.put(DuckDBColumnType.TIMESTAMP_S, Types.TIMESTAMP);
-        inter.put(DuckDBColumnType.TIMESTAMP_MS, Types.TIMESTAMP);
-        inter.put(DuckDBColumnType.TIMESTAMP, Types.TIMESTAMP);
-        inter.put(DuckDBColumnType.TIMESTAMP_NS, Types.TIMESTAMP);
-        inter.put(DuckDBColumnType.TIMESTAMP_WITH_TIME_ZONE, Types.TIMESTAMP_WITH_TIMEZONE);
-        inter.put(DuckDBColumnType.BLOB, Types.BLOB);
-        dataMap =
-            inter.entrySet()
-                .stream()
-                .map(pair
-                     -> String.format("WHEN '%s' THEN %s ", pair.getKey().name().replaceAll("_", " "), pair.getValue()))
-                .collect(Collectors.joining());
+        dataMap = DuckDBColumnTypes.values()
+                      .stream()
+                      .map(ty
+                           -> String.format("WHEN '%s' THEN %s ", ty.name().replaceAll("_", " "),
+                                            DuckDBResultSetMetadata.type_to_int(ty)))
+                      .collect(Collectors.joining());
     }
 
     /**
