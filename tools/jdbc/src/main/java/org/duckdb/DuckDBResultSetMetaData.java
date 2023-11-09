@@ -94,7 +94,7 @@ public class DuckDBResultSetMetaData implements ResultSetMetaData {
         return column_names[column - 1];
     }
 
-    public static int type_to_int(DuckDBColumnType type) throws SQLException {
+    public static int type_to_int(DuckDBColumnType type) {
         switch (type) {
         case BOOLEAN:
             return Types.BOOLEAN;
