@@ -1265,7 +1265,7 @@ public class DuckDBDatabaseMetaData implements DatabaseMetaData {
 
     static String dataMap;
     static {
-        dataMap = DuckDBColumnTypes.values()
+        dataMap = DuckDBColumnType.values()
                       .stream()
                       .map(ty
                            -> String.format("WHEN '%s' THEN %s ", ty.name().replaceAll("_", " "),
