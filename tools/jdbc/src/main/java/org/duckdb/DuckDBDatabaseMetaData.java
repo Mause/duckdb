@@ -1000,22 +1000,19 @@ public class DuckDBDatabaseMetaData implements DatabaseMetaData {
         String unsigned = "type_category = 'NUMERIC' and type_name.starts_with('u')";
 
         PreparedStatement statement = getConnection().prepareStatement(
-            "select "
-            + "type_name AS TYPE_NAME, " + makeDataMap("logical_type", "DATA_TYPE") + "0 as PRECISION, "
-            + "CASE type_name WHEN 'varchar' THEN '''' ELSE null END as LITERAL_PREFIX, "
-            + "LITERAL_PREFIX as LITERAL_SUFFIX, "
-            + "null as CREATE_PARAMS, "
-            + typeNullable + " as NULLABLE, " + // assume all our types are nullable?
-            + "false as CASE_SENSITIVE, "
-            + searchable + " as SEARCHABLE, "
-            + unsigned + " as UNSIGNED_ATTRIBUTE, "
-            + "false as FIXED_PREC_SCALE, "
-            + "false as AUTO_INCREMENT, "
-            + "null as LOCAL_TYPE_NAME, "
-            + "0 as MINIMUM_SCALE, "
-            + "type_size as MAXIMUM_SCALE, "
-            + "from duckdb_types() "
-            + "order by type_name");
+            "SELECT "
+            + "type_name AS TYPE_NAME, " + makeDataMap("logical_type", "DATA_TYPE") + "0 AS PRECISION, "
+            + "CASE type_name WHEN 'varchar' THEN '''' ELSE null END AS LITERAL_PREFIX, "
+            + "LITERAL_PREFIX AS LITERAL_SUFFIX, "
+            + "null AS CREATE_PARAMS, " + typeNullable + " AS NULLABLE, " + // assume all our types are nullable?
+            +"false AS CASE_SENSITIVE, " + searchable + " AS SEARCHABLE, " + unsigned + " AS UNSIGNED_ATTRIBUTE, "
+            + "false AS FIXED_PREC_SCALE, "
+            + "false AS AUTO_INCREMENT, "
+            + "null AS LOCAL_TYPE_NAME, "
+            + "0 AS MINIMUM_SCALE, "
+            + "type_size AS MAXIMUM_SCALE, "
+            + "FROM duckdb_types() "
+            + "ORDER BY type_name");
         statement.closeOnCompletion();
         return statement.executeQuery();
     }
