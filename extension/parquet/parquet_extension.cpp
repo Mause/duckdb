@@ -1018,6 +1018,9 @@ void ParquetExtension::Load(DuckDB &db) {
 	ParquetSchemaFunction schema_fun;
 	ExtensionUtil::RegisterFunction(db_instance, MultiFileReader::CreateFunctionSet(schema_fun));
 
+	ParquetFileMetadataFunction meta_file_fun;
+	ExtensionUtil::RegisterFunction(db_instance, MultiFileReader::CreateFunctionSet(meta_file_fun));
+
 	CopyFunction function("parquet");
 	function.copy_to_bind = ParquetWriteBind;
 	function.copy_to_initialize_global = ParquetWriteInitializeGlobal;

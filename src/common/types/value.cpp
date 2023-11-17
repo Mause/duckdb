@@ -644,6 +644,10 @@ Value Value::TIMESTAMP(int32_t year, int32_t month, int32_t day, int32_t hour, i
 	return val;
 }
 
+Value Value::KEYVALUE(const Value &key, const Value &value) {
+	return Value::STRUCT({{"key", key}, {"value", value}});
+}
+
 Value Value::STRUCT(child_list_t<Value> values) {
 	Value result;
 	child_list_t<LogicalType> child_types;
