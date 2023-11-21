@@ -145,11 +145,11 @@ bool FileSystem::IsPathAbsolute(const string &path) {
 		return true;
 	}
 	// 2) special "long paths" on windows
-	if (PathMatched(path, "\\\\?\\")) {
+	if (PathMatched(path, R"(\\?\)")) {
 		return true;
 	}
 	// 3) a network path
-	if (PathMatched(path, "\\\\")) {
+	if (PathMatched(path, R"(\\)")) {
 		return true;
 	}
 	// 4) A disk designator with a backslash (e.g., C:\ or C:/)
