@@ -36,6 +36,7 @@ jobs:
         s3_key: ${{ secrets.S3_KEY }}
         signing_pk: ${{ secrets.DUCKDB_EXTENSION_SIGNING_PK }}
         treat_warn_as_error: 0
+        build_out_of_tree_extensions: 0
 
     - if: always()
       run: cat build/release/vcpkg_installed/vcpkg/issue_body.md
