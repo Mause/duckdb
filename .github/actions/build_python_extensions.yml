@@ -29,12 +29,14 @@ jobs:
 
     - uses: ./.github/actions/build_extensions
       with:
-        vcpkg_target_triplet: x64-linux
+        vcpkg_target_triplet: arm64-linux
         post_install: rm build/release/src/libduckdb*
-        deploy_as: linux_amd64_gcc4
+        deploy_as: linux_arm64_gcc4
         s3_id: ${{ secrets.S3_ID }}
         s3_key: ${{ secrets.S3_KEY }}
         signing_pk: ${{ secrets.DUCKDB_EXTENSION_SIGNING_PK }}
+        run_tests: 0
+        run_autoload_tests: 0
         treat_warn_as_error: 0
         build_out_of_tree_extensions: 0
 
@@ -44,6 +46,6 @@ jobs:
     - uses: actions/upload-artifact@v3
       if: always()
       with:
-        name: manylinux-extensions-x64
+        name: manylinux-extensions-arm64
         path: |
           build/release/extension/*/*.duckdb_extension
