@@ -113,6 +113,11 @@ runs:
       shell: bash
       run: scripts/setup_manylinux2014.sh openssl
 
+    - name: Install zstd
+      if: ${{ inputs.ccache == 1 }}
+      shell: bash
+      run: yum install -y zstd
+
     - name: Setup Ccache
       if: ${{ inputs.ccache == 1 }}
       uses: hendrikmuhs/ccache-action@main
