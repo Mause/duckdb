@@ -54,10 +54,12 @@ unique_ptr<GlobalTableFunctionState> DuckDBSettingsInit(ClientContext &context, 
 		value.value = option->get_setting(context).ToString();
 		value.description = option->description;
 		value.input_type = EnumUtil::ToString(option->parameter_type);
-		if (option->set_global) {
-			value.type = "global";
+		if (option->set_global && option->set_local) {
+			value.type = "GLOBAL_OR_LOCAL";
+		} else if (option->set_global) {
+			value.type = "GLOBAL";
 		} else if (option->set_local) {
-			value.type = "local";
+			value.type = "LOCAL";
 		} else {
 			D_ASSERT(0);
 		}
