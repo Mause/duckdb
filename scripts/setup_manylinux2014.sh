@@ -16,15 +16,19 @@
 # > VCPKG_TARGET_DIR=/tmp scripts/setup_manylinux2014.sh general vcpkg openssl ccache jdk
 #
 
+python3.10 -m pip install pipx
+python3.10 -m pipx ensurepath
+
 # Installs deps for a specific required dependency
 install_deps() {
   if [ "$1" = "general" ]; then
     git config --global --add safe.directory '*'
     yum install -y curl zip unzip tar
-    yum install -y ninja-build
+    # yum install -y ninja-build
+    pipx install ninja
 
   elif [ "$1" = "aws-cli" ]; then
-    curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+    curl "https://awscli.amazonaws.com/awscli-exe-linux-$(uname --machine).zip" -o "awscliv2.zip"
     unzip awscliv2.zip
     ./aws/install
     aws --version
@@ -50,10 +54,10 @@ install_deps() {
     yum install -y perl-IPC-Cmd
 
   elif [ "$1" = "ccache" ]; then
-    yum -y install ccache
+    pipx install sccache
 
   elif [ "$1" = "python_alias" ]; then
-    ln -fs /usr/local/bin/python3.9 /usr/local/bin/python3
+    ln -fs /usr/local/bin/python3.10 /usr/local/bin/python3
 
   elif [ "$1" = "jdk" ]; then
     yum install -y java-11-openjdk-devel maven

@@ -1,0 +1,51 @@
+name: Build Python Extensions
+
+jobs:
+  build_python_extensions:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - uses: ./.github/actions/manylinux_2014_setup
+      with:
+        aws-cli: 1
+        ninja-build: 1
+        ccache: 0
+        ssh: 1
+        python_alias: 1
+        openssl: 1
+
+    - name: Version Check
+      shell: bash
+      run: |
+        cmake --version
+        ldd --version ldd
+        ls -al
+        pwd
+        echo "$USER"
+
+    - uses: ./.github/actions/build_extensions
+      with:
+        vcpkg_target_triplet: arm64-linux
+        post_install: rm build/release/src/libduckdb*
+        deploy_as: linux_arm64_gcc4
+        s3_id: ${{ secrets.S3_ID }}
+        s3_key: ${{ secrets.S3_KEY }}
+        signing_pk: ${{ secrets.DUCKDB_EXTENSION_SIGNING_PK }}
+        run_tests: 0
+        run_autoload_tests: 0
+        treat_warn_as_error: 0
+        build_out_of_tree_extensions: 0
+
+    - if: always()
+      run: cat build/release/vcpkg_installed/vcpkg/issue_body.md
+
+    - uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: manylinux-extensions-arm64
+        path: |
+          build/release/extension/*/*.duckdb_extension

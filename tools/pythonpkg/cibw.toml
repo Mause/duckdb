@@ -18,10 +18,5 @@ test-command = "python -m pytest {project}/tests/fast --verbose"
 select = "*i686*"
 test-command = "python -m pytest {project}/tests/fast --verbose"
 
-# For aarch64 we don't build extensions
-[[tool.cibuildwheel.overrides]]
-select = "*aarch64*"
-test-command = "python -m pytest {project}/tests/fast --verbose"
-
 [tool.cibuildwheel.windows]
 test-command = "python -m pytest {project}/tests/fast --verbose"

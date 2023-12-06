@@ -41,9 +41,19 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - run: |
+        curl -sL https://rpm.nodesource.com/setup_14.x | bash - # CentOS only has an ancient nodejs by default
+        yum install -y nodejs  # required for artifact upload, not included in manylinux images
+        node --version
+      shell: sh
+
     - name: Setup general dependencies
       shell: bash
       run: scripts/setup_manylinux2014.sh general
+
+    - run: echo "/opt/_internal/cpython-3.10.12/bin" >> $GITHUB_PATH
+      name: Add Python to PATH
+      shell: bash
 
     - name: Install AWS CLI
       if: ${{ inputs.aws-cli == 1 }}
@@ -108,4 +118,5 @@ runs:
       uses: hendrikmuhs/ccache-action@main
       with:
         key: ${{ github.job }}
+        variant: sccache
         save: ${{ github.ref == 'refs/heads/main' || github.repository != 'duckdb/duckdb' }}
