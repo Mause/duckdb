@@ -32,7 +32,7 @@ bool PyUnionType::check_(const py::handle &object) {
 
 	auto &import_cache = *DuckDBPyConnection::ImportCache();
 	if (typing_loaded && py::isinstance(object, import_cache.typing._GenericAlias())) {
-		if (object.attr("__origin__").is(import_cache.typing.UnionType())) {
+		if (object.attr("__origin__").is(import_cache.typing.Union())) {
 			return true;
 		}
 	}

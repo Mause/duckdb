@@ -19,11 +19,12 @@ public:
 	static constexpr const char *Name = "typing";
 
 public:
-	TypingCacheItem() : PythonImportCacheItem("typing"), _GenericAlias("_GenericAlias", this) {
+	TypingCacheItem() : PythonImportCacheItem("typing"), Union("Union", this), _GenericAlias("_GenericAlias", this) {
 	}
 	~TypingCacheItem() override {
 	}
 
+	PythonImportCacheItem Union;
 	PythonImportCacheItem _GenericAlias;
 };
 
