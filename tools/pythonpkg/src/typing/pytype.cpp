@@ -10,16 +10,20 @@ namespace duckdb {
 
 // NOLINTNEXTLINE(readability-identifier-naming)
 bool PyGenericAlias::check_(const py::handle &object) {
-	if (!ModuleIsLoaded<TypesCacheItem>()) {
+	if (!ModuleIsLoaded<TypingCacheItem>()) {
 		return false;
 	}
 	auto &import_cache = *DuckDBPyConnection::ImportCache();
-	return py::isinstance(object, import_cache.types.GenericAlias());
+
+	auto alias = import_cache.typing._GenericAlias();
+	D_ASSERT(alias);
+
+	return py::isinstance(object, alias);
 }
 
 // NOLINTNEXTLINE(readability-identifier-naming)
 bool PyUnionType::check_(const py::handle &object) {
-	auto types_loaded = ModuleIsLoaded<TypesCacheItem>();
+	auto types_loaded = true;
 	auto typing_loaded = ModuleIsLoaded<TypingCacheItem>();
 
 	if (!types_loaded && !typing_loaded) {
@@ -27,11 +31,10 @@ bool PyUnionType::check_(const py::handle &object) {
 	}
 
 	auto &import_cache = *DuckDBPyConnection::ImportCache();
-	if (types_loaded && py::isinstance(object, import_cache.types.UnionType())) {
-		return true;
-	}
-	if (typing_loaded && py::isinstance(object, import_cache.typing._UnionGenericAlias())) {
-		return true;
+	if (typing_loaded && py::isinstance(object, import_cache.typing._GenericAlias())) {
+		if (object.attr("__origin__").is(import_cache.typing.UnionType())) {
+			return true;
+		}
 	}
 	return false;
 }

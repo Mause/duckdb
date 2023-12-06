@@ -472,7 +472,19 @@
         "name": "typing",
         "children": [
             "typing._GenericAlias"
-	]
+        ]
+    },
+    "typing.Union": {
+        "type": "attribute",
+        "full_path": "typing.Union",
+        "name": "Union",
+        "children": []
+    },
+    "typing._GenericAlias": {
+        "type": "attribute",
+        "full_path": "typing._GenericAlias",
+        "name": "_GenericAlias",
+        "children": []
     },
     "uuid": {
         "type": "module",

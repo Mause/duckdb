@@ -85,14 +85,12 @@ import pytz
 
 pytz.timezone
 
-import types
 
-types.UnionType
-types.GenericAlias
 
 import typing
 
-typing._UnionGenericAlias
+typing.Union
+typing._GenericAlias
 
 import uuid
 
