@@ -466,40 +466,13 @@
         "name": "timezone",
         "children": []
     },
-    "types": {
-        "type": "module",
-        "full_path": "types",
-        "name": "types",
-        "children": [
-            "types.UnionType",
-            "types.GenericAlias"
-        ]
-    },
-    "types.UnionType": {
-        "type": "attribute",
-        "full_path": "types.UnionType",
-        "name": "UnionType",
-        "children": []
-    },
-    "types.GenericAlias": {
-        "type": "attribute",
-        "full_path": "types.GenericAlias",
-        "name": "GenericAlias",
-        "children": []
-    },
     "typing": {
         "type": "module",
         "full_path": "typing",
         "name": "typing",
         "children": [
-            "typing._UnionGenericAlias"
-        ]
-    },
-    "typing._UnionGenericAlias": {
-        "type": "attribute",
-        "full_path": "typing._UnionGenericAlias",
-        "name": "_UnionGenericAlias",
-        "children": []
+            "typing._GenericAlias"
+	]
     },
     "uuid": {
         "type": "module",
