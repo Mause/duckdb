@@ -23,18 +23,13 @@ bool PyGenericAlias::check_(const py::handle &object) {
 
 // NOLINTNEXTLINE(readability-identifier-naming)
 bool PyUnionType::check_(const py::handle &object) {
-	auto types_loaded = true;
-	auto typing_loaded = ModuleIsLoaded<TypingCacheItem>();
+	if (py::isinstance<PyGenericAlias>(object)) {
+		auto &import_cache = *DuckDBPyConnection::ImportCache();
 
-	if (!types_loaded && !typing_loaded) {
-		return false;
-	}
+		auto union_type = import_cache.typing.Union();
+		py::object origin = object.attr("__origin__");
 
-	auto &import_cache = *DuckDBPyConnection::ImportCache();
-	if (typing_loaded && py::isinstance(object, import_cache.typing._GenericAlias())) {
-		if (object.attr("__origin__").is(import_cache.typing.Union())) {
-			return true;
-		}
+		return origin.is(union_type);
 	}
 	return false;
 }
@@ -105,14 +100,14 @@ static PythonTypeObject GetTypeObjectType(const py::handle &type_object) {
 	if (py::isinstance<py::str>(type_object)) {
 		return PythonTypeObject::STRING;
 	}
+	if (py::isinstance<PyUnionType>(type_object)) {
+		return PythonTypeObject::UNION;
+	}
 	if (py::isinstance<PyGenericAlias>(type_object)) {
 		return PythonTypeObject::COMPOSITE;
 	}
 	if (py::isinstance<py::dict>(type_object)) {
 		return PythonTypeObject::STRUCT;
-	}
-	if (py::isinstance<PyUnionType>(type_object)) {
-		return PythonTypeObject::UNION;
 	}
 	return PythonTypeObject::INVALID;
 }
