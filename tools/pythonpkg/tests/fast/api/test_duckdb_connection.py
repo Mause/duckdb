@@ -1,3 +1,4 @@
+import inspect
 import duckdb
 import pytest
 from conftest import NumpyPandas, ArrowPandas
@@ -277,3 +278,26 @@ class TestDuckDBConnection(object):
         for method in filtered_methods:
             # Assert that every method of DuckDBPyConnection is wrapped by the 'duckdb' module
             assert method in dir(duckdb)
+
+    @pytest.mark.parametrize('method', {method for method in dir(duckdb.default_connection) if not is_dunder_method(method)})
+    def test_docstrings(self, method: str) -> None:
+        wrapper = getattr(duckdb, method)
+        original = getattr(duckdb.default_connection, method)
+
+        if callable(original):  # only functions, classes, and modules can have docstrings
+            assert getdocstring(original)
+
+        assert getdocstring(wrapper) == getdocstring(original)
+
+
+def getdocstring(function: callable) -> str:
+    doc = inspect.getdoc(function)
+    if not doc:
+        return None
+
+    doc =  '\n'.join(doc.splitlines()[2:]).strip()
+
+    if '1. ' in doc:
+        return doc.replace('self: duckdb.duckdb.DuckDBPyConnection, ', '').replace(', connection: duckdb.DuckDBPyConnection = None', '')
+
+    return doc

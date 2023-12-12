@@ -166,7 +166,7 @@ static void InitializeConnectionMethods(py::class_<DuckDBPyConnection, shared_pt
 	    .def("fetch_df", &DuckDBPyConnection::FetchDF, "Fetch a result as DataFrame following execute()", py::kw_only(),
 	         py::arg("date_as_object") = false)
 	    .def("fetch_df_chunk", &DuckDBPyConnection::FetchDFChunk,
-	         "Fetch a chunk of the result as Data.Frame following execute()", py::arg("vectors_per_chunk") = 1,
+	         "Fetch a chunk of the result as DataFrame following execute()", py::arg("vectors_per_chunk") = 1,
 	         py::kw_only(), py::arg("date_as_object") = false)
 	    .def("df", &DuckDBPyConnection::FetchDF, "Fetch a result as DataFrame following execute()", py::kw_only(),
 	         py::arg("date_as_object") = false)
@@ -219,7 +219,7 @@ static void InitializeConnectionMethods(py::class_<DuckDBPyConnection, shared_pt
 	             py::arg("normalize_names") = py::none(), py::arg("filename") = py::none(),
 	             py::arg("null_padding") = py::none(), py::arg("names") = py::none());
 
-	m.def("from_df", &DuckDBPyConnection::FromDF, "Create a relation object from the Data.Frame in df",
+	m.def("from_df", &DuckDBPyConnection::FromDF, "Create a relation object from the DataFrame df",
 	      py::arg("df") = py::none())
 	    .def("from_arrow", &DuckDBPyConnection::FromArrow, "Create a relation object from an Arrow object",
 	         py::arg("arrow_object"));
@@ -235,7 +235,7 @@ static void InitializeConnectionMethods(py::class_<DuckDBPyConnection, shared_pt
 	             py::arg("filename") = false, py::arg("hive_partitioning") = false, py::arg("union_by_name") = false,
 	             py::arg("compression") = py::none());
 
-	m.def("from_substrait", &DuckDBPyConnection::FromSubstrait, "Create a query object from protobuf plan",
+	m.def("from_substrait", &DuckDBPyConnection::FromSubstrait, "Creates a query object the substrait plan",
 	      py::arg("proto"))
 	    .def("get_substrait", &DuckDBPyConnection::GetSubstrait, "Serialize a query to protobuf", py::arg("query"),
 	         py::kw_only(), py::arg("enable_optimizer") = true)

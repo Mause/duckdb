@@ -83,7 +83,7 @@ static void InitializeConnectionMethods(py::module_ &m) {
 	m.def("remove_function", &PyConnectionWrapper::UnregisterUDF, "Remove a previously created function",
 	      py::arg("name"), py::arg("connection") = py::none());
 
-	DefineMethod({"sqltype", "dtype", "type"}, m, &PyConnectionWrapper::Type, "Create a type object from 'type_str'",
+	DefineMethod({"sqltype", "dtype", "type"}, m, &PyConnectionWrapper::Type, "Create a type object by parsing the 'type_str' string",
 	             py::arg("type_str"), py::arg("connection") = py::none());
 	DefineMethod({"struct_type", "row_type"}, m, &PyConnectionWrapper::StructType,
 	             "Create a struct type object from 'fields'", py::arg("fields"), py::arg("connection") = py::none());
@@ -155,11 +155,11 @@ static void InitializeConnectionMethods(py::module_ &m) {
 	      py::arg("connection") = py::none());
 	m.def("from_substrait", &PyConnectionWrapper::FromSubstrait, "Creates a query object from the substrait plan",
 	      py::arg("proto"), py::arg("connection") = py::none());
-	m.def("get_substrait", &PyConnectionWrapper::GetSubstrait, "Serialize a query object to protobuf", py::arg("query"),
+	m.def("get_substrait", &PyConnectionWrapper::GetSubstrait, "Serialize a query to protobuf", py::arg("query"),
 	      py::arg("connection") = py::none(), py::kw_only(), py::arg("enable_optimizer") = true);
-	m.def("get_substrait_json", &PyConnectionWrapper::GetSubstraitJSON, "Serialize a query object to protobuf",
+	m.def("get_substrait_json", &PyConnectionWrapper::GetSubstraitJSON, "Serialize a query to protobuf",
 	      py::arg("query"), py::arg("connection") = py::none(), py::kw_only(), py::arg("enable_optimizer") = true);
-	m.def("from_substrait_json", &PyConnectionWrapper::FromSubstraitJSON, "Serialize a query object to protobuf",
+	m.def("from_substrait_json", &PyConnectionWrapper::FromSubstraitJSON, "Create a query object from a JSON protobuf plan",
 	      py::arg("json"), py::arg("connection") = py::none());
 	m.def("df", &PyConnectionWrapper::FromDF, "Create a relation object from the DataFrame df", py::arg("df"),
 	      py::arg("connection") = py::none());
@@ -216,8 +216,6 @@ static void InitializeConnectionMethods(py::module_ &m) {
 	         py::arg("table_name"), py::arg("connection") = py::none())
 	    .def("view", &PyConnectionWrapper::View, "Create a relation object for the name'd view", py::arg("view_name"),
 	         py::arg("connection") = py::none())
-	    .def("values", &PyConnectionWrapper::Values, "Create a relation object from the passed values",
-	         py::arg("values"), py::arg("connection") = py::none())
 	    .def("table_function", &PyConnectionWrapper::TableFunction,
 	         "Create a relation object from the name'd table function with given parameters", py::arg("name"),
 	         py::arg("parameters") = py::none(), py::arg("connection") = py::none());
@@ -239,13 +237,7 @@ static void InitializeConnectionMethods(py::module_ &m) {
 	             py::arg("filename") = false, py::arg("hive_partitioning") = false, py::arg("union_by_name") = false,
 	             py::arg("compression") = py::none(), py::arg("connection") = py::none());
 
-	m.def("from_substrait", &PyConnectionWrapper::FromSubstrait, "Create a query object from protobuf plan",
-	      py::arg("proto"), py::arg("connection") = py::none())
-	    .def("get_substrait", &PyConnectionWrapper::GetSubstrait, "Serialize a query to protobuf", py::arg("query"),
-	         py::arg("connection") = py::none(), py::kw_only(), py::arg("enable_optimizer") = true)
-	    .def("get_substrait_json", &PyConnectionWrapper::GetSubstraitJSON,
-	         "Serialize a query to protobuf on the JSON format", py::arg("query"), py::arg("connection") = py::none(),
-	         py::kw_only(), py::arg("enable_optimizer") = true)
+	m
 	    .def("get_table_names", &PyConnectionWrapper::GetTableNames, "Extract the required table names from a query",
 	         py::arg("query"), py::arg("connection") = py::none())
 	    .def("description", &PyConnectionWrapper::GetDescription, "Get result set attributes, mainly column names",
