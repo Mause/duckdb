@@ -9,6 +9,8 @@
 
 #pragma once
 
+#include "duckdb_extension_api.h"
+
 // duplicate of duckdb/main/winapi.hpp
 #ifndef DUCKDB_API
 #ifdef _WIN32
@@ -65,68 +67,6 @@ extern "C" {
 // Type Information
 //===--------------------------------------------------------------------===//
 typedef uint64_t idx_t;
-
-typedef enum DUCKDB_TYPE {
-	DUCKDB_TYPE_INVALID = 0,
-	// bool
-	DUCKDB_TYPE_BOOLEAN,
-	// int8_t
-	DUCKDB_TYPE_TINYINT,
-	// int16_t
-	DUCKDB_TYPE_SMALLINT,
-	// int32_t
-	DUCKDB_TYPE_INTEGER,
-	// int64_t
-	DUCKDB_TYPE_BIGINT,
-	// uint8_t
-	DUCKDB_TYPE_UTINYINT,
-	// uint16_t
-	DUCKDB_TYPE_USMALLINT,
-	// uint32_t
-	DUCKDB_TYPE_UINTEGER,
-	// uint64_t
-	DUCKDB_TYPE_UBIGINT,
-	// float
-	DUCKDB_TYPE_FLOAT,
-	// double
-	DUCKDB_TYPE_DOUBLE,
-	// duckdb_timestamp, in microseconds
-	DUCKDB_TYPE_TIMESTAMP,
-	// duckdb_date
-	DUCKDB_TYPE_DATE,
-	// duckdb_time
-	DUCKDB_TYPE_TIME,
-	// duckdb_interval
-	DUCKDB_TYPE_INTERVAL,
-	// duckdb_hugeint
-	DUCKDB_TYPE_HUGEINT,
-	// const char*
-	DUCKDB_TYPE_VARCHAR,
-	// duckdb_blob
-	DUCKDB_TYPE_BLOB,
-	// decimal
-	DUCKDB_TYPE_DECIMAL,
-	// duckdb_timestamp, in seconds
-	DUCKDB_TYPE_TIMESTAMP_S,
-	// duckdb_timestamp, in milliseconds
-	DUCKDB_TYPE_TIMESTAMP_MS,
-	// duckdb_timestamp, in nanoseconds
-	DUCKDB_TYPE_TIMESTAMP_NS,
-	// enum type, only useful as logical type
-	DUCKDB_TYPE_ENUM,
-	// list type, only useful as logical type
-	DUCKDB_TYPE_LIST,
-	// struct type, only useful as logical type
-	DUCKDB_TYPE_STRUCT,
-	// map type, only useful as logical type
-	DUCKDB_TYPE_MAP,
-	// duckdb_hugeint
-	DUCKDB_TYPE_UUID,
-	// union type, only useful as logical type
-	DUCKDB_TYPE_UNION,
-	// duckdb_bit
-	DUCKDB_TYPE_BIT,
-} duckdb_type;
 
 //! Days are stored as days since 1970-01-01
 //! Use the duckdb_from_date/duckdb_to_date function to extract individual information
@@ -296,9 +236,6 @@ typedef struct _duckdb_arrow_schema {
 typedef struct _duckdb_arrow_array {
 	void *__arra;
 } * duckdb_arrow_array;
-typedef struct _duckdb_logical_type {
-	void *__lglt;
-} * duckdb_logical_type;
 typedef struct _duckdb_data_chunk {
 	void *__dtck;
 } * duckdb_data_chunk;
