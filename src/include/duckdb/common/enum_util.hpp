@@ -98,6 +98,8 @@ enum class DebugInitialize : uint8_t;
 
 enum class DefaultOrderByNullType : uint8_t;
 
+enum class DependencyEntryType : uint8_t;
+
 enum class DistinctType : uint8_t;
 
 enum class ErrorType : uint16_t;
@@ -208,6 +210,8 @@ enum class PreparedParamType : uint8_t;
 
 enum class ProfilerPrintFormat : uint8_t;
 
+enum class QuantileSerializationType : uint8_t;
+
 enum class QueryNodeType : uint8_t;
 
 enum class QueryResultType : uint8_t;
@@ -235,6 +239,8 @@ enum class SimplifiedTokenType : uint8_t;
 enum class SinkCombineResultType : uint8_t;
 
 enum class SinkFinalizeType : uint8_t;
+
+enum class SinkNextBatchType : uint8_t;
 
 enum class SinkResultType : uint8_t;
 
@@ -289,6 +295,10 @@ enum class WALType : uint8_t;
 enum class WindowAggregationMode : uint32_t;
 
 enum class WindowBoundary : uint8_t;
+
+enum class WindowExcludeMode : uint8_t;
+
+enum class WithinCollection : uint8_t;
 
 
 template<>
@@ -389,6 +399,9 @@ const char* EnumUtil::ToChars<DebugInitialize>(DebugInitialize value);
 
 template<>
 const char* EnumUtil::ToChars<DefaultOrderByNullType>(DefaultOrderByNullType value);
+
+template<>
+const char* EnumUtil::ToChars<DependencyEntryType>(DependencyEntryType value);
 
 template<>
 const char* EnumUtil::ToChars<DistinctType>(DistinctType value);
@@ -556,6 +569,9 @@ template<>
 const char* EnumUtil::ToChars<ProfilerPrintFormat>(ProfilerPrintFormat value);
 
 template<>
+const char* EnumUtil::ToChars<QuantileSerializationType>(QuantileSerializationType value);
+
+template<>
 const char* EnumUtil::ToChars<QueryNodeType>(QueryNodeType value);
 
 template<>
@@ -596,6 +612,9 @@ const char* EnumUtil::ToChars<SinkCombineResultType>(SinkCombineResultType value
 
 template<>
 const char* EnumUtil::ToChars<SinkFinalizeType>(SinkFinalizeType value);
+
+template<>
+const char* EnumUtil::ToChars<SinkNextBatchType>(SinkNextBatchType value);
 
 template<>
 const char* EnumUtil::ToChars<SinkResultType>(SinkResultType value);
@@ -677,6 +696,12 @@ const char* EnumUtil::ToChars<WindowAggregationMode>(WindowAggregationMode value
 
 template<>
 const char* EnumUtil::ToChars<WindowBoundary>(WindowBoundary value);
+
+template<>
+const char* EnumUtil::ToChars<WindowExcludeMode>(WindowExcludeMode value);
+
+template<>
+const char* EnumUtil::ToChars<WithinCollection>(WithinCollection value);
 
 
 template<>
@@ -777,6 +802,9 @@ DebugInitialize EnumUtil::FromString<DebugInitialize>(const char *value);
 
 template<>
 DefaultOrderByNullType EnumUtil::FromString<DefaultOrderByNullType>(const char *value);
+
+template<>
+DependencyEntryType EnumUtil::FromString<DependencyEntryType>(const char *value);
 
 template<>
 DistinctType EnumUtil::FromString<DistinctType>(const char *value);
@@ -944,6 +972,9 @@ template<>
 ProfilerPrintFormat EnumUtil::FromString<ProfilerPrintFormat>(const char *value);
 
 template<>
+QuantileSerializationType EnumUtil::FromString<QuantileSerializationType>(const char *value);
+
+template<>
 QueryNodeType EnumUtil::FromString<QueryNodeType>(const char *value);
 
 template<>
@@ -984,6 +1015,9 @@ SinkCombineResultType EnumUtil::FromString<SinkCombineResultType>(const char *va
 
 template<>
 SinkFinalizeType EnumUtil::FromString<SinkFinalizeType>(const char *value);
+
+template<>
+SinkNextBatchType EnumUtil::FromString<SinkNextBatchType>(const char *value);
 
 template<>
 SinkResultType EnumUtil::FromString<SinkResultType>(const char *value);
@@ -1065,6 +1099,12 @@ WindowAggregationMode EnumUtil::FromString<WindowAggregationMode>(const char *va
 
 template<>
 WindowBoundary EnumUtil::FromString<WindowBoundary>(const char *value);
+
+template<>
+WindowExcludeMode EnumUtil::FromString<WindowExcludeMode>(const char *value);
+
+template<>
+WithinCollection EnumUtil::FromString<WithinCollection>(const char *value);
 
 
 }

@@ -279,8 +279,8 @@ void ExtensionHelper::InstallExtensionInternal(DBConfig &config, ClientConfig *c
 		cli.set_proxy_basic_auth(proxy->username.c_str(), proxy->password.c_str());
 	}
 
-	duckdb_httplib::Headers headers = {{"User-Agent", StringUtil::Format("DuckDB %s %s %s", DuckDB::LibraryVersion(),
-	                                                                     DuckDB::SourceID(), DuckDB::Platform())}};
+	duckdb_httplib::Headers headers = {
+	    {"User-Agent", StringUtil::Format("%s %s", config.UserAgent(), DuckDB::SourceID())}};
 
 	auto res = cli.Get(url_local_part.c_str(), headers);
 
