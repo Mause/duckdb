@@ -350,6 +350,7 @@ jobs:
       AWS_SECRET_ACCESS_KEY: minio_duckdb_user_password
       DUCKDB_S3_ENDPOINT: duckdb-minio.com:9000
       DUCKDB_S3_USE_SSL: false
+      HTTP_PROXY_AVAILABLE: 1
 
       GEN: ninja
 
@@ -383,6 +384,11 @@ jobs:
         ./scripts/generate_presigned_url.sh
         source ./scripts/run_s3_test_server.sh
         sleep 60
+
+    - name: Start fake proxy
+      shell: bash
+      run: |
+         python3 scripts/test_http_proxy_setting.py &
 
     - name: Test
       shell: bash

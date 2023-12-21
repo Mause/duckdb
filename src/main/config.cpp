@@ -4,6 +4,7 @@
 #include "duckdb/common/string_util.hpp"
 #include "duckdb/main/settings.hpp"
 #include "duckdb/storage/storage_extension.hpp"
+#include "uri.hpp"
 
 #ifndef DUCKDB_NO_THREADS
 #include "duckdb/common/thread.hpp"
@@ -107,6 +108,7 @@ static ConfigurationOption internal_options[] = {DUCKDB_GLOBAL(AccessModeSetting
                                                  DUCKDB_LOCAL(ProgressBarTimeSetting),
                                                  DUCKDB_LOCAL(SchemaSetting),
                                                  DUCKDB_LOCAL(SearchPathSetting),
+                                                 DUCKDB_GLOBAL(HttpProxySetting),
                                                  DUCKDB_GLOBAL(TempDirectorySetting),
                                                  DUCKDB_GLOBAL(ThreadsSetting),
                                                  DUCKDB_GLOBAL(UsernameSetting),
@@ -410,6 +412,36 @@ bool DBConfig::operator==(const DBConfig &other) {
 
 bool DBConfig::operator!=(const DBConfig &other) {
 	return !(other.options == options);
+}
+
+std::string ProxyUri::ToString() const {
+	std::map<uri::component, string> components = {{uri::component::Scheme, "http"},
+	                                               {uri::component::Username, username},
+	                                               {uri::component::Password, password},
+	                                               {uri::component::Host, host},
+	                                               {uri::component::Port, std::to_string(port)},
+	                                               {uri::component::Path, ""}};
+
+	return uri(components, uri::scheme_category::Hierarchical, false).to_string();
+}
+
+shared_ptr<ProxyUri> ProxyUri::FromString(const string &url) {
+	if (url.empty() || url == "NULL") {
+		return nullptr;
+	}
+
+	auto proxy = std::make_shared<uri>(url);
+
+	if (proxy->get_scheme() != "http") {
+		throw InvalidInputException("Invalid proxy url (only http proxies supported): %s", url);
+	}
+
+	return std::make_shared<ProxyUri>(proxy->get_host(), proxy->get_port(), proxy->get_username(),
+	                                  proxy->get_password());
+}
+
+ProxyUri::ProxyUri(const string &host, uint32_t port, const string &username, const string &password)
+    : host(host), port(port), username(username), password(password) {
 }
 
 OrderType DBConfig::ResolveOrder(OrderType order_type) const {

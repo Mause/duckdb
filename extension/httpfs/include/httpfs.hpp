@@ -1,5 +1,6 @@
 #pragma once
 
+#include "duckdb/common/case_insensitive_map.hpp"
 #include "duckdb/common/file_system.hpp"
 #include "duckdb/common/pair.hpp"
 #include "duckdb/common/unordered_map.hpp"
@@ -7,6 +8,7 @@
 #include "duckdb/common/http_state.hpp"
 #include "duckdb/main/client_data.hpp"
 #include "http_metadata_cache.hpp"
+#include "duckdb/main/config.hpp"
 
 namespace duckdb_httplib_openssl {
 struct Response;
@@ -41,6 +43,7 @@ struct HTTPParams {
 	uint64_t retries;
 	uint64_t retry_wait_ms;
 	float retry_backoff;
+	shared_ptr<ProxyUri> proxy;
 	bool force_download;
 	bool keep_alive;
 

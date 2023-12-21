@@ -31,6 +31,7 @@ def third_party_includes():
     includes += [os.path.join('third_party', 'mbedtls', 'library')]
     includes += [os.path.join('third_party', 'jaro_winkler')]
     includes += [os.path.join('third_party', 'jaro_winkler', 'details')]
+    includes += [os.path.join('third_party', 'uri-library')]
     return includes
 
 
