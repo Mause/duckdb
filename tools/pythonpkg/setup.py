@@ -340,10 +340,9 @@ packages.extend(spark_packages)
 
 setup(
     data_files=data_files,
-    include_package_data=True,
     # NOTE: might need to be find_packages() ?
     packages=packages,
-    python_requires='>=3.7.0',
+    include_package_data=True,
     tests_require=['google-cloud-storage', 'mypy', 'pytest'],
     ext_modules=[libduckdb],
     cmdclass={"build_ext": build_ext},
