@@ -339,12 +339,12 @@ spark_packages = [
 packages.extend(spark_packages)
 
 setup(
-    data_files = data_files,
+    data_files=data_files,
     include_package_data=True,
     # NOTE: might need to be find_packages() ?
     packages=packages,
-    tests_require=['google-cloud-storage', 'mypy', 'pytest'],
     python_requires='>=3.7.0',
-    ext_modules = [libduckdb],
+    tests_require=['google-cloud-storage', 'mypy', 'pytest'],
+    ext_modules=[libduckdb],
     cmdclass={"build_ext": build_ext},
 )
