@@ -343,7 +343,6 @@ setup(
     # NOTE: might need to be find_packages() ?
     packages=packages,
     include_package_data=True,
-    tests_require=['google-cloud-storage', 'mypy', 'pytest'],
     ext_modules=[libduckdb],
     cmdclass={"build_ext": build_ext},
 )

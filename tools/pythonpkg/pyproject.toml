@@ -28,6 +28,9 @@ maintainers = [
 ]
 requires-python = ">=3.7"
 
+[project.optional-dependencies]
+test = ['google-cloud-storage', 'pytest', 'mypy', 'psutil', 'requests', 'fsspec', 'pyarrow', 'torch', 'polars', 'adbc_driver_manager', 'tensorflow']
+
 [project.urls]
 Documentation = "https://duckdb.org/docs/api/python/overview"
 Source = "https://github.com/duckdb/duckdb/blob/master/tools/pythonpkg"
