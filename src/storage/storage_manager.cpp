@@ -91,13 +91,22 @@ SingleFileStorageManager::SingleFileStorageManager(AttachedDatabase &db, string 
     : StorageManager(db, std::move(path), read_only) {
 }
 
+std::size_t GetQuestionMarkPos(std::string &path) {
+#ifdef _WIN32
+	std::string prefix = R"(\\?\)";
+	if (StringUtil::StartsWith(path, prefix)) {
+		return path.find('?', prefix.size());
+	}
+#endif
+	return path.find('?');
+}
 void SingleFileStorageManager::LoadDatabase() {
 	if (InMemory()) {
 		block_manager = make_uniq<InMemoryBlockManager>(BufferManager::GetBufferManager(db));
 		table_io_manager = make_uniq<SingleFileTableIOManager>(*block_manager);
 		return;
 	}
-	std::size_t question_mark_pos = path.find('?');
+	auto question_mark_pos = GetQuestionMarkPos(path);
 	auto wal_path = path;
 	if (question_mark_pos != std::string::npos) {
 		wal_path.insert(question_mark_pos, ".wal");
