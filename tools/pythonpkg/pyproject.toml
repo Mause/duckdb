@@ -11,6 +11,32 @@ build-backend = "setuptools.build_meta"
 root = "../.."
 local_scheme = "no-local-version"
 
+[project]
+name = "duckdb"
+dynamic = ["version"]
+description = 'DuckDB embedded database'
+readme = {text = "See here for an introduction: https://duckdb.org/docs/api/python/overview", content-type = "markdown"}
+keywords = ['DuckDB', 'Database', 'SQL', 'OLAP']
+classifiers = [
+    'Topic :: Database :: Database Engines/Servers',
+    'Intended Audience :: Developers',
+    'License :: OSI Approved :: MIT License',
+]
+license = {text = "MIT"}
+maintainers = [
+    { name = "Hannes Muehleisen", email = "hannes@duckdblabs.com" }
+]
+requires-python = ">=3.7"
+
+[project.optional-dependencies]
+test = ['google-cloud-storage', 'pytest', 'mypy', 'psutil', 'requests', 'fsspec', 'pyarrow', 'torch', 'polars', 'adbc_driver_manager', 'tensorflow']
+
+[project.urls]
+Documentation = "https://duckdb.org/docs/api/python/overview"
+Source = "https://github.com/duckdb/duckdb/blob/master/tools/pythonpkg"
+Issues = "https://github.com/duckdb/duckdb/issues"
+Changelog = "https://github.com/duckdb/duckdb/releases"
+
 ### CI Builwheel configurations ###
 
 # Default config runs all tests and requires at least one extension to be tested against

@@ -290,11 +290,6 @@ else:
         language='c++',
     )
 
-# Only include pytest-runner in setup_requires if we're invoking tests
-if {'pytest', 'test', 'ptr'}.intersection(sys.argv):
-    setup_requires = ['pytest-runner']
-else:
-    setup_requires = []
 
 
 # data files need to be formatted as [(directory, [files...]), (directory2, [files...])]
@@ -347,31 +342,10 @@ spark_packages = [
 packages.extend(spark_packages)
 
 setup(
-    name=lib_name,
-    description='DuckDB embedded database',
-    keywords='DuckDB Database SQL OLAP',
-    url="https://www.duckdb.org",
-    long_description='See here for an introduction: https://duckdb.org/docs/api/python/overview',
-    license='MIT',
     data_files=data_files,
     # NOTE: might need to be find_packages() ?
     packages=packages,
     include_package_data=True,
-    python_requires='>=3.7.0',
-    tests_require=['google-cloud-storage', 'mypy', 'pytest'],
-    classifiers=[
-        'Topic :: Database :: Database Engines/Servers',
-        'Intended Audience :: Developers',
-        'License :: OSI Approved :: MIT License',
-    ],
     ext_modules=[libduckdb],
-    maintainer="Hannes Muehleisen",
-    maintainer_email="hannes@cwi.nl",
     cmdclass={"build_ext": build_ext},
-    project_urls={
-        "Documentation": "https://duckdb.org/docs/api/python/overview",
-        "Source": "https://github.com/duckdb/duckdb/blob/main/tools/pythonpkg",
-        "Issues": "https://github.com/duckdb/duckdb/issues",
-        "Changelog": "https://github.com/duckdb/duckdb/releases",
-    },
 )

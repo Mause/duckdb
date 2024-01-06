@@ -81,7 +81,7 @@ jobs:
       run: |
         export DISTUTILS_C_COMPILER_LAUNCHER=ccache
         # TODO: Use ccache inside container, see https://github.com/pypa/cibuildwheel/issues/1030
-        cibuildwheel --output-dir wheelhouse --config-file pyproject.toml duckdb_tarball
+        cibuildwheel --output-dir wheelhouse duckdb_tarball
 
    manylinux-extensions-x64:
     name: Linux Extensions (linux_amd64_gcc4)
@@ -212,7 +212,7 @@ jobs:
         if [[ "$GITHUB_REF" =~ ^refs/tags/v.+$ ]] ; then
           export CIBW_TEST_COMMAND='python -m pytest {project}/tests/fast/api/test_dbapi00.py  --verbose'
         fi
-        cibuildwheel --output-dir wheelhouse --config-file pyproject.toml duckdb_tarball
+        cibuildwheel --output-dir wheelhouse duckdb_tarball
         ls wheelhouse
 
     - name: Deploy
@@ -271,7 +271,7 @@ jobs:
           if [[ "$GITHUB_REF" =~ ^refs/tags/v.+$ ]] ; then
             export CIBW_TEST_COMMAND='python -m pytest {project}/tests/fast/api/test_dbapi00.py  --verbose'
           fi
-          cibuildwheel --output-dir wheelhouse --config-file pyproject.toml duckdb_tarball
+          cibuildwheel --output-dir wheelhouse duckdb_tarball
 
       - name: Deploy
         env:
@@ -343,7 +343,7 @@ jobs:
           if [[ "$GITHUB_REF" =~ ^refs/tags/v.+$ ]] ; then
             export CIBW_TEST_COMMAND='python -m pytest {project}/tests/fast/api/test_dbapi00.py  --verbose'
           fi
-          cibuildwheel --output-dir wheelhouse --config-file pyproject.toml duckdb_tarball
+          cibuildwheel --output-dir wheelhouse duckdb_tarball
 
       - name: Deploy
         env:
