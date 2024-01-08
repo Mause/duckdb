@@ -73,6 +73,7 @@ class CompilerLauncherMixin:
                 *args,
                 **kwargs,
             ):
+                original_objects = objects
                 from collections import Counter
                 print('common objects:', Counter(objects).most_common(10))
 
@@ -88,8 +89,8 @@ class CompilerLauncherMixin:
                 original_length = len(' '.join(objects))
                 objects = [get_short_path(x) for x in objects]
                 new_length = len(' '.join(objects))
-                raise Exception("link command too long: {} -> {}".format(original_length, new_length))
-                return original_link(target_desc, objects, *args, **kwargs)
+                print("link command too long: {} -> {}".format(original_length, new_length))
+                return original_link(target_desc, original_objects, *args, **kwargs)
 
             original_link = self.compiler.link
             self.compiler.link = link_with_short_paths
