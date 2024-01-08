@@ -73,7 +73,11 @@ class CompilerLauncherMixin:
                 *args,
                 **kwargs,
             ):
-                return original_link(target_desc, [get_short_path(x) for x in objects], *args, **kwargs)
+                original_length = len(' '.join(objects))
+                objects = [get_short_path(x) for x in objects]
+                new_length = len(' '.join(objects))
+                raise Exception("link command too long: {} -> {}".format(original_length, new_length))
+                return original_link(target_desc, objects, *args, **kwargs)
 
             original_link = self.compiler.link
             self.compiler.link = link_with_short_paths
