@@ -51,6 +51,9 @@ class CompilerLauncherMixin:
                 if platform.system() == 'Windows' and len(' '.join(cmd)) > 32766:
                     raise Exception("command too long: " + ' '.join(cmd))
 
+                if 'link.exe' in cmd[0]:
+                    raise Exception(cmd)
+
                 exclude_programs = ("link.exe",)
                 if not cmd[0].endswith(exclude_programs):
                     cmd = [compiler_launcher] + cmd
