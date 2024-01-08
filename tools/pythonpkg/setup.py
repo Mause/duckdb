@@ -73,12 +73,14 @@ class CompilerLauncherMixin:
                 *args,
                 **kwargs,
             ):
+                from collections import Counter
+                print('common objects:', Counter(objects).most_common(10))
+
                 for obj in objects:
                     shortened = get_short_path(obj)
                     if obj != shortened:
                         print("shortened {} -> {}".format(obj, shortened))
 
-                from collections import Counter
                 counts = Counter(map(len, objects))
                 for item in counts.most_common(10):
                     print('count', item)
