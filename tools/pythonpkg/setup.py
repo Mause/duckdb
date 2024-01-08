@@ -73,6 +73,9 @@ class CompilerLauncherMixin:
                 *args,
                 **kwargs,
             ):
+                order_by_length = sorted(objects, key=len, reverse=True)
+                for item in order_by_length[:10]:
+                    print(item)
                 original_length = len(' '.join(objects))
                 objects = [get_short_path(x) for x in objects]
                 new_length = len(' '.join(objects))
