@@ -1,32 +1,30 @@
-project('duckdb', 'cpp', version: '0.2.0')
+project('duckdb', 'cpp', version : '1.0.0')
 
 py = import('python').find_installation('python3')
 pybind11 = dependency('pybind11')
 
-build_dir = meson.current_source_dir() + '/../../build/debug'
-duckdb_include = '../../src/include'
+root = meson.current_source_dir() + '/../..'
+build_dir = root + '/build/debug'
 third_party_include = '../../third_party'
 cc = meson.get_compiler('cpp')
 
-fmt_include = third_party_include + '/fmt/include'
 fmt = declare_dependency(
-  dependencies: cc.find_library('duckdb_fmt', required : true, dirs: build_dir + '/third_party/fmt'),
-  include_directories: [fmt_include],
+  dependencies: cc.find_library('duckdb_fmt', dirs: build_dir + '/third_party/fmt'),
+  include_directories: third_party_include + '/fmt/include'
 )
 
-
 duckdb_static = declare_dependency(
-dependencies:  cc.find_library('duckdb_static', required : true, dirs: build_dir + '/src'),
-  include_directories : include_directories(duckdb_include)
+  dependencies: cc.find_library('duckdb_static', dirs: build_dir + '/src'),
+  include_directories: '../../src/include'
 )
 
 re2 = declare_dependency(
-dependencies:  cc.find_library('duckdb_re2', required : true, dirs: build_dir + '/third_party/re2'),
+  dependencies: cc.find_library('duckdb_re2', dirs: build_dir + '/third_party/re2'),
   include_directories: [third_party_include + '/re2'],
 )
 utf8proc = declare_dependency(
-dependencies:  cc.find_library('duckdb_utf8proc', required : true, dirs: build_dir + '/third_party/utf8proc'),
-  include_directories: [third_party_include + '/utf8proc/include'],
+  dependencies: cc.find_library('duckdb_utf8proc', dirs: build_dir + '/third_party/utf8proc'),
+  include_directories: third_party_include + '/utf8proc/include'
 )
 
 pyduckdb = py.extension_module(
