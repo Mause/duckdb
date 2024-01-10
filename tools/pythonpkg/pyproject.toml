@@ -1,11 +1,13 @@
 [build-system]
 requires = [
+	"meson-python",
+	"ninja",
 	"setuptools>=60",
 	"setuptools_scm>=6.4",
 	"pybind11>=2.6.0",
 	"wheel>=0.38.0"
 ]
-build-backend = "setuptools.build_meta"
+build-backend = "mesonpy"
 
 [tool.setuptools_scm]
 root = "../.."
