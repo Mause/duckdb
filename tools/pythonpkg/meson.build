@@ -13,6 +13,24 @@ duckdb_static = declare_dependency(
     include_directories: '../../src/include',
 )
 
+run_command(
+  find_program('make'),
+  '-C', root,
+  'debug',
+  env: {
+    'GEN': 'ninja',
+    'BUILD_ICU': '1',
+    'BUILD_JEMALLOC': '1',
+    'BUILD_VISUALIZER': '1',
+    'BUILD_FTS': '1',
+    'BUILD_TPCDS': '1',
+    'BUILD_TPCH': '1',
+    'BUILD_PARQUET': '1',
+    'BUILD_JSON': '1',
+  },
+  check: true,
+)
+
 jemalloc = declare_dependency(
     dependencies: cc.find_library(
         'jemalloc_extension',
