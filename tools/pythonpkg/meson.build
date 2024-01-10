@@ -8,77 +8,11 @@ build_dir = root + '/build/debug'
 third_party_include = '../../third_party'
 cc = meson.get_compiler('cpp')
 
-duckdb_static = declare_dependency(
-    dependencies: cc.find_library('duckdb_static', dirs: build_dir + '/src'),
+duckdb_dynamic = declare_dependency(
+    dependencies: cc.find_library('duckdb', dirs: build_dir + '/src'),
     include_directories: '../../src/include',
 )
 
-run_command(
-  find_program('make'),
-  '-C', root,
-  'debug',
-  env: {
-    'GEN': 'ninja',
-    'BUILD_ICU': '1',
-    'BUILD_JEMALLOC': '1',
-    'BUILD_VISUALIZER': '1',
-    'BUILD_FTS': '1',
-    'BUILD_TPCDS': '1',
-    'BUILD_TPCH': '1',
-    'BUILD_PARQUET': '1',
-    'BUILD_JSON': '1',
-  },
-  check: true,
-)
-
-jemalloc = declare_dependency(
-    dependencies: cc.find_library(
-        'jemalloc_extension',
-        dirs: build_dir + '/extension/jemalloc',
-    ),
-)
-visualizer = declare_dependency(
-    dependencies: cc.find_library(
-        'visualizer_extension',
-        dirs: build_dir + '/extension/visualizer',
-    ),
-)
-fts = declare_dependency(
-    dependencies: cc.find_library(
-        'fts_extension',
-        dirs: build_dir + '/extension/fts',
-    ),
-)
-tpch = declare_dependency(
-    dependencies: cc.find_library(
-        'tpch_extension',
-        dirs: build_dir + '/extension/tpch',
-    ),
-)
-tpcds = declare_dependency(
-    dependencies: cc.find_library(
-        'tpcds_extension',
-        dirs: build_dir + '/extension/tpcds',
-    ),
-)
-icu = declare_dependency(
-    dependencies: cc.find_library(
-        'icu_extension',
-        dirs: build_dir + '/extension/icu',
-    ),
-)
-parquet = declare_dependency(
-    dependencies: cc.find_library(
-        'parquet_extension',
-        dirs: build_dir + '/extension/parquet',
-    ),
-)
-json = declare_dependency(
-    dependencies: cc.find_library(
-        'json_extension',
-        dirs: build_dir + '/extension/json',
-    ),
-)
 
 fmt = declare_dependency(
     dependencies: cc.find_library(
@@ -101,61 +35,17 @@ utf8proc = declare_dependency(
     ),
     include_directories: third_party_include + '/utf8proc/include',
 )
-mbedtls = declare_dependency(
-    dependencies: cc.find_library(
-        'duckdb_mbedtls',
-        dirs: build_dir + '/third_party/mbedtls',
-    ),
-    # include_directories: [third_party_include + '/mbedtls/include', third_party_include + '/mbedtls/include/mbedtls']
-)
-fsst = declare_dependency(
-    dependencies: cc.find_library(
-        'duckdb_fsst',
-        dirs: build_dir + '/third_party/fsst',
-    ),
-)
-fastpforlib = declare_dependency(
-    dependencies: cc.find_library(
-        'duckdb_fastpforlib',
-        dirs: build_dir + '/third_party/fastpforlib',
-    ),
-)
-miniz = declare_dependency(
-    dependencies: cc.find_library(
-        'duckdb_miniz',
-        dirs: build_dir + '/third_party/miniz',
-    ),
-)
-pg = declare_dependency(
-    dependencies: cc.find_library(
-        'duckdb_pg_query',
-        dirs: build_dir + '/third_party/libpg_query',
-    ),
-)
 
-pyduckdb = py.extension_module(
+py.extension_module(
     'duckdb',
     include_directories: ['src/include'],
     dependencies: [
         dependency('python3'),
         pybind11,
-        duckdb_static,
+        duckdb_dynamic,
         fmt,
         re2,
         utf8proc,
-        jemalloc,
-        visualizer,
-        fts,
-        tpch,
-        tpcds,
-        icu,
-        parquet,
-        json,
-        mbedtls,
-        fsst,
-        fastpforlib,
-        miniz,
-        pg,
     ],
     cpp_args: ['-Wno-unused-variable'],
     link_language: 'cpp',
@@ -202,5 +92,5 @@ pyduckdb = py.extension_module(
 test(
     'loading',
     find_program('python3.10'),
-    args: ['-c', '__import__("duckdb")'],
+    args: ['-c', 'print(__import__("duckdb").__version__)'],
 )
