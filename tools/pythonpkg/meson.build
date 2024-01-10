@@ -1,4 +1,12 @@
-project('duckdb', 'cpp', version: '1.0.0')
+project(
+    'duckdb',
+    'cpp',
+    version: configure_file(
+        output: 'version',
+        capture: true,
+        command: [find_program('git'), 'describe', '--tags'],
+    ),
+)
 
 py = import('python').find_installation('python3')
 pybind11 = dependency('pybind11')
@@ -12,7 +20,6 @@ duckdb_dynamic = declare_dependency(
     dependencies: cc.find_library('duckdb', dirs: build_dir + '/src'),
     include_directories: '../../src/include',
 )
-
 
 fmt = declare_dependency(
     dependencies: cc.find_library(
