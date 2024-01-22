@@ -4351,8 +4351,17 @@ public class TestDuckDBJDBC {
 
             assertEquals(rs.getString("TYPE_NAME"), "bigint");
             assertEquals(rs.getInt("DATA_TYPE"), Types.BIGINT);
-            assertEquals(rs.getInt("MAXIMUM_SCALE"), 8);
+            assertNull(rs.getString("LITERAL_PREFIX"));
+            assertNull(rs.getString("CREATE_PARAMS"));
+            assertEquals(rs.getInt("NULLABLE"), DatabaseMetaData.typeNullable);
+            assertEquals(rs.getBoolean("CASE_SENSITIVE"), false);
             assertEquals(rs.getInt("SEARCHABLE"), DatabaseMetaData.typePredNone);
+            assertFalse(rs.getBoolean("UNSIGNED_ATTRIBUTE"));
+            assertFalse(rs.getBoolean("FIXED_PREC_SCALE")); // TODO: money support?
+            assertFalse(rs.getBoolean("AUTO_INCREMENT"));   // TODO: do we support autoincrement anywhere?
+            assertEquals(rs.getString("LOCAL_TYPE_NAME"), "bigint");
+            assertEquals(rs.getInt("MINIMUM_SCALE"), 0);
+            assertEquals(rs.getInt("MAXIMUM_SCALE"), 8);
 
             scroll_until(rs, "varchar");
 
