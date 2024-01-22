@@ -997,15 +997,13 @@ public class DuckDBDatabaseMetaData implements DatabaseMetaData {
     public ResultSet getTypeInfo() throws SQLException {
         String searchable = "(CASE type_name WHEN 'varchar' THEN " + typeSearchable + " ELSE " + typePredNone + " END)";
 
-        String unsigned = "type_category = 'NUMERIC' and type_name.starts_with('u')";
-
         PreparedStatement statement = getConnection().prepareStatement(
             "SELECT "
             + "type_name AS TYPE_NAME, " + makeDataMap("logical_type", "DATA_TYPE") + "0 AS PRECISION, "
             + "CASE type_name WHEN 'varchar' THEN '''' ELSE null END AS LITERAL_PREFIX, "
             + "LITERAL_PREFIX AS LITERAL_SUFFIX, "
             + "null AS CREATE_PARAMS, " + typeNullable + " AS NULLABLE, " // assume all our types are nullable?
-            + "false AS CASE_SENSITIVE, " + searchable + " AS SEARCHABLE, " + unsigned + " AS UNSIGNED_ATTRIBUTE, "
+            + "false AS CASE_SENSITIVE, " + searchable + " AS SEARCHABLE, unsigned AS UNSIGNED_ATTRIBUTE, "
             + "false AS FIXED_PREC_SCALE, "
             + "false AS AUTO_INCREMENT, "
             + "null AS LOCAL_TYPE_NAME, "

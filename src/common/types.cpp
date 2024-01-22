@@ -565,6 +565,19 @@ bool LogicalType::IsNumeric() const {
 	}
 }
 
+bool LogicalType::IsUnsigned() const {
+	switch (id_) {
+	case LogicalTypeId::UTINYINT:
+	case LogicalTypeId::USMALLINT:
+	case LogicalTypeId::UINTEGER:
+	case LogicalTypeId::UBIGINT:
+	case LogicalTypeId::UHUGEINT:
+		return true;
+	default:
+		return false;
+	}
+}
+
 bool LogicalType::IsValid() const {
 	return id() != LogicalTypeId::INVALID && id() != LogicalTypeId::UNKNOWN;
 }
