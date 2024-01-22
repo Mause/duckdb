@@ -131,6 +131,10 @@ public class DuckDBResultSetMetaData implements ResultSetMetaData {
             return Types.BLOB;
         case STRUCT:
             return Types.STRUCT;
+        case BIT:
+            return Types.BIT;
+        case TIME_WITH_TIME_ZONE:
+            return Types.TIME_WITH_TIMEZONE;
         default:
             return Types.JAVA_OBJECT;
         }
