@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static java.lang.System.lineSeparator;
+import static org.duckdb.JdbcUtils.mapOf;
 
 public class DuckDBDatabaseMetaData implements DatabaseMetaData {
     DuckDBConnection conn;
@@ -995,22 +996,35 @@ public class DuckDBDatabaseMetaData implements DatabaseMetaData {
      */
     @Override
     public ResultSet getTypeInfo() throws SQLException {
-        String searchable = "(CASE type_name WHEN 'varchar' THEN " + typeSearchable + " ELSE " + typePredNone + " END)";
+        String searchable = "IF(type_name = 'varchar', " + typeSearchable + ", " + typePredNone + ")";
+        String precision = "IF(logical_type = 'decimal', 38, null)";
 
-        PreparedStatement statement = getConnection().prepareStatement(
-            "SELECT "
-            + "type_name AS TYPE_NAME, " + makeDataMap("logical_type", "DATA_TYPE") + "0 AS PRECISION, "
-            + "CASE type_name WHEN 'varchar' THEN '''' ELSE null END AS LITERAL_PREFIX, "
-            + "LITERAL_PREFIX AS LITERAL_SUFFIX, "
-            + "null AS CREATE_PARAMS, " + typeNullable + " AS NULLABLE, " // assume all our types are nullable?
-            + "false AS CASE_SENSITIVE, " + searchable + " AS SEARCHABLE, unsigned AS UNSIGNED_ATTRIBUTE, "
-            + "false AS FIXED_PREC_SCALE, "
-            + "false AS AUTO_INCREMENT, "
-            + "null AS LOCAL_TYPE_NAME, "
-            + "0 AS MINIMUM_SCALE, "
-            + "type_size AS MAXIMUM_SCALE, "
-            + "FROM duckdb_types() "
-            + "ORDER BY type_name");
+        String literalPrefix =
+            String.format("CASE type_name %s ELSE null END",
+                          makeCase(mapOf("varchar", "''", "map", "MAP {", "list", "[", "array", "[")));
+        String literalSuffix = String.format("CASE type_name %s ELSE null END",
+                                             makeCase(mapOf("varchar", "''", "map", "}", "list", "]", "array", "]")));
+
+        String[] columns = {"type_name AS TYPE_NAME",
+                            "type_name as LOCAL_TYPE_NAME",
+                            makeDataMap("logical_type", "DATA_TYPE"),
+                            precision + " AS PRECISION",
+                            literalPrefix + " AS LITERAL_PREFIX",
+                            literalSuffix + " AS LITERAL_SUFFIX",
+                            "null AS CREATE_PARAMS",
+                            typeNullable + " AS NULLABLE", // assume all our types are nullable?
+                            "false AS CASE_SENSITIVE",
+                            searchable + " AS SEARCHABLE",
+                            "unsigned AS UNSIGNED_ATTRIBUTE",
+                            "false AS FIXED_PREC_SCALE",
+                            "false AS AUTO_INCREMENT",
+                            "null AS LOCAL_TYPE_NAME",
+                            "0 AS MINIMUM_SCALE",
+                            "type_size AS MAXIMUM_SCALE"};
+
+        PreparedStatement statement =
+            getConnection().prepareStatement("SELECT " + String.join(", ", columns) + "FROM duckdb_types() "
+                                             + "ORDER BY type_name");
         statement.closeOnCompletion();
         return statement.executeQuery();
     }
@@ -1264,11 +1278,20 @@ public class DuckDBDatabaseMetaData implements DatabaseMetaData {
 
     static String dataMap;
     static {
-        dataMap = Arrays.stream(DuckDBColumnType.values())
-                      .map(ty
-                           -> String.format("WHEN '%s' THEN %s ", ty.name().replaceAll("_", " "),
-                                            DuckDBResultSetMetaData.type_to_int(ty)))
-                      .collect(Collectors.joining());
+        dataMap = makeCase(
+            Arrays.stream(DuckDBColumnType.values())
+                .collect(Collectors.toMap(ty -> ty.name().replace("_", " "), DuckDBResultSetMetaData::type_to_int)));
+    }
+
+    private static <T> String makeCase(Map<String, T> values) {
+        return values.entrySet()
+            .stream()
+            .map(ty -> {
+                T value = ty.getValue();
+                return String.format("WHEN '%s' THEN %s ", ty.getKey(),
+                                     value instanceof String ? String.format("'%s'", value) : value);
+            })
+            .collect(Collectors.joining());
     }
 
     /**

@@ -4351,6 +4351,7 @@ public class TestDuckDBJDBC {
 
             assertEquals(rs.getString("TYPE_NAME"), "bigint");
             assertEquals(rs.getInt("DATA_TYPE"), Types.BIGINT);
+            assertNull(rs.getInt("PRECISION"));
             assertNull(rs.getString("LITERAL_PREFIX"));
             assertNull(rs.getString("CREATE_PARAMS"));
             assertEquals(rs.getInt("NULLABLE"), DatabaseMetaData.typeNullable);
