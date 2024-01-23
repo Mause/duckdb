@@ -91,7 +91,7 @@ public class TestDuckDBJDBC {
     private static final String JDBC_URL = "jdbc:duckdb:";
 
     private static void assertTrue(boolean val) throws Exception {
-        assertTrue(val, null);
+        assertEquals(val, true);
     }
 
     private static void assertTrue(boolean val, String message) throws Exception {
@@ -101,7 +101,7 @@ public class TestDuckDBJDBC {
     }
 
     private static void assertFalse(boolean val) throws Exception {
-        assertTrue(!val);
+        assertEquals(val, false);
     }
 
     private static void assertEquals(Object actual, Object expected) throws Exception {
@@ -4355,7 +4355,7 @@ public class TestDuckDBJDBC {
             assertNull(rs.getString("LITERAL_PREFIX"));
             assertNull(rs.getString("CREATE_PARAMS"));
             assertEquals(rs.getInt("NULLABLE"), DatabaseMetaData.typeNullable);
-            assertEquals(rs.getBoolean("CASE_SENSITIVE"), false);
+            assertFalse(rs.getBoolean("CASE_SENSITIVE"));
             assertEquals(rs.getInt("SEARCHABLE"), DatabaseMetaData.typePredNone);
             assertFalse(rs.getBoolean("UNSIGNED_ATTRIBUTE"));
             assertFalse(rs.getBoolean("FIXED_PREC_SCALE")); // TODO: money support?
@@ -4366,8 +4366,21 @@ public class TestDuckDBJDBC {
 
             scroll_until(rs, "varchar");
 
+            assertEquals(rs.getString("TYPE_NAME"), "varchar");
             assertEquals(rs.getInt("DATA_TYPE"), Types.VARCHAR);
+            assertNull(rs.getInt("PRECISION"));
+            assertEquals(rs.getString("LITERAL_PREFIX"), "'");
+            assertEquals(rs.getString("LITERAL_SUFFIX"), "'");
+            assertNull(rs.getString("CREATE_PARAMS"));
+            assertEquals(rs.getInt("NULLABLE"), DatabaseMetaData.typeNullable);
+            assertTrue(rs.getBoolean("CASE_SENSITIVE"));
             assertEquals(rs.getInt("SEARCHABLE"), DatabaseMetaData.typeSearchable);
+            assertFalse(rs.getBoolean("UNSIGNED_ATTRIBUTE"));
+            assertFalse(rs.getBoolean("FIXED_PREC_SCALE"));
+            assertFalse(rs.getBoolean("AUTO_INCREMENT"));
+            assertEquals(rs.getString("LOCAL_TYPE_NAME"), "varchar");
+            assertNull(rs.getInt("MINIMUM_SCALE"));
+            assertNull(rs.getInt("MAXIMUM_SCALE"));
         }
     }
 
