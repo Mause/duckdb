@@ -1023,8 +1023,7 @@ public class DuckDBDatabaseMetaData implements DatabaseMetaData {
                             "type_size AS MAXIMUM_SCALE"};
 
         PreparedStatement statement =
-            getConnection().prepareStatement("SELECT " + String.join(", ", columns) + "FROM duckdb_types() "
-                                             + "ORDER BY type_name");
+            getConnection().prepareStatement(String.format("SELECT %s FROM duckdb_types() ORDER BY type_name", String.join(", ", columns)));
         statement.closeOnCompletion();
         return statement.executeQuery();
     }
