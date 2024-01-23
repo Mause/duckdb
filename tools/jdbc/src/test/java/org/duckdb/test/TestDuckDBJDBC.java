@@ -2019,7 +2019,7 @@ public class TestDuckDBJDBC {
                 rs.next();
 
                 assertEquals(rs.getString("TYPE_NAME"), "TIME WITH TIME ZONE");
-                assertEquals(rs.getInt("DATA_TYPE"), Types.JAVA_OBJECT);
+                assertEquals(rs.getInt("DATA_TYPE"), Types.TIME_WITH_TIMEZONE);
             }
 
             s.execute(
