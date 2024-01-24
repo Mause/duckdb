@@ -35,6 +35,15 @@
 #endif
 #endif
 
+#ifdef __GNUC__
+#define DEPRECATED(func) func __attribute__ ((deprecated))
+#elif defined(_MSC_VER)
+#define DEPRECATED(func) __declspec(deprecated) func
+#else
+#pragma message("WARNING: You need to implement DEPRECATED for this compiler")
+#define DEPRECATED(func) func
+#endif
+
 // API versions
 // if no explicit API version is defined, the latest API version is used
 // Note that using older API versions (i.e. not using DUCKDB_API_LATEST) is deprecated.
@@ -625,7 +634,7 @@ printf("Data for row %d: %d\n", row, data[row]);
 * col: The column index.
 * returns: The column data of the specified column.
 */
-DUCKDB_API void *duckdb_column_data(duckdb_result *result, idx_t col);
+DEPRECATED(DUCKDB_API void *duckdb_column_data(duckdb_result *result, idx_t col));
 
 /*!
 **DEPRECATED**: Prefer using `duckdb_result_get_chunk` instead.
@@ -648,7 +657,7 @@ if (nullmask[row]) {
 * col: The column index.
 * returns: The nullmask of the specified column.
 */
-DUCKDB_API bool *duckdb_nullmask_data(duckdb_result *result, idx_t col);
+DEPRECATED(DUCKDB_API bool *duckdb_nullmask_data(duckdb_result *result, idx_t col));
 
 /*!
 Returns the error message contained within the result. The error is only set if `duckdb_query` returns `DuckDBError`.
@@ -808,9 +817,9 @@ DUCKDB_API duckdb_interval duckdb_value_interval(duckdb_result *result, idx_t co
 * returns: The text value at the specified location as a null-terminated string, or nullptr if the value cannot be
 converted. The result must be freed with `duckdb_free`.
 */
-DUCKDB_API char *duckdb_value_varchar(duckdb_result *result, idx_t col, idx_t row);
+DEPRECATED(DUCKDB_API char *duckdb_value_varchar(duckdb_result *result, idx_t col, idx_t row));
 
-/*!s
+/*!
 * returns: The string value at the specified location.
 The result must be freed with `duckdb_free`.
 */
@@ -824,7 +833,7 @@ If the column is NOT a VARCHAR column this function will return NULL.
 
 The result must NOT be freed.
 */
-DUCKDB_API char *duckdb_value_varchar_internal(duckdb_result *result, idx_t col, idx_t row);
+DEPRECATED(DUCKDB_API char *duckdb_value_varchar_internal(duckdb_result *result, idx_t col, idx_t row));
 
 /*!
 * DEPRECATED: use duckdb_value_string_internal instead. This function does not work correctly if the string contains
@@ -834,7 +843,7 @@ If the column is NOT a VARCHAR column this function will return NULL.
 
 The result must NOT be freed.
 */
-DUCKDB_API duckdb_string duckdb_value_string_internal(duckdb_result *result, idx_t col, idx_t row);
+DEPRECATED(DUCKDB_API duckdb_string duckdb_value_string_internal(duckdb_result *result, idx_t col, idx_t row));
 
 /*!
 * returns: The duckdb_blob value at the specified location. Returns a blob with blob.data set to nullptr if the
