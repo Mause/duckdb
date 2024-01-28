@@ -79,8 +79,8 @@ string DuckDB::Platform() {
 	os = "windows";
 #elif defined(__APPLE__)
 	os = "osx";
-#elif defined(__ANDROID__)
-	os = "android";
+#elif defined(__FreeBSD__)
+	os = "freebsd";
 #endif
 #if defined(__aarch64__) || defined(__ARM_ARCH_ISA_A64)
 	arch = "arm64";
