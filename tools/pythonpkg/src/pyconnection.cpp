@@ -47,6 +47,8 @@
 #include "duckdb_python/pybind11/conversions/exception_handling_enum.hpp"
 #include "duckdb/parser/parsed_data/drop_info.hpp"
 #include "duckdb/catalog/catalog_entry/scalar_function_catalog_entry.hpp"
+#include "duckdb/main/pending_query_result.hpp"
+#include "duckdb/parser/keyword_helper.hpp"
 
 #include <random>
 
@@ -66,13 +68,13 @@ void DuckDBPyConnection::DetectEnvironment() {
 		return;
 	}
 	DuckDBPyConnection::environment = PythonEnvironmentType::INTERACTIVE;
-	if (!ModuleIsLoaded<IPythonCacheItem>()) {
+	if (!ModuleIsLoaded<IpythonCacheItem>()) {
 		return;
 	}
 
 	// Check to see if we are in a Jupyter Notebook
 	auto &import_cache_py = *DuckDBPyConnection::ImportCache();
-	auto get_ipython = import_cache_py.IPython().get_ipython();
+	auto get_ipython = import_cache_py.IPython.get_ipython();
 	if (get_ipython.ptr() == nullptr) {
 		// Could either not load the IPython module, or it has no 'get_ipython' attribute
 		return;
@@ -101,10 +103,10 @@ py::object ArrowTableFromDataframe(const py::object &df) {
 	try {
 		return py::module_::import("pyarrow").attr("lib").attr("Table").attr("from_pandas")(df);
 	} catch (py::error_already_set &e) {
-		// We don't fetch the original python exception because it can cause a segfault
+		// We don't fetch the original Python exception because it can cause a segfault
 		// The cause of this is not known yet, for now we just side-step the issue.
 		throw InvalidInputException(
-		    "The dataframe could not be converted to a pyarrow.lib.Table, because a python exception occurred.");
+		    "The dataframe could not be converted to a pyarrow.lib.Table, because a Python exception occurred.");
 	}
 }
 
@@ -120,8 +122,8 @@ static void InitializeConnectionMethods(py::class_<DuckDBPyConnection, shared_pt
 	         "Check if a filesystem with the provided name is currently registered", py::arg("name"));
 
 	m.def("create_function", &DuckDBPyConnection::RegisterScalarUDF,
-	      "Create a DuckDB function out of the passing in python function so it can be used in queries",
-	      py::arg("name"), py::arg("function"), py::arg("return_type") = py::none(), py::arg("parameters") = py::none(),
+	      "Create a DuckDB function out of the passing in Python function so it can be used in queries",
+	      py::arg("name"), py::arg("function"), py::arg("parameters") = py::none(), py::arg("return_type") = py::none(),
 	      py::kw_only(), py::arg("type") = PythonUDFType::NATIVE, py::arg("null_handling") = 0,
 	      py::arg("exception_handling") = 0, py::arg("side_effects") = false);
 
@@ -448,7 +450,11 @@ unique_ptr<QueryResult> DuckDBPyConnection::ExecuteInternal(const string &query,
 		// if there are multiple statements, we directly execute the statements besides the last one
 		// we only return the result of the last statement to the user, unless one of the previous statements fails
 		for (idx_t i = 0; i + 1 < statements.size(); i++) {
-			// TODO: this doesn't take in any prepared parameters?
+			if (statements[i]->n_param != 0) {
+				throw NotImplementedException(
+				    "Prepared parameters are only supported for the last statement, please split your query up into "
+				    "separate 'execute' calls if you want to use prepared parameters");
+			}
 			auto pending_query = connection->PendingQuery(std::move(statements[i]), false);
 			auto res = CompletePendingQuery(*pending_query);
 
@@ -713,7 +719,7 @@ unique_ptr<DuckDBPyRelation> DuckDBPyConnection::ReadCSV(
 	}
 	CSVReaderOptions options;
 	auto path_like = GetPathLike(name_p);
-	auto &name = path_like.str;
+	auto &name = path_like.files;
 	auto file_like_object_wrapper = std::move(path_like.dependency);
 	named_parameter_map_t bind_parameters;
 
@@ -903,7 +909,7 @@ unique_ptr<DuckDBPyRelation> DuckDBPyConnection::ReadCSV(
 		read_csv.extra_dependencies = std::move(file_like_object_wrapper);
 	}
 
-	return make_uniq<DuckDBPyRelation>(read_csv_p->Alias(name));
+	return make_uniq<DuckDBPyRelation>(read_csv_p->Alias(read_csv.alias));
 }
 
 unique_ptr<DuckDBPyRelation> DuckDBPyConnection::RunQuery(const string &query, string alias, const py::object &params) {
@@ -964,7 +970,13 @@ unique_ptr<DuckDBPyRelation> DuckDBPyConnection::Table(const string &tname) {
 	if (qualified_name.schema.empty()) {
 		qualified_name.schema = DEFAULT_SCHEMA;
 	}
-	return make_uniq<DuckDBPyRelation>(connection->Table(qualified_name.schema, qualified_name.name));
+	try {
+		return make_uniq<DuckDBPyRelation>(connection->Table(qualified_name.schema, qualified_name.name));
+	} catch (const CatalogException &e) {
+		// CatalogException will be of the type '... is not a table'
+		// Not a table in the database, make a query relation that can perform replacement scans
+		return RunQuery(StringUtil::Format("from %s", KeywordHelper::WriteOptionallyQuoted(tname)), tname);
+	}
 }
 
 unique_ptr<DuckDBPyRelation> DuckDBPyConnection::Values(py::object params) {
@@ -1441,12 +1453,12 @@ static unique_ptr<TableRef> ScanReplacement(ClientContext &context, const string
 	return nullptr;
 }
 
-unordered_map<string, string> TransformPyConfigDict(const py::dict &py_config_dict) {
-	unordered_map<string, string> config_dict;
+case_insensitive_map_t<Value> TransformPyConfigDict(const py::dict &py_config_dict) {
+	case_insensitive_map_t<Value> config_dict;
 	for (auto &kv : py_config_dict) {
 		auto key = py::str(kv.first);
 		auto val = py::str(kv.second);
-		config_dict[key] = val;
+		config_dict[key] = Value(val);
 	}
 	return config_dict;
 }
@@ -1454,6 +1466,9 @@ unordered_map<string, string> TransformPyConfigDict(const py::dict &py_config_di
 void CreateNewInstance(DuckDBPyConnection &res, const string &database, DBConfig &config) {
 	// We don't cache unnamed memory instances (i.e., :memory:)
 	bool cache_instance = database != ":memory:" && !database.empty();
+	if (config.options.enable_external_access) {
+		config.replacement_scans.emplace_back(ScanReplacement);
+	}
 	res.database = instance_cache.CreateInstance(database, config, cache_instance);
 	res.connection = make_uniq<Connection>(*res.database);
 	auto &context = *res.connection->context;
@@ -1466,18 +1481,11 @@ void CreateNewInstance(DuckDBPyConnection &res, const string &database, DBConfig
 	catalog.CreateTableFunction(context, &scan_info);
 	catalog.CreateTableFunction(context, &map_info);
 	context.transaction.Commit();
-	auto &db_config = res.database->instance->config;
-	db_config.AddExtensionOption("pandas_analyze_sample",
-	                             "The maximum number of rows to sample when analyzing a pandas object column.",
-	                             LogicalType::UBIGINT, Value::UBIGINT(1000));
-	if (db_config.options.enable_external_access) {
-		db_config.replacement_scans.emplace_back(ScanReplacement);
-	}
 }
 
 static bool HasJupyterProgressBarDependencies() {
 	auto &import_cache = *DuckDBPyConnection::ImportCache();
-	if (!import_cache.ipywidgets().IsLoaded()) {
+	if (!import_cache.ipywidgets()) {
 		// ipywidgets not installed, needed to support the progress bar
 		return false;
 	}
@@ -1520,7 +1528,7 @@ static shared_ptr<DuckDBPyConnection> FetchOrCreateInstance(const string &databa
 	return res;
 }
 
-bool IsDefaultConnectionString(const string &database, bool read_only, unordered_map<string, string> &config) {
+bool IsDefaultConnectionString(const string &database, bool read_only, case_insensitive_map_t<Value> &config) {
 	bool is_default = StringUtil::CIEquals(database, ":default:");
 	if (!is_default) {
 		return false;
@@ -1539,7 +1547,13 @@ shared_ptr<DuckDBPyConnection> DuckDBPyConnection::Connect(const string &databas
 		return DuckDBPyConnection::DefaultConnection();
 	}
 
-	DBConfig config(config_dict, read_only);
+	DBConfig config(read_only);
+	config.AddExtensionOption("pandas_analyze_sample",
+	                          "The maximum number of rows to sample when analyzing a pandas object column.",
+	                          LogicalType::UBIGINT, Value::UBIGINT(1000));
+	config_dict["duckdb_api"] = Value("python");
+	config.SetOptionsByName(config_dict);
+
 	auto res = FetchOrCreateInstance(database, config);
 	auto &client_context = *res->connection->context;
 	SetDefaultConfigArguments(client_context);
@@ -1586,7 +1600,7 @@ ModifiedMemoryFileSystem &DuckDBPyConnection::GetObjectFileSystem() {
 	if (!internal_object_filesystem) {
 		D_ASSERT(!FileSystemIsRegistered("DUCKDB_INTERNAL_OBJECTSTORE"));
 		auto &import_cache_py = *ImportCache();
-		auto modified_memory_fs = import_cache_py.pyduckdb().filesystem.modified_memory_filesystem();
+		auto modified_memory_fs = import_cache_py.duckdb.filesystem.ModifiedMemoryFileSystem();
 		if (modified_memory_fs.ptr() == nullptr) {
 			throw InvalidInputException(
 			    "This operation could not be completed because required module 'fsspec' is not installed");
@@ -1626,7 +1640,7 @@ bool DuckDBPyConnection::IsPandasDataframe(const py::object &object) {
 		return false;
 	}
 	auto &import_cache_py = *DuckDBPyConnection::ImportCache();
-	return py::isinstance(object, import_cache_py.pandas().DataFrame());
+	return py::isinstance(object, import_cache_py.pandas.DataFrame());
 }
 
 bool DuckDBPyConnection::IsPolarsDataframe(const py::object &object) {
@@ -1634,15 +1648,15 @@ bool DuckDBPyConnection::IsPolarsDataframe(const py::object &object) {
 		return false;
 	}
 	auto &import_cache_py = *DuckDBPyConnection::ImportCache();
-	return py::isinstance(object, import_cache_py.polars().DataFrame()) ||
-	       py::isinstance(object, import_cache_py.polars().LazyFrame());
+	return py::isinstance(object, import_cache_py.polars.DataFrame()) ||
+	       py::isinstance(object, import_cache_py.polars.LazyFrame());
 }
 
 bool IsValidNumpyDimensions(const py::handle &object, int &dim) {
 	// check the dimensions of numpy arrays
 	// should only be called by IsAcceptedNumpyObject
 	auto &import_cache = *DuckDBPyConnection::ImportCache();
-	if (!py::isinstance(object, import_cache.numpy().ndarray())) {
+	if (!py::isinstance(object, import_cache.numpy.ndarray())) {
 		return false;
 	}
 	auto shape = (py::cast<py::array>(object)).attr("shape");
@@ -1658,7 +1672,7 @@ NumpyObjectType DuckDBPyConnection::IsAcceptedNumpyObject(const py::object &obje
 		return NumpyObjectType::INVALID;
 	}
 	auto &import_cache = *DuckDBPyConnection::ImportCache();
-	if (py::isinstance(object, import_cache.numpy().ndarray())) {
+	if (py::isinstance(object, import_cache.numpy.ndarray())) {
 		auto len = py::len((py::cast<py::array>(object)).attr("shape"));
 		switch (len) {
 		case 1:
@@ -1689,19 +1703,19 @@ NumpyObjectType DuckDBPyConnection::IsAcceptedNumpyObject(const py::object &obje
 }
 
 bool DuckDBPyConnection::IsAcceptedArrowObject(const py::object &object) {
-	if (!ModuleIsLoaded<ArrowLibCacheItem>()) {
+	if (!ModuleIsLoaded<PyarrowCacheItem>()) {
 		return false;
 	}
 	auto &import_cache_py = *DuckDBPyConnection::ImportCache();
-	if (py::isinstance(object, import_cache_py.arrow_lib().Table()) ||
-	    py::isinstance(object, import_cache_py.arrow_lib().RecordBatchReader())) {
+	if (py::isinstance(object, import_cache_py.pyarrow.Table()) ||
+	    py::isinstance(object, import_cache_py.pyarrow.RecordBatchReader())) {
 		return true;
 	}
-	if (!ModuleIsLoaded<ArrowDatasetCacheItem>()) {
+	if (!ModuleIsLoaded<PyarrowDatasetCacheItem>()) {
 		return false;
 	}
-	return (py::isinstance(object, import_cache_py.arrow_dataset().Dataset()) ||
-	        py::isinstance(object, import_cache_py.arrow_dataset().Scanner()));
+	return (py::isinstance(object, import_cache_py.pyarrow.dataset.Dataset()) ||
+	        py::isinstance(object, import_cache_py.pyarrow.dataset.Scanner()));
 }
 
 unique_lock<std::mutex> DuckDBPyConnection::AcquireConnectionLock() {

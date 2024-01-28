@@ -59,6 +59,8 @@ struct ClientConfig {
 	bool query_verification_enabled = false;
 	//! Whether or not verification of external operators is enabled, used for testing
 	bool verify_external = false;
+	//! Whether or not verification of fetch row code is enabled, used for testing
+	bool verify_fetch_row = false;
 	//! Whether or not we should verify the serializer
 	bool verify_serializer = false;
 	//! Enable the running of optimizers
@@ -67,16 +69,14 @@ struct ClientConfig {
 	bool enable_caching_operators = true;
 	//! Force parallelism of small tables, used for testing
 	bool verify_parallelism = false;
-	//! Enable the optimizer to consider index joins, which are disabled on default
-	bool enable_index_join = false;
-	//! Force index join independent of table cardinality, used for testing
-	bool force_index_join = false;
 	//! Force out-of-core computation for operators that support it, used for testing
 	bool force_external = false;
 	//! Force disable cross product generation when hyper graph isn't connected, used for testing
 	bool force_no_cross_product = false;
 	//! Force use of IEJoin to implement AsOfJoin, used for testing
 	bool force_asof_iejoin = false;
+	//! Force use of fetch row instead of scan, used for testing
+	bool force_fetch_row = false;
 	//! Use range joins for inequalities, even if there are equality predicates
 	bool prefer_range_joins = false;
 	//! If this context should also try to use the available replacement scans
@@ -120,7 +120,7 @@ public:
 	static const ClientConfig &GetConfig(const ClientContext &context);
 
 	bool AnyVerification() {
-		return query_verification_enabled || verify_external || verify_serializer;
+		return query_verification_enabled || verify_external || verify_serializer || verify_fetch_row;
 	}
 };
 

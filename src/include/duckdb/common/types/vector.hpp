@@ -38,6 +38,7 @@ struct UnifiedVectorFormat {
 struct RecursiveUnifiedVectorFormat {
 	UnifiedVectorFormat unified;
 	vector<RecursiveUnifiedVectorFormat> children;
+	LogicalType logical_type;
 };
 
 class VectorCache;
@@ -65,6 +66,7 @@ class Vector {
 	friend struct StructVector;
 	friend struct UnionVector;
 	friend struct SequenceVector;
+	friend struct ArrayVector;
 
 	friend class DataChunk;
 	friend class VectorCacheBuffer;
@@ -116,9 +118,9 @@ public:
 	DUCKDB_API void ResetFromCache(const VectorCache &cache);
 
 	//! Creates a reference to a slice of the other vector
-	DUCKDB_API void Slice(Vector &other, idx_t offset, idx_t end);
+	DUCKDB_API void Slice(const Vector &other, idx_t offset, idx_t end);
 	//! Creates a reference to a slice of the other vector
-	DUCKDB_API void Slice(Vector &other, const SelectionVector &sel, idx_t count);
+	DUCKDB_API void Slice(const Vector &other, const SelectionVector &sel, idx_t count);
 	//! Turns the vector into a dictionary vector with the specified dictionary
 	DUCKDB_API void Slice(const SelectionVector &sel, idx_t count);
 	//! Slice the vector, keeping the result around in a cache or potentially using the cache instead of slicing
@@ -447,7 +449,28 @@ struct StructVector {
 	DUCKDB_API static vector<unique_ptr<Vector>> &GetEntries(Vector &vector);
 };
 
-enum class UnionInvalidReason : uint8_t { VALID, TAG_OUT_OF_RANGE, NO_MEMBERS, VALIDITY_OVERLAP, TAG_MISMATCH };
+struct ArrayVector {
+	//! Gets a reference to the underlying child-vector of an array
+	DUCKDB_API static const Vector &GetEntry(const Vector &vector);
+	//! Gets a reference to the underlying child-vector of an array
+	DUCKDB_API static Vector &GetEntry(Vector &vector);
+	//! Gets the total size of the underlying child-vector of an array
+	DUCKDB_API static idx_t GetTotalSize(const Vector &vector);
+	//! Allocate dummy list entries for a vector
+	//! Note that there is nothing ensuring that the allocated data
+	//! remains valid (e.g. if this vector is resized)
+	//! This is only used during row serialization
+	DUCKDB_API static void AllocateDummyListEntries(Vector &vector);
+};
+
+enum class UnionInvalidReason : uint8_t {
+	VALID,
+	TAG_OUT_OF_RANGE,
+	NO_MEMBERS,
+	VALIDITY_OVERLAP,
+	TAG_MISMATCH,
+	NULL_TAG
+};
 
 struct UnionVector {
 	// Unions are stored as structs, but the first child is always the "tag"
@@ -460,7 +483,12 @@ struct UnionVector {
 	//	2.	The validity of the tag vector always matches the validity of the
 	//		union vector itself.
 	//
-	//	3.	For each tag in the tag vector, 0 <= tag < |members|
+	//  3.  A valid union cannot have a NULL tag, but the selected member can
+	//  	be NULL. therefore, there is a difference between a union that "is"
+	//  	NULL and a union that "holds" a NULL. The latter still has a valid
+	//  	tag.
+	//
+	//	4.	For each tag in the tag vector, 0 <= tag < |members|
 
 	//! Get the tag vector of a union vector
 	DUCKDB_API static const Vector &GetTags(const Vector &v);

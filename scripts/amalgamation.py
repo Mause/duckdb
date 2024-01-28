@@ -30,6 +30,7 @@ main_header_files = [
     os.path.join(include_dir, 'duckdb', 'common', 'types', 'blob.hpp'),
     os.path.join(include_dir, 'duckdb', 'common', 'types', 'decimal.hpp'),
     os.path.join(include_dir, 'duckdb', 'common', 'types', 'hugeint.hpp'),
+    os.path.join(include_dir, 'duckdb', 'common', 'types', 'uhugeint.hpp'),
     os.path.join(include_dir, 'duckdb', 'common', 'types', 'uuid.hpp'),
     os.path.join(include_dir, 'duckdb', 'common', 'types', 'interval.hpp'),
     os.path.join(include_dir, 'duckdb', 'common', 'types', 'timestamp.hpp'),
@@ -69,7 +70,6 @@ if '--extended' in sys.argv:
             "duckdb/storage/statistics/base_statistics.hpp",
             "duckdb/planner/filter/conjunction_filter.hpp",
             "duckdb/planner/filter/constant_filter.hpp",
-            "duckdb/execution/operator/scan/csv/buffered_csv_reader.hpp",
             "duckdb/common/types/vector_cache.hpp",
             "duckdb/common/string_map_set.hpp",
             "duckdb/planner/filter/null_filter.hpp",
@@ -271,7 +271,7 @@ def git_dev_version():
     try:
         version = subprocess.check_output(['git', 'describe', '--tags', '--abbrev=0']).strip().decode('utf8')
         long_version = subprocess.check_output(['git', 'describe', '--tags', '--long']).strip().decode('utf8')
-        version_splits = version.split('.')
+        version_splits = version.lstrip('v').split('.')
         dev_version = long_version.split('-')[1]
         if int(dev_version) == 0:
             # directly on a tag: emit the regular version
