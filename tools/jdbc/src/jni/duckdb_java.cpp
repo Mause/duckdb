@@ -86,6 +86,8 @@ static jmethodID J_UUID_getLeastSignificantBits;
 static jclass J_DuckDBDate;
 static jmethodID J_DuckDBDate_getDaysSinceEpoch;
 
+static jclass J_DuckDBTime;
+
 void ThrowJNI(JNIEnv *env, const char *message) {
 	D_ASSERT(J_SQLException);
 	env->ThrowNew(J_SQLException, message);
@@ -166,6 +168,8 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {
 	J_DuckDBDate = GetClassRef(env, "org/duckdb/DuckDBDate");
 	J_DuckDBDate_getDaysSinceEpoch = env->GetMethodID(J_DuckDBDate, "getDaysSinceEpoch", "()J");
 	D_ASSERT(J_DuckDBDate_getDaysSinceEpoch);
+
+	J_DuckDBTime = GetClassRef(env, "org/duckdb/DuckDBTime");
 
 	tmpLocalRef = env->FindClass("java/math/BigDecimal");
 	J_Decimal = (jclass)env->NewGlobalRef(tmpLocalRef);
@@ -588,6 +592,9 @@ jobject _duckdb_jdbc_execute(JNIEnv *env, jclass, jobject stmt_ref_buf, jobjectA
 			} else if (env->IsInstanceOf(param, J_DuckDBDate)) {
 				duckdb_params.push_back(
 				    Value::DATE((date_t)env->CallLongMethod(param, J_DuckDBDate_getDaysSinceEpoch)));
+
+			} else if (env->IsInstanceOf(param, J_DuckDBTime)) {
+				duckdb_params.push_back(Value::TIME((dtime_t)env->CallLongMethod(param, J_Timestamp_getMicrosEpoch)));
 
 			} else if (env->IsInstanceOf(param, J_Timestamp)) {
 				duckdb_params.push_back(
