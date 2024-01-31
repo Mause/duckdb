@@ -196,10 +196,7 @@ public class DuckDBResultSet implements ResultSet {
     }
 
     public String getLazyString(int columnIndex) throws SQLException {
-        if (check_and_null(columnIndex)) {
-            return null;
-        }
-        return current_chunk[columnIndex - 1].getLazyString(chunk_idx - 1);
+        return apply(columnIndex, DuckDBVector::getLazyString);
     }
 
     public String getString(int columnIndex) throws SQLException {
@@ -216,10 +213,7 @@ public class DuckDBResultSet implements ResultSet {
     }
 
     public boolean getBoolean(int columnIndex) throws SQLException {
-        if (check_and_null(columnIndex)) {
-            return false;
-        }
-        return current_chunk[columnIndex - 1].getBoolean(chunk_idx - 1);
+        return apply(columnIndex, DuckDBVector::getBoolean);
     }
 
     public byte getByte(int columnIndex) throws SQLException {
@@ -358,12 +352,20 @@ public class DuckDBResultSet implements ResultSet {
         throw new SQLFeatureNotSupportedException("getBigDecimal");
     }
 
+    interface ChunkGetter<T> {
+        T apply(DuckDBVector vector, int idx) throws SQLException;
+    }
+
+    <T> T apply(int column_index, ChunkGetter<T> func) throws SQLException {
+        return check_and_null(column_index) ? null : func.apply(current_chunk[column_index - 1], chunk_idx - 1);
+    }
+
     public byte[] getBytes(int columnIndex) throws SQLException {
-        throw new SQLFeatureNotSupportedException("getBytes");
+        return apply(columnIndex, DuckDBVector::getBytes);
     }
 
     public Date getDate(int columnIndex) throws SQLException {
-        return check_and_null(columnIndex) ? null : current_chunk[columnIndex - 1].getDate(chunk_idx - 1);
+        return apply(columnIndex, DuckDBVector::getDate);
     }
 
     public Time getTime(int columnIndex) throws SQLException {
@@ -378,10 +380,7 @@ public class DuckDBResultSet implements ResultSet {
     }
 
     private LocalDateTime getLocalDateTime(int columnIndex) throws SQLException {
-        if (check_and_null(columnIndex)) {
-            return null;
-        }
-        return current_chunk[columnIndex - 1].getLocalDateTime(chunk_idx - 1);
+        return apply(columnIndex, DuckDBVector::getLocalDateTime);
     }
 
     private OffsetDateTime getOffsetDateTime(int columnIndex) throws SQLException {
