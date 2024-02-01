@@ -1,6 +1,14 @@
 find_package(Java 1.8)
 find_package(JNI)
 
+include(FetchContent)
+
+FetchContent_Declare(
+  jnipp
+  GIT_REPOSITORY https://github.com/mitchdowd/jnipp
+  GIT_TAG v1.0.0)
+FetchContent_MakeAvailable(jnipp)
+
 cmake_minimum_required(VERSION 3.11.0)
 
 if(NOT JNI_FOUND OR NOT Java_FOUND)
@@ -20,10 +28,12 @@ add_jar(duckdb_jdbc ${JAVA_SRC_FILES} META-INF/services/java.sql.Driver
 add_jar(duckdb_jdbc_tests ${JAVA_TEST_FILES} INCLUDE_JARS duckdb_jdbc)
 
 include_directories(../../extension/parquet/include)
+include_directories($<TARGET_PROPERTY:jnipp,INTERFACE_INCLUDE_DIRECTORIES>)
 
 add_library(duckdb_java SHARED src/jni/duckdb_java.cpp src/jni/functions.cpp)
 target_compile_options(duckdb_java PRIVATE -fexceptions)
-target_link_libraries(duckdb_java duckdb-native duckdb_static parquet_extension)
+target_link_libraries(duckdb_java duckdb-native duckdb_static parquet_extension
+                      jnipp)
 
 if(APPLE)
   set(OS_ARCH universal)
