@@ -38,6 +38,7 @@ static jclass J_Float;
 static jclass J_Double;
 static jclass J_String;
 static jclass J_Timestamp;
+static jmethodID J_Timestamp_valueOf;
 static jclass J_TimestampTZ;
 static jclass J_Decimal;
 static jclass J_ByteArray;
@@ -167,9 +168,12 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {
 	tmpLocalRef = env->FindClass("java/lang/String");
 	J_String = (jclass)env->NewGlobalRef(tmpLocalRef);
 	env->DeleteLocalRef(tmpLocalRef);
+
 	tmpLocalRef = env->FindClass("org/duckdb/DuckDBTimestamp");
 	J_Timestamp = (jclass)env->NewGlobalRef(tmpLocalRef);
 	env->DeleteLocalRef(tmpLocalRef);
+	J_Timestamp_valueOf = env->GetStaticMethodID(J_Timestamp, "valueOf", "(Ljava/lang/Object;)Ljava/lang/Object;");
+
 	tmpLocalRef = env->FindClass("org/duckdb/DuckDBTimestampTZ");
 	J_TimestampTZ = (jclass)env->NewGlobalRef(tmpLocalRef);
 	env->DeleteLocalRef(tmpLocalRef);
@@ -563,6 +567,8 @@ struct ResultHolder {
 };
 
 Value ToValue(JNIEnv *env, jobject param, shared_ptr<ClientContext> context) {
+	param = env->CallStaticObjectMethod(J_Timestamp, J_Timestamp_valueOf, param);
+
 	if (param == nullptr) {
 		return Value();
 	} else if (env->IsInstanceOf(param, J_Bool)) {
@@ -578,7 +584,7 @@ Value ToValue(JNIEnv *env, jobject param, shared_ptr<ClientContext> context) {
 	} else if (env->IsInstanceOf(param, J_TimestampTZ)) { // Check for subclass before superclass!
 		return Value::TIMESTAMPTZ((timestamp_t)env->CallLongMethod(param, J_TimestampTZ_getMicrosEpoch));
 
-	} else if (env->IsInstanceOf(param, J_Timestamp)) { // TODO: inline the conversion to DuckDBTimestamp{TZ,}
+	} else if (env->IsInstanceOf(param, J_Timestamp)) {
 		return Value::TIMESTAMP((timestamp_t)env->CallLongMethod(param, J_Timestamp_getMicrosEpoch));
 	} else if (env->IsInstanceOf(param, J_Float)) {
 		return Value::FLOAT(env->CallFloatMethod(param, J_Float_floatValue));

@@ -99,6 +99,18 @@ public class DuckDBTimestamp {
         return DuckDBTimestamp.RefLocalDateTime.until(localDateTime, ChronoUnit.MICROS);
     }
 
+    public static Object valueOf(Object x) {
+        // Change sql.Timestamp to DuckDBTimestamp
+        if (x instanceof Timestamp) {
+            x = new DuckDBTimestamp((Timestamp) x);
+        } else if (x instanceof LocalDateTime) {
+            x = new DuckDBTimestamp((LocalDateTime) x);
+        } else if (x instanceof OffsetDateTime) {
+            x = new DuckDBTimestampTZ((OffsetDateTime) x);
+        }
+        return x;
+    }
+
     public Timestamp toSqlTimestamp() {
         return Timestamp.valueOf(this.toLocalDateTime());
     }
