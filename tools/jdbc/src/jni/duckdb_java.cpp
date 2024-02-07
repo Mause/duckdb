@@ -10,6 +10,7 @@
 #include "duckdb/function/table/arrow.hpp"
 #include "duckdb/main/database_manager.hpp"
 #include "duckdb/parser/parsed_data/create_type_info.hpp"
+#include <jnipp.h>
 
 using namespace duckdb;
 using namespace std;
@@ -94,6 +95,8 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {
 	if (vm->GetEnv(reinterpret_cast<void **>(&env), JNI_VERSION) != JNI_OK) {
 		return JNI_ERR;
 	}
+
+	jni::init(vm);
 
 	jclass tmpLocalRef;
 
