@@ -64,7 +64,7 @@ static string IndexingScript(ClientContext &context, QualifiedName &qname, const
 	}
 
 	// create tokenize macro based on parameters
-	string tokenize = "s";
+	string tokenize = "s::VARCHAR";
 	vector<string> before;
 	vector<string> after;
 	if (strip_accents) {
@@ -326,7 +326,7 @@ string FTSIndexing::CreateFTSIndexQuery(ClientContext &context, const FunctionPa
 		doc_values.push_back(col_name);
 	}
 	if (doc_values.empty()) {
-		throw Exception("at least one column must be supplied for indexing!");
+		throw InvalidInputException("at least one column must be supplied for indexing!");
 	}
 
 	return IndexingScript(context, qname, doc_id, doc_values, stemmer, stopwords, ignore, strip_accents, lower);
