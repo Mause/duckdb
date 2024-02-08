@@ -4266,8 +4266,8 @@ public class TestDuckDBJDBC {
             assertEquals(rs.getString("LOCAL_TYPE_NAME"), "varchar");
             assertNull(rs.getInt("MINIMUM_SCALE"));
             assertNull(rs.getInt("MAXIMUM_SCALE"));
-		}
-	}
+        }
+    }
 
     public static void test_get_binary_stream() throws Exception {
         try (Connection connection = DriverManager.getConnection("jdbc:duckdb:");

@@ -1022,8 +1022,8 @@ public class DuckDBDatabaseMetaData implements DatabaseMetaData {
                             "0 AS MINIMUM_SCALE",
                             "type_size AS MAXIMUM_SCALE"};
 
-        PreparedStatement statement =
-            getConnection().prepareStatement(String.format("SELECT %s FROM duckdb_types() ORDER BY type_name", String.join(", ", columns)));
+        PreparedStatement statement = getConnection().prepareStatement(
+            String.format("SELECT %s FROM duckdb_types() ORDER BY type_name", String.join(", ", columns)));
         statement.closeOnCompletion();
         return statement.executeQuery();
     }
@@ -1300,7 +1300,6 @@ public class DuckDBDatabaseMetaData implements DatabaseMetaData {
      * @see DuckDBResultSetMetaData#type_to_int(DuckDBColumnType)
      */
     private static String makeDataMap(String srcColumnName, String destColumnName) {
-        return String.format("CASE %s %s ELSE %d END as %s", srcColumnName, dataMap, Types.JAVA_OBJECT,
-                             destColumnName);
+        return String.format("CASE %s %s ELSE %d END as %s", srcColumnName, dataMap, Types.JAVA_OBJECT, destColumnName);
     }
 }

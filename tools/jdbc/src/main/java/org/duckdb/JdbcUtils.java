@@ -23,7 +23,7 @@ final class JdbcUtils {
             result.put((K) pairs[i], (V) pairs[i + 1]);
         }
         return result;
-	}
+    }
 
     static byte[] readAllBytes(InputStream x) throws IOException {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
