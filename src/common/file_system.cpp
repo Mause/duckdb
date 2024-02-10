@@ -387,7 +387,7 @@ bool FileSystem::FileExists(const string &filename) {
 }
 
 bool FileSystem::FileExists(const string &filename, FileOpener *opener) {
-	throw NotImplementedException("%s: FileExists(filename, opener) is not implemented!", GetName());
+	return FileExists(filename);
 }
 
 bool FileSystem::IsPipe(const string &filename) {
