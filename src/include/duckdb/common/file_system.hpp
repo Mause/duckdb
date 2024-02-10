@@ -151,6 +151,7 @@ public:
 	DUCKDB_API virtual void MoveFile(const string &source, const string &target);
 	//! Check if a file exists
 	DUCKDB_API virtual bool FileExists(const string &filename);
+	DUCKDB_API virtual bool FileExists(const string &filename, FileOpener *opener);
 	//! Check if path is pipe
 	DUCKDB_API virtual bool IsPipe(const string &filename);
 	//! Remove a file from disk

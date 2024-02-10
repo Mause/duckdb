@@ -128,6 +128,7 @@ public:
 	int64_t GetFileSize(FileHandle &handle) override;
 	time_t GetLastModifiedTime(FileHandle &handle) override;
 	bool FileExists(const string &filename) override;
+	bool FileExists(const string &filename, FileOpener *opener) override;
 	void Seek(FileHandle &handle, idx_t location) override;
 	idx_t SeekPosition(FileHandle &handle) override;
 	bool CanHandleFile(const string &fpath) override;

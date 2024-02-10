@@ -383,7 +383,11 @@ void FileSystem::MoveFile(const string &source, const string &target) {
 }
 
 bool FileSystem::FileExists(const string &filename) {
-	throw NotImplementedException("%s: FileExists is not implemented!", GetName());
+	throw NotImplementedException("%s: FileExists(filename) is not implemented!", GetName());
+}
+
+bool FileSystem::FileExists(const string &filename, FileOpener *opener) {
+	throw NotImplementedException("%s: FileExists(filename, opener) is not implemented!", GetName());
 }
 
 bool FileSystem::IsPipe(const string &filename) {
