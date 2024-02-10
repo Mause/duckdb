@@ -15,6 +15,8 @@ namespace duckdb {
 
 class HTTPException : public Exception {
 public:
+	static constexpr const char *const STATUS_CODE = "status_code";
+
 	template <typename>
 	struct ResponseShape {
 		typedef int status;
@@ -49,7 +51,7 @@ public:
 	static unordered_map<string, string> HTTPExtraInfo(int status_code, const string &response_body,
 	                                                   const HEADERS &headers, const string &reason) {
 		unordered_map<string, string> extra_info;
-		extra_info["status_code"] = to_string(status_code);
+		extra_info[STATUS_CODE] = to_string(status_code);
 		extra_info["reason"] = reason;
 		extra_info["response_body"] = response_body;
 		for (auto &entry : headers) {

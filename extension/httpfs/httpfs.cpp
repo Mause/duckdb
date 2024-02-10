@@ -504,9 +504,17 @@ bool HTTPFileSystem::FileExists(const string &filename, FileOpener *opener) {
 			return false;
 		}
 		return true;
-	} catch (...) {
-		D_ASSERT(opener);
-		return false;
+	} catch (std::exception &e) {
+		ErrorData err(e);
+
+		if (err.Type() == ExceptionType::HTTP) {
+			auto status = err.ExtraInfo().at(HTTPException::STATUS_CODE);
+			if (status == "404") {
+				return false;
+			}
+		}
+
+		err.Throw();
 	};
 }
 
