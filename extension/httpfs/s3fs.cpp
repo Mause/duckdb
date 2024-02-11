@@ -212,6 +212,10 @@ S3AuthParams S3AuthParams::ReadFrom(optional_ptr<FileOpener> opener, FileOpenerI
 	S3AuthParams result;
 	Value value;
 
+	if (!opener) {
+		throw InternalException("Unable to determine s3 connection details");
+	}
+
 	if (FileOpener::TryGetCurrentSetting(opener, "s3_region", value, info)) {
 		result.region = value.ToString();
 	}
