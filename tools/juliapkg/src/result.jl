@@ -241,6 +241,53 @@ function convert_vector_list(
     return size
 end
 
+function convert_vector_array(
+    column_data::ColumnConversionData,
+    vector::Vec,
+    size::UInt64,
+    convert_func::Function,
+    result,
+    position,
+    all_valid,
+    ::Type{SRC},
+    ::Type{DST}
+) where {SRC, DST}
+    child_vector = array_child(vector)
+    lsize = list_size(vector)
+
+    # convert the child vector
+    ldata = column_data.conversion_data
+
+    child_column_data =
+        ColumnConversionData(column_data.chunks, column_data.col_idx, ldata.child_type, ldata.child_conversion_data)
+    child_array = Array{Union{Missing, ldata.target_type}}(missing, lsize)
+    ldata.conversion_loop_func(
+        child_column_data,
+        child_vector,
+        lsize,
+        ldata.conversion_func,
+        child_array,
+        1,
+        false,
+        ldata.internal_type,
+        ldata.target_type
+    )
+
+    array = get_array(vector, SRC, size)
+    if !all_valid
+        validity = get_validity(vector, size)
+    end
+    for i in 1:size
+        if all_valid || isvalid(validity, i)
+            start_offset::UInt64 = array[i].offset + 1
+            end_offset::UInt64 = array[i].offset + array[i].length
+            result[position] = child_array[start_offset:end_offset]
+        end
+        position += 1
+    end
+    return size
+end
+
 function convert_struct_children(column_data::ColumnConversionData, vector::Vec, size::UInt64)
     # convert the child vectors of the struct
     child_count = get_struct_child_count(column_data.logical_type)
@@ -467,6 +514,9 @@ function init_conversion_loop(logical_type::LogicalType)
     elseif type == DUCKDB_TYPE_LIST || type == DUCKDB_TYPE_MAP
         child_type = get_list_child_type(logical_type)
         return create_child_conversion_data(child_type)
+    elseif type == DUCKDB_TYPE_ARRAY
+        child_type = get_array_child_type(logical_type)
+        return create_child_conversion_data(child_type)
     elseif type == DUCKDB_TYPE_STRUCT || type == DUCKDB_TYPE_UNION
         child_count_fun::Function = get_struct_child_count
         child_type_fun::Function = get_struct_child_type
@@ -542,6 +592,8 @@ function get_conversion_loop_function(logical_type::LogicalType)::Function
         return convert_vector_string
     elseif type == DUCKDB_TYPE_LIST
         return convert_vector_list
+    elseif type == DUCKDB_TYPE_ARRAY
+        return convert_vector_array
     elseif type == DUCKDB_TYPE_STRUCT
         return convert_vector_struct
     elseif type == DUCKDB_TYPE_MAP

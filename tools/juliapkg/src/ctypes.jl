@@ -60,6 +60,7 @@ const DUCKDB_PENDING_NO_TASKS_AVAILABLE = 3;
     DUCKDB_TYPE_BIT = 29
     DUCKDB_TYPE_TIME_TZ = 30
     DUCKDB_TYPE_TIMESTAMP_TZ = 31
+    DUCKDB_TYPE_ARRAY = 33
 end
 
 const DUCKDB_TYPE = DUCKDB_TYPE_
@@ -194,6 +195,7 @@ INTERNAL_TYPE_MAP = Dict(
     DUCKDB_TYPE_BIT => duckdb_string_t,
     DUCKDB_TYPE_UUID => duckdb_hugeint,
     DUCKDB_TYPE_LIST => duckdb_list_entry_t,
+    DUCKDB_TYPE_ARRAY => Cvoid,
     DUCKDB_TYPE_STRUCT => Cvoid,
     DUCKDB_TYPE_MAP => duckdb_list_entry_t,
     DUCKDB_TYPE_UNION => Cvoid
@@ -257,6 +259,8 @@ function duckdb_type_to_julia_type(x)
         end
     elseif type_id == DUCKDB_TYPE_LIST
         return Vector{Union{Missing, duckdb_type_to_julia_type(get_list_child_type(x))}}
+    elseif type_id == DUCKDB_TYPE_ARRAY
+        return Vector{Union{Missing, duckdb_type_to_julia_type(get_array_child_type(x))}}
     elseif type_id == DUCKDB_TYPE_STRUCT
         child_count = get_struct_child_count(x)
         struct_names::Vector{Symbol} = Vector()
