@@ -145,6 +145,23 @@ public extension LogicalType {
   }
 }
 
+// MARK: - Array
+
+public extension LogicalType {
+
+  /// Child type of an array type. For all other types, returns `nil`
+  var arrayChildType: LogicalType? {
+    guard dataType == .array else { return nil }
+    return LogicalType { duckdb_array_type_child_type(ptr.pointee) }
+  }
+
+  /// The size of an array type. For all other types, returns `nil`
+  var arraySize: UInt64? {
+    guard dataType == .array else { return nil }
+    return duckdb_array_type_get_size(ptr.pointee)
+  }
+}
+
 // MARK: - Map
 
 public extension LogicalType {

@@ -90,6 +90,8 @@ fileprivate struct VectorElementDataDecoder: Decoder {
     switch element.dataType {
     case .list:
       return try UnkeyedValueContainer.createListContainer(decoder: self, element: element)
+    case .array:
+      return try UnkeyedValueContainer.createArrayContainer(decoder: self, element: element)
     default:
       let columnType = element.dataType
       let context = DecodingError.Context(
@@ -541,6 +543,34 @@ fileprivate extension VectorElementDataDecoder.UnkeyedValueContainer {
     }
     guard let childVector = element.childVector else {
       fatalError("Internal consistency error. Expected list content in vector.")
+    }
+    return Self(decoder: decoder, codingPath: codingPath, vector: childVector)
+  }
+}
+
+fileprivate extension VectorElementDataDecoder.UnkeyedValueContainer {
+
+  static func createArrayContainer(
+    decoder: VectorElementDataDecoder, element: Vector.Element
+  ) throws -> Self {
+    let codingPath = decoder.codingPath
+    let dataType = element.dataType
+    guard element.unwrapNull() == false else {
+      let context = DecodingError.Context(
+        codingPath: codingPath,
+        debugDescription: "Cannot get unkeyed decoding container – found null value instead"
+      )
+      throw DecodingError.valueNotFound(Self.self, context)
+    }
+    guard dataType == .array else {
+      let context = DecodingError.Context(
+        codingPath: codingPath,
+        debugDescription: "Expected array column type, found \(dataType) column type instead."
+      )
+      throw DecodingError.typeMismatch(Self.self, context)
+    }
+    guard let childVector = element.arrayVector else {
+      fatalError("Internal consistency error. Expected array content in vector.")
     }
     return Self(decoder: decoder, codingPath: codingPath, vector: childVector)
   }

@@ -295,6 +295,7 @@ extension Vector.Element {
   }
   
   var childVector: Vector? {
+    guard dataType == .list else { return nil }
     guard let child = duckdb_list_vector_get_child(vector.cvector) else { return nil }
     let count = duckdb_list_vector_get_size(vector.cvector)
     let info = vector.unsafelyUnwrapElement(as: duckdb_list_entry_t.self, at: vector.offset + index)
@@ -335,3 +336,12 @@ extension Vector.Element {
 }
 
 
+extension Vector.Element {
+
+  var arrayVector: Vector? {
+    guard dataType == .array else { return nil }
+    guard let array = duckdb_array_vector_get_child(vector.cvector) else { return nil }
+    guard let count = logicalType.arraySize else { return nil }
+    return Vector(array, count: Int(count), offset: Int(Int(count) * index))
+  }
+}
