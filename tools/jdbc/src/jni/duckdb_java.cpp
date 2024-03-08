@@ -609,8 +609,12 @@ jobject _duckdb_jdbc_execute(JNIEnv *env, jclass, jobject stmt_ref_buf, jobjectA
 			} else if (env->IsInstanceOf(param, J_ByteArray)) {
 				duckdb_params.push_back(Value::BLOB_RAW(byte_array_to_string(env, (jbyteArray)param)));
 			} else if (env->IsInstanceOf(param, J_UUID)) {
-				auto most_significant = (jlong)env->CallObjectMethod(param, J_UUID_getMostSignificantBits);
-				auto least_significant = (jlong)env->CallObjectMethod(param, J_UUID_getLeastSignificantBits);
+				auto most_significant = env->CallLongMethod(param, J_UUID_getMostSignificantBits);
+				auto least_significant = env->CallLongMethod(param, J_UUID_getLeastSignificantBits);
+				if (most_significant > 0) {
+					int64_t MAX = NumericLimits<int64_t>().Maximum();
+					most_significant -= MAX + 1;
+				}
 				duckdb_params.push_back(Value::UUID(hugeint_t(most_significant, least_significant)));
 			} else {
 				throw InvalidInputException("Unsupported parameter type");
