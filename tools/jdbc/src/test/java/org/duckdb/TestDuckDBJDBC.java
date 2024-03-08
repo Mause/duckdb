@@ -4225,7 +4225,7 @@ public class TestDuckDBJDBC {
 
             assertEquals(rs.getString("TYPE_NAME"), "bigint");
             assertEquals(rs.getInt("DATA_TYPE"), Types.BIGINT);
-            assertNull(rs.getInt("PRECISION"));
+            assertEquals(rs.getInt("PRECISION"), 0);
             assertNull(rs.getString("LITERAL_PREFIX"));
             assertNull(rs.getString("CREATE_PARAMS"));
             assertEquals(rs.getInt("NULLABLE"), DatabaseMetaData.typeNullable);
@@ -4242,19 +4242,19 @@ public class TestDuckDBJDBC {
 
             assertEquals(rs.getString("TYPE_NAME"), "varchar");
             assertEquals(rs.getInt("DATA_TYPE"), Types.VARCHAR);
-            assertNull(rs.getInt("PRECISION"));
+            assertEquals(rs.getInt("PRECISION"), 0);
             assertEquals(rs.getString("LITERAL_PREFIX"), "'");
             assertEquals(rs.getString("LITERAL_SUFFIX"), "'");
             assertNull(rs.getString("CREATE_PARAMS"));
             assertEquals(rs.getInt("NULLABLE"), DatabaseMetaData.typeNullable);
-            assertTrue(rs.getBoolean("CASE_SENSITIVE"));
+            assertFalse(rs.getBoolean("CASE_SENSITIVE"));
             assertEquals(rs.getInt("SEARCHABLE"), DatabaseMetaData.typeSearchable);
             assertFalse(rs.getBoolean("UNSIGNED_ATTRIBUTE"));
             assertFalse(rs.getBoolean("FIXED_PREC_SCALE"));
             assertFalse(rs.getBoolean("AUTO_INCREMENT"));
             assertEquals(rs.getString("LOCAL_TYPE_NAME"), "varchar");
-            assertNull(rs.getInt("MINIMUM_SCALE"));
-            assertNull(rs.getInt("MAXIMUM_SCALE"));
+            assertEquals(rs.getInt("MINIMUM_SCALE"), 0);
+            assertEquals(rs.getInt("MAXIMUM_SCALE"), 16);
         }
     }
 
