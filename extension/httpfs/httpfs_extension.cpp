@@ -70,6 +70,7 @@ static void LoadInternal(DatabaseInstance &instance) {
 	provider->SetAll();
 
 	CreateS3SecretFunctions::Register(instance);
+	CreateHttpsSecretFunctions::Register(instance);
 }
 
 void HttpfsExtension::Load(DuckDB &db) {

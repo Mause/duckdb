@@ -9,6 +9,8 @@
 #include "duckdb/function/scalar/strftime_format.hpp"
 #include "duckdb/main/client_context.hpp"
 #include "duckdb/main/database.hpp"
+#include "duckdb/main/secret/secret_manager.hpp"
+#include "duckdb/transaction/meta_transaction.hpp"
 
 #include <chrono>
 #include <string>
@@ -20,6 +22,14 @@
 #include <map>
 
 namespace duckdb {
+
+static void initialize_http_headers(HeaderMap &headers, const Value &header_map) {
+	D_ASSERT(header_map.type().id() == LogicalTypeId::MAP);
+	for (auto &entry : ListValue::GetChildren(header_map)) {
+		auto &x = StructValue::GetChildren(entry);
+		headers.insert({x[0].ToString(), x[1].ToString()});
+	}
+}
 
 static duckdb::unique_ptr<duckdb_httplib_openssl::Headers> initialize_http_headers(const HeaderMap &header_map) {
 	auto headers = make_uniq<duckdb_httplib_openssl::Headers>();
@@ -65,11 +75,17 @@ HTTPParams HTTPParams::ReadFrom(FileOpener *opener) {
 	if (FileOpener::TryGetCurrentSetting(opener, "ca_cert_file", value)) {
 		ca_cert_file = value.ToString();
 	}
-	if (FileOpener::TryGetCurrentSetting(opener, "http_headers", value)) {
-		for (auto child : ListValue::GetChildren(value)) {
-			auto s = StructValue::GetChildren(child);
-			headers.emplace(s[0].ToString(), s[1].ToString());
-		}
+
+	auto context = opener->TryGetClientContext();
+	if (context) {
+		DatabaseInstance &instance = DatabaseInstance::GetDatabase(*context);
+		auto &secrets = instance.GetSecretManager();
+
+		auto secret =
+		    secrets.LookupSecret(CatalogTransaction::GetSystemCatalogTransaction(*context), "https://", "https");
+		const BaseSecret &baseSecret = secret.GetSecret();
+		auto kv = baseSecret.Cast<KeyValueSecret>();
+		initialize_http_headers(headers, kv.secret_map["headers"]);
 	}
 
 	return {timeout,
@@ -219,7 +235,6 @@ unique_ptr<duckdb_httplib_openssl::Client> HTTPFileSystem::GetClient(const HTTPP
 	client->set_read_timeout(http_params.timeout);
 	client->set_connection_timeout(http_params.timeout);
 	client->set_decompress(false);
-	client->set_default_headers(*initialize_http_headers(http_params.headers));
 	return client;
 }
 

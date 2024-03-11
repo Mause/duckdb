@@ -1,6 +1,7 @@
 #pragma once
 
 #include "duckdb.hpp"
+#include "duckdb/main/secret/secret.hpp"
 
 namespace duckdb {
 struct CreateSecretInput;
@@ -27,6 +28,15 @@ protected:
 	static void SetBaseNamedParams(CreateSecretFunction &function, string &type);
 	//! Helper function to create secret types s3/r2/gcs
 	static void RegisterCreateSecretFunction(DatabaseInstance &instance, string type);
+};
+
+struct CreateHttpsSecretFunctions {
+public:
+	static void Register(DatabaseInstance &instance);
+
+private:
+	static void RegisterCreateSecretFunction(DatabaseInstance &secret_type);
+	static unique_ptr<BaseSecret> CreateHttpsSecretFromConfig(ClientContext &context, CreateSecretInput &input);
 };
 
 } // namespace duckdb
