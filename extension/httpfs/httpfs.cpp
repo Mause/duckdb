@@ -83,9 +83,10 @@ HTTPParams HTTPParams::ReadFrom(FileOpener *opener) {
 
 		auto secret =
 		    secrets.LookupSecret(CatalogTransaction::GetSystemCatalogTransaction(*context), "https://", "https");
-		const BaseSecret &baseSecret = secret.GetSecret();
-		auto kv = baseSecret.Cast<KeyValueSecret>();
-		initialize_http_headers(headers, kv.secret_map["headers"]);
+		if (secret.HasMatch()) {
+			auto kv = secret.GetSecret().Cast<KeyValueSecret>();
+			initialize_http_headers(headers, kv.secret_map["headers"]);
+		}
 	}
 
 	return {timeout,
