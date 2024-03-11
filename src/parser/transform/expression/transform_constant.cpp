@@ -130,41 +130,6 @@ bool Transformer::ConstructConstantFromExpression(const ParsedExpression &expr, 
 			// finally create the list
 			value = Value::LIST(child_type, values);
 			return true;
-		} else if (function.function_name == "map") {
-			duckdb::vector<Value> values;
-			values.reserve(function.children.size());
-			for (const auto &child : function.children) {
-				Value child_value;
-				if (!ConstructConstantFromExpression(*child, child_value)) {
-					return false;
-				}
-				values.emplace_back(child_value);
-			}
-			auto type =
-			    LogicalType::MAP(ListType::GetChildType(values[0].type()), ListType::GetChildType(values[1].type()));
-
-			auto &keys = ListValue::GetChildren(values[0]);
-			auto &vals = ListValue::GetChildren(values[1]);
-
-			value = Value::MAP(type, keys, vals);
-
-			return true;
-		} else if (function.function_name == "list_value") {
-			duckdb::vector<Value> values;
-			values.reserve(function.children.size());
-			for (const auto &child : function.children) {
-				Value child_value;
-				if (!ConstructConstantFromExpression(*child, child_value)) {
-					return false;
-				}
-				values.emplace_back(child_value);
-			}
-			if (values.empty()) {
-				value = Value::LIST(LogicalTypeId::VARCHAR, std::move(values));
-			} else {
-				value = Value::LIST(std::move(values));
-			}
-			return true;
 		} else {
 			return false;
 		}
