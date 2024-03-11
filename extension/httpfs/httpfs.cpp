@@ -236,6 +236,7 @@ unique_ptr<duckdb_httplib_openssl::Client> HTTPFileSystem::GetClient(const HTTPP
 	client->set_read_timeout(http_params.timeout);
 	client->set_connection_timeout(http_params.timeout);
 	client->set_decompress(false);
+	client->set_default_headers(*initialize_http_headers(http_params.headers));
 	return client;
 }
 
