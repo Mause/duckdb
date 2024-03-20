@@ -9,6 +9,8 @@
 #include "duckdb/function/scalar/strftime_format.hpp"
 #include "duckdb/main/client_context.hpp"
 #include "duckdb/main/database.hpp"
+#include "duckdb/main/secret/secret_manager.hpp"
+#include "duckdb/transaction/meta_transaction.hpp"
 
 #include <chrono>
 #include <string>
@@ -21,7 +23,15 @@
 
 namespace duckdb {
 
-static duckdb::unique_ptr<duckdb_httplib_openssl::Headers> initialize_http_headers(HeaderMap &header_map) {
+static void initialize_http_headers(HeaderMap &headers, const Value &header_map) {
+	D_ASSERT(header_map.type().id() == LogicalTypeId::MAP);
+	for (auto &entry : ListValue::GetChildren(header_map)) {
+		auto &x = StructValue::GetChildren(entry);
+		headers.insert({x[0].ToString(), x[1].ToString()});
+	}
+}
+
+static duckdb::unique_ptr<duckdb_httplib_openssl::Headers> initialize_http_headers(const HeaderMap &header_map) {
 	auto headers = make_uniq<duckdb_httplib_openssl::Headers>();
 	for (auto &entry : header_map) {
 		headers->insert(entry);
@@ -38,6 +48,7 @@ HTTPParams HTTPParams::ReadFrom(FileOpener *opener) {
 	bool keep_alive = DEFAULT_KEEP_ALIVE;
 	bool enable_server_cert_verification = DEFAULT_ENABLE_SERVER_CERT_VERIFICATION;
 	std::string ca_cert_file = "";
+	HeaderMap headers;
 
 	Value value;
 	if (FileOpener::TryGetCurrentSetting(opener, "http_timeout", value)) {
@@ -65,9 +76,28 @@ HTTPParams HTTPParams::ReadFrom(FileOpener *opener) {
 		ca_cert_file = value.ToString();
 	}
 
-	return {
-	    timeout,     retries, retry_wait_ms, retry_backoff, force_download, keep_alive, enable_server_cert_verification,
-	    ca_cert_file};
+	auto context = opener->TryGetClientContext();
+	if (context) {
+		DatabaseInstance &instance = DatabaseInstance::GetDatabase(*context);
+		auto &secrets = instance.GetSecretManager();
+
+		auto secret =
+		    secrets.LookupSecret(CatalogTransaction::GetSystemCatalogTransaction(*context), "https://", "https");
+		if (secret.HasMatch()) {
+			auto kv = secret.GetSecret().Cast<KeyValueSecret>();
+			initialize_http_headers(headers, kv.secret_map["headers"]);
+		}
+	}
+
+	return {timeout,
+	        retries,
+	        retry_wait_ms,
+	        retry_backoff,
+	        force_download,
+	        keep_alive,
+	        enable_server_cert_verification,
+	        ca_cert_file,
+	        headers};
 }
 
 void HTTPFileSystem::ParseUrl(string &url, string &path_out, string &proto_host_port_out) {
@@ -207,6 +237,7 @@ unique_ptr<duckdb_httplib_openssl::Client> HTTPFileSystem::GetClient(const HTTPP
 	client->set_read_timeout(http_params.timeout);
 	client->set_connection_timeout(http_params.timeout);
 	client->set_decompress(false);
+	client->set_default_headers(*initialize_http_headers(http_params.headers));
 	return client;
 }
 

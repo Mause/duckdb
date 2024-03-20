@@ -1,0 +1,18 @@
+# name: test/sql/httpfs/headers.test
+# group: [httpfs]
+
+require-env S3_TEST_SERVER_AVAILABLE 1
+
+require httpfs
+
+require json
+
+statement ok
+set http_headers = MAP {'Accept': 'text/xml'};
+
+# we send an intentionally bad Accept header value - GitHub responds with 415 "Unacceptable"
+statement error
+from read_json_auto('https://api.github.com/licenses');
+----
+415
+

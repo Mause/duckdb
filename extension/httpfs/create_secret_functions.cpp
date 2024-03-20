@@ -4,6 +4,10 @@
 
 namespace duckdb {
 
+void CreateHttpsSecretFunctions::Register(duckdb::DatabaseInstance &instance) {
+	RegisterCreateSecretFunction(instance);
+}
+
 void CreateS3SecretFunctions::Register(DatabaseInstance &instance) {
 	RegisterCreateSecretFunction(instance, "s3");
 	RegisterCreateSecretFunction(instance, "r2");
@@ -131,4 +135,36 @@ void CreateS3SecretFunctions::RegisterCreateSecretFunction(DatabaseInstance &ins
 	ExtensionUtil::RegisterFunction(instance, from_empty_config_fun2);
 	ExtensionUtil::RegisterFunction(instance, from_settings_fun2);
 }
+
+unique_ptr<BaseSecret> CreateHttpsSecretFunctions::CreateHttpsSecretFromConfig(ClientContext &context,
+                                                                               CreateSecretInput &input) {
+	vector<string> prefix_paths_p {"https://", "http://"};
+	auto return_value = make_uniq<KeyValueSecret>(prefix_paths_p, input.type, input.provider, input.name);
+
+	Value &value = input.options["headers"];
+	if (value.IsNull()) {
+		throw InvalidInputException("headers parameter is required");
+	}
+	value.Print();
+	return_value->secret_map["headers"] = value;
+
+	return std::move(return_value);
+}
+
+void CreateHttpsSecretFunctions::RegisterCreateSecretFunction(DatabaseInstance &instance) {
+	string type = "https";
+
+	SecretType secret_type;
+	secret_type.name = type;
+	secret_type.deserializer = KeyValueSecret::Deserialize<KeyValueSecret>;
+	secret_type.default_provider = "config";
+	ExtensionUtil::RegisterSecretType(instance, secret_type);
+
+	CreateSecretFunction function = {type, "config", CreateHttpsSecretFromConfig};
+	function.named_parameters["headers"] =
+	    LogicalType::MAP(LogicalTypeId::VARCHAR,
+	                     LogicalType::UNION({{"string", LogicalTypeId::VARCHAR}, {"number", LogicalTypeId::INTEGER}}));
+	ExtensionUtil::RegisterFunction(instance, function);
+}
+
 } // namespace duckdb

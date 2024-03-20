@@ -1,0 +1,27 @@
+# name: test/sql/httpfs/httpfs.test
+# group: [httpfs]
+
+require-env S3_TEST_SERVER_AVAILABLE 1
+
+require httpfs
+
+statement ok
+set http_headers = MAP {'hello': 'world'};
+
+statement ok
+set http_headers = MAP {};
+
+statement ok
+set http_headers TO MAP {'hello': 'world'};
+
+query I
+select current_setting('http_headers');
+----
+{hello=world}
+
+statement ok
+set threads TO 1;
+
+statement ok
+set memory_limit = '1MB';
+
