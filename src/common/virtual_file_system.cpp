@@ -105,6 +105,10 @@ bool VirtualFileSystem::FileExists(const string &filename) {
 	return FindFileSystem(filename).FileExists(filename);
 }
 
+bool VirtualFileSystem::FileExists(const string &filename, FileOpener *opener) {
+	return FindFileSystem(filename).FileExists(filename, opener);
+}
+
 bool VirtualFileSystem::IsPipe(const string &filename) {
 	return FindFileSystem(filename).IsPipe(filename);
 }

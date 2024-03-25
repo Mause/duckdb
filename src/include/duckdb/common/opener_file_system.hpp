@@ -92,7 +92,7 @@ public:
 	}
 
 	bool FileExists(const string &filename) override {
-		return GetFileSystem().FileExists(filename);
+		return GetFileSystem().FileExists(filename, GetOpener().get());
 	}
 
 	bool IsPipe(const string &filename) override {

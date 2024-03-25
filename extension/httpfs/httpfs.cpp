@@ -496,17 +496,30 @@ time_t HTTPFileSystem::GetLastModifiedTime(FileHandle &handle) {
 	return sfh.last_modified;
 }
 
-bool HTTPFileSystem::FileExists(const string &filename) {
+bool HTTPFileSystem::FileExists(const string &filename, FileOpener *opener) {
 	try {
-		auto handle = OpenFile(filename.c_str(), FileFlags::FILE_FLAGS_READ);
+		auto handle = OpenFile(filename.c_str(), FileFlags::FILE_FLAGS_READ, DEFAULT_LOCK, DEFAULT_COMPRESSION, opener);
 		auto &sfh = (HTTPFileHandle &)*handle;
 		if (sfh.length == 0) {
 			return false;
 		}
 		return true;
-	} catch (...) {
-		return false;
+	} catch (std::exception &e) {
+		ErrorData err(e);
+
+		if (err.Type() == ExceptionType::HTTP) {
+			auto status = err.ExtraInfo().at(HTTPException::STATUS_CODE);
+			if (status == "404") {
+				return false;
+			}
+		}
+
+		err.Throw();
 	};
+}
+
+bool HTTPFileSystem::FileExists(const string &filename) {
+	return FileExists(filename, nullptr);
 }
 
 bool HTTPFileSystem::CanHandleFile(const string &fpath) {
