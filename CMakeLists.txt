@@ -127,6 +127,10 @@ endif()
 if(UNIX AND NOT APPLE)
   set(OS_NAME "linux") # sorry BSD
 endif()
+if (ANDROID)
+  set(OS_NAME "android")
+  link_libraries("-llog")
+endif()
 
 option(FORCE_WARN_UNUSED "Unused code objects lead to compiler warnings." FALSE)
 

@@ -1,0 +1,55 @@
+name: Android
+on: push
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          java-version: 17
+          distribution: temurin
+
+      - run: |
+          sudo apt update
+          sudo apt install -y ninja-build cmake
+
+      - uses: nttld/setup-ndk@v1
+        id: setup-ndk
+        with:
+          ndk-version: r25c
+          add-to-path: true
+          local-cache: true
+
+      - name: Setup Ccache
+        uses: hendrikmuhs/ccache-action@main
+        with:
+          key: ${{ github.job }}
+
+      - run: |
+          echo "ANDROID_NDK_HOME=${{ steps.setup-ndk.outputs.ndk-path }}" >> "$GITHUB_ENV"
+          echo "NDK=${{ steps.setup-ndk.outputs.ndk-path }}" >> "$GITHUB_ENV"
+
+      - uses: gradle/gradle-build-action@v2
+
+      - run: ./gradlew tasks --all
+        working-directory: tools/jdbc
+        name: Dump tasks
+
+      - run: ./gradlew assembleDebug --info --scan
+        working-directory: tools/jdbc
+        name: Build
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: duckdb-android-aarch64
+          path: |
+            tools/jdbc/**/build/outputs/**/*.aar
+            tools/jdbc/**/build/outputs/**/*.apk
+

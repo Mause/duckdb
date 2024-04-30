@@ -2,25 +2,30 @@ package org.duckdb;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.sql.SQLException;
 import java.util.Properties;
-import java.math.BigDecimal;
 
-class DuckDBNative {
+public class DuckDBNative {
     static {
+        String java_vendor = System.getProperty("java.vendor");
+        if ("The Android Project".equals(java_vendor)) {
+            System.loadLibrary("duckdb_java");
+        } else {
+            loadFromFilesystem();
+        }
+    }
+
+    private static void loadFromFilesystem() {
         try {
             String os_name = "";
             String os_arch;
             String os_name_detect = System.getProperty("os.name").toLowerCase().trim();
             String os_arch_detect = System.getProperty("os.arch").toLowerCase().trim();
-            String java_vendor = System.getProperty("java.vendor");
             switch (os_arch_detect) {
             case "x86_64":
             case "amd64":
@@ -36,9 +41,7 @@ class DuckDBNative {
             default:
                 throw new IllegalStateException("Unsupported system architecture");
             }
-            if (java_vendor.equals("The Android Project")) {
-                os_name = "android";
-            } else if (os_name_detect.startsWith("windows")) {
+            if (os_name_detect.startsWith("windows")) {
                 os_name = "windows";
             } else if (os_name_detect.startsWith("mac")) {
                 os_name = "osx";
@@ -52,17 +55,13 @@ class DuckDBNative {
             Path lib_file = Files.createTempFile("libduckdb_java", ".so");
             URL lib_res = DuckDBNative.class.getResource(lib_res_name);
             if (lib_res == null) {
-                System.load(
-                    Paths.get("../../build/debug/tools/jdbc", lib_res_name).normalize().toAbsolutePath().toString());
-            } else {
-                try (final InputStream lib_res_input_stream = lib_res.openStream()) {
-                    Files.copy(lib_res_input_stream, lib_file, StandardCopyOption.REPLACE_EXISTING);
-                }
-                new File(lib_file.toString()).deleteOnExit();
-                System.load(lib_file.toAbsolutePath().toString());
+                throw new IOException(lib_res_name + " not found");
             }
+            Files.copy(lib_res.openStream(), lib_file, StandardCopyOption.REPLACE_EXISTING);
+            new File(lib_file.toString()).deleteOnExit();
+            System.load(lib_file.toAbsolutePath().toString());
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            e.printStackTrace();
         }
     }
     // We use zero-length ByteBuffer-s as a hacky but cheap way to pass C++ pointers
@@ -100,11 +99,7 @@ class DuckDBNative {
 
     protected static native void duckdb_jdbc_release(ByteBuffer stmt_ref);
 
-    protected static native DuckDBResultSetMetaData duckdb_jdbc_query_result_meta(ByteBuffer result_ref)
-        throws SQLException;
-
-    protected static native DuckDBResultSetMetaData duckdb_jdbc_prepared_statement_meta(ByteBuffer stmt_ref)
-        throws SQLException;
+    protected static native DuckDBResultSetMetaData duckdb_jdbc_meta(ByteBuffer stmt_ref) throws SQLException;
 
     // returns res_ref result reference object
     protected static native ByteBuffer duckdb_jdbc_execute(ByteBuffer stmt_ref, Object[] params) throws SQLException;
@@ -156,12 +151,6 @@ class DuckDBNative {
         throws SQLException;
 
     protected static native void duckdb_jdbc_appender_append_string(ByteBuffer appender_ref, byte[] value)
-        throws SQLException;
-
-    protected static native void duckdb_jdbc_appender_append_timestamp(ByteBuffer appender_ref, long value)
-        throws SQLException;
-
-    protected static native void duckdb_jdbc_appender_append_decimal(ByteBuffer appender_ref, BigDecimal value)
         throws SQLException;
 
     protected static native void duckdb_jdbc_appender_append_null(ByteBuffer appender_ref) throws SQLException;

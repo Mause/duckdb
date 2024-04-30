@@ -1,10 +1,9 @@
 find_package(Java 1.8)
-find_package(JNI)
 
 cmake_minimum_required(VERSION 3.11.0)
 
-if(NOT JNI_FOUND OR NOT Java_FOUND)
-  message(FATAL_ERROR "No compatible Java/JNI found")
+if(NOT Java_FOUND)
+  message(FATAL_ERROR "No compatible Java found")
 endif()
 
 include(UseJava)
@@ -15,9 +14,18 @@ file(GLOB_RECURSE JAVA_TEST_FILES src/test/java/org/duckdb/*.java)
 
 set(CMAKE_JAVA_COMPILE_FLAGS -source 1.8 -target 1.8 -encoding utf-8)
 
-add_jar(duckdb_jdbc ${JAVA_SRC_FILES} META-INF/services/java.sql.Driver
-        GENERATE_NATIVE_HEADERS duckdb-native)
-add_jar(duckdb_jdbc_tests ${JAVA_TEST_FILES} INCLUDE_JARS duckdb_jdbc)
+if(ANDROID)
+  add_jar(duckdb_jdbc_dummy ${JAVA_SRC_FILES} GENERATE_NATIVE_HEADERS
+          duckdb-native)
+else()
+  find_package(JNI)
+  if(NOT JNI_FOUND)
+    message(FATAL_ERROR "No compatible JNI found")
+  endif()
+  add_jar(duckdb_jdbc ${JAVA_SRC_FILES} META-INF/services/java.sql.Driver
+          GENERATE_NATIVE_HEADERS duckdb-native)
+  add_jar(duckdb_jdbc_tests ${JAVA_TEST_FILES} INCLUDE_JARS duckdb_jdbc)
+endif()
 
 include_directories(../../extension/parquet/include)
 
@@ -31,8 +39,10 @@ endif()
 if(OVERRIDE_JDBC_OS_ARCH)
   set(OS_ARCH ${OVERRIDE_JDBC_OS_ARCH})
 endif()
-string(JOIN "_" LIB_SUFFIX ".so" ${OS_NAME} ${OS_ARCH})
-set_target_properties(duckdb_java PROPERTIES SUFFIX ${LIB_SUFFIX})
+if(NOT ANDROID)
+  string(JOIN "_" LIB_SUFFIX ".so" ${OS_NAME} ${OS_ARCH})
+  set_target_properties(duckdb_java PROPERTIES SUFFIX ${LIB_SUFFIX})
+endif()
 set_target_properties(duckdb_java PROPERTIES PREFIX "lib")
 
 add_custom_command(
