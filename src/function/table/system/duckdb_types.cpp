@@ -58,6 +58,9 @@ static unique_ptr<FunctionData> DuckDBTypesBind(ClientContext &context, TableFun
 	names.emplace_back("labels");
 	return_types.emplace_back(LogicalType::LIST(LogicalType::VARCHAR));
 
+	names.emplace_back("unsigned");
+	return_types.emplace_back(LogicalType::BOOLEAN);
+
 	return nullptr;
 }
 
@@ -183,6 +186,7 @@ void DuckDBTypesFunction(ClientContext &context, TableFunctionInput &data_p, Dat
 		} else {
 			output.SetValue(col++, count, Value());
 		}
+		output.SetValue(col++, count, type.IsNumeric() ? Value(type.IsUnsigned()) : Value(nullptr));
 
 		count++;
 	}

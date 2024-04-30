@@ -4221,6 +4221,54 @@ public class TestDuckDBJDBC {
         }
     }
 
+    public static void scroll_until(ResultSet rs, String type_name) throws Exception {
+        while (!type_name.equals(rs.getString("TYPE_NAME"))) {
+            assertTrue(rs.next());
+        }
+    }
+
+    public static void test_get_type_info() throws Exception {
+        try (Connection conn = DriverManager.getConnection("jdbc:duckdb:");
+             ResultSet rs = conn.getMetaData().getTypeInfo()) {
+            assertTrue(rs.next());
+
+            scroll_until(rs, "bigint");
+
+            assertEquals(rs.getString("TYPE_NAME"), "bigint");
+            assertEquals(rs.getInt("DATA_TYPE"), Types.BIGINT);
+            assertEquals(rs.getInt("PRECISION"), 0);
+            assertNull(rs.getString("LITERAL_PREFIX"));
+            assertNull(rs.getString("CREATE_PARAMS"));
+            assertEquals(rs.getInt("NULLABLE"), DatabaseMetaData.typeNullable);
+            assertFalse(rs.getBoolean("CASE_SENSITIVE"));
+            assertEquals(rs.getInt("SEARCHABLE"), DatabaseMetaData.typePredNone);
+            assertFalse(rs.getBoolean("UNSIGNED_ATTRIBUTE"));
+            assertFalse(rs.getBoolean("FIXED_PREC_SCALE")); // TODO: money support?
+            assertFalse(rs.getBoolean("AUTO_INCREMENT"));   // TODO: do we support autoincrement anywhere?
+            assertEquals(rs.getString("LOCAL_TYPE_NAME"), "bigint");
+            assertEquals(rs.getInt("MINIMUM_SCALE"), 0);
+            assertEquals(rs.getInt("MAXIMUM_SCALE"), 8);
+
+            scroll_until(rs, "varchar");
+
+            assertEquals(rs.getString("TYPE_NAME"), "varchar");
+            assertEquals(rs.getInt("DATA_TYPE"), Types.VARCHAR);
+            assertEquals(rs.getInt("PRECISION"), 0);
+            assertEquals(rs.getString("LITERAL_PREFIX"), "'");
+            assertEquals(rs.getString("LITERAL_SUFFIX"), "'");
+            assertNull(rs.getString("CREATE_PARAMS"));
+            assertEquals(rs.getInt("NULLABLE"), DatabaseMetaData.typeNullable);
+            assertFalse(rs.getBoolean("CASE_SENSITIVE"));
+            assertEquals(rs.getInt("SEARCHABLE"), DatabaseMetaData.typeSearchable);
+            assertFalse(rs.getBoolean("UNSIGNED_ATTRIBUTE"));
+            assertFalse(rs.getBoolean("FIXED_PREC_SCALE"));
+            assertFalse(rs.getBoolean("AUTO_INCREMENT"));
+            assertEquals(rs.getString("LOCAL_TYPE_NAME"), "varchar");
+            assertEquals(rs.getInt("MINIMUM_SCALE"), 0);
+            assertEquals(rs.getInt("MAXIMUM_SCALE"), 16);
+        }
+    }
+
     public static void test_get_binary_stream() throws Exception {
         try (Connection connection = DriverManager.getConnection("jdbc:duckdb:");
              PreparedStatement s = connection.prepareStatement("select ?")) {

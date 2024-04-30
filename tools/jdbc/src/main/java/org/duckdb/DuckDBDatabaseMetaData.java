@@ -13,10 +13,13 @@ import java.sql.SQLFeatureNotSupportedException;
 import java.sql.Statement;
 import java.sql.Types;
 import java.util.Arrays;
+
+import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 import static java.lang.System.lineSeparator;
+import static org.duckdb.JdbcUtils.mapOf;
 
 public class DuckDBDatabaseMetaData implements DatabaseMetaData {
     DuckDBConnection conn;
@@ -971,9 +974,67 @@ public class DuckDBDatabaseMetaData implements DatabaseMetaData {
         throw new SQLFeatureNotSupportedException("getCrossReference");
     }
 
+    /**
+     * TYPE_NAME String => Type name
+     * DATA_TYPE int => SQL data type from java.sql.Types
+     * PRECISION int => maximum precision
+     * LITERAL_PREFIX String => prefix used to quote a literal (may be null)
+     * LITERAL_SUFFIX String => suffix used to quote a literal (may be null)
+     * CREATE_PARAMS String => parameters used in creating the type (may be null)
+     * NULLABLE short => can you use NULL for this type.
+     *  - typeNoNulls - does not allow NULL values
+     *  - typeNullable - allows NULL values
+     *  - typeNullableUnknown - nullability unknown
+     * CASE_SENSITIVE boolean=> is it case sensitive.
+     * SEARCHABLE short => can you use "WHERE" based on this type:
+     *  - typePredNone - No support
+     *  - typePredChar - Only supported with WHERE .. LIKE
+     *  - typePredBasic - Supported except for WHERE .. LIKE
+     *  - typeSearchable - Supported for all WHERE ..
+     * UNSIGNED_ATTRIBUTE boolean => is it unsigned.
+     * FIXED_PREC_SCALE boolean => can it be a money value.
+     * AUTO_INCREMENT boolean => can it be used for an auto-increment value.
+     * LOCAL_TYPE_NAME String => localized version of type name (may be null)
+     * MINIMUM_SCALE short => minimum scale supported
+     * MAXIMUM_SCALE short => maximum scale supported
+     * SQL_DATA_TYPE int => unused
+     * SQL_DATETIME_SUB int => unused
+     * NUM_PREC_RADIX int => usually 2 or 10
+     */
+    /**
+     */
     @Override
     public ResultSet getTypeInfo() throws SQLException {
-        throw new SQLFeatureNotSupportedException("getTypeInfo");
+        String searchable = "IF(type_name = 'varchar', " + typeSearchable + ", " + typePredNone + ")";
+        String precision = "IF(logical_type = 'decimal', 38, null)";
+
+        String literalPrefix =
+            String.format("CASE type_name %s ELSE null END",
+                          makeCase(mapOf("varchar", "''", "map", "MAP {", "list", "[", "array", "[")));
+        String literalSuffix = String.format("CASE type_name %s ELSE null END",
+                                             makeCase(mapOf("varchar", "''", "map", "}", "list", "]", "array", "]")));
+
+        String[] columns = {"type_name AS TYPE_NAME",
+                            "type_name as LOCAL_TYPE_NAME",
+                            makeDataMap("logical_type", "DATA_TYPE"),
+                            precision + " AS PRECISION",
+                            literalPrefix + " AS LITERAL_PREFIX",
+                            literalSuffix + " AS LITERAL_SUFFIX",
+                            "null AS CREATE_PARAMS",
+                            typeNullable + " AS NULLABLE", // assume all our types are nullable?
+                            "false AS CASE_SENSITIVE",
+                            searchable + " AS SEARCHABLE",
+                            "unsigned AS UNSIGNED_ATTRIBUTE",
+                            "false AS FIXED_PREC_SCALE",
+                            "false AS AUTO_INCREMENT",
+                            "null AS LOCAL_TYPE_NAME",
+                            "0 AS MINIMUM_SCALE",
+                            "type_size AS MAXIMUM_SCALE"};
+
+        PreparedStatement statement = getConnection().prepareStatement(
+            String.format("SELECT %s FROM duckdb_types() ORDER BY type_name", String.join(", ", columns)));
+        statement.closeOnCompletion();
+        return statement.executeQuery();
     }
 
     @Override
