@@ -1,5 +1,8 @@
 package org.duckdb;
 
+import org.duckdb.exceptions.ConversionException;
+import org.duckdb.exceptions.NotImplementedException;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
