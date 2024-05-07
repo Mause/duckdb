@@ -19,12 +19,13 @@ public:
 	static constexpr const char *Name = "typing";
 
 public:
-	TypingCacheItem() : PythonImportCacheItem("typing"), _UnionGenericAlias("_UnionGenericAlias", this) {
+	TypingCacheItem() : PythonImportCacheItem("typing"), Union("Union", this), _GenericAlias("_GenericAlias", this) {
 	}
 	~TypingCacheItem() override {
 	}
 
-	PythonImportCacheItem _UnionGenericAlias;
+	PythonImportCacheItem Union;
+	PythonImportCacheItem _GenericAlias;
 };
 
 } // namespace duckdb

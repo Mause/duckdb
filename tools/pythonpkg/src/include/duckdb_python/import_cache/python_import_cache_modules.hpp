@@ -9,6 +9,5 @@
 #include "duckdb_python/import_cache/modules/polars_module.hpp"
 #include "duckdb_python/import_cache/modules/duckdb_module.hpp"
 #include "duckdb_python/import_cache/modules/pytz_module.hpp"
-#include "duckdb_python/import_cache/modules/types_module.hpp"
 #include "duckdb_python/import_cache/modules/typing_module.hpp"
 #include "duckdb_python/import_cache/modules/uuid_module.hpp"

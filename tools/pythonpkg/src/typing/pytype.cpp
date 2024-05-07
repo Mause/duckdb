@@ -10,28 +10,26 @@ namespace duckdb {
 
 // NOLINTNEXTLINE(readability-identifier-naming)
 bool PyGenericAlias::check_(const py::handle &object) {
-	if (!ModuleIsLoaded<TypesCacheItem>()) {
+	if (!ModuleIsLoaded<TypingCacheItem>()) {
 		return false;
 	}
 	auto &import_cache = *DuckDBPyConnection::ImportCache();
-	return py::isinstance(object, import_cache.types.GenericAlias());
+
+	auto alias = import_cache.typing._GenericAlias();
+	D_ASSERT(alias);
+
+	return py::isinstance(object, alias);
 }
 
 // NOLINTNEXTLINE(readability-identifier-naming)
 bool PyUnionType::check_(const py::handle &object) {
-	auto types_loaded = ModuleIsLoaded<TypesCacheItem>();
-	auto typing_loaded = ModuleIsLoaded<TypingCacheItem>();
+	if (py::isinstance<PyGenericAlias>(object)) {
+		auto &import_cache = *DuckDBPyConnection::ImportCache();
 
-	if (!types_loaded && !typing_loaded) {
-		return false;
-	}
+		auto union_type = import_cache.typing.Union();
+		py::object origin = object.attr("__origin__");
 
-	auto &import_cache = *DuckDBPyConnection::ImportCache();
-	if (types_loaded && py::isinstance(object, import_cache.types.UnionType())) {
-		return true;
-	}
-	if (typing_loaded && py::isinstance(object, import_cache.typing._UnionGenericAlias())) {
-		return true;
+		return origin.is(union_type);
 	}
 	return false;
 }
@@ -102,14 +100,14 @@ static PythonTypeObject GetTypeObjectType(const py::handle &type_object) {
 	if (py::isinstance<py::str>(type_object)) {
 		return PythonTypeObject::STRING;
 	}
+	if (py::isinstance<PyUnionType>(type_object)) {
+		return PythonTypeObject::UNION;
+	}
 	if (py::isinstance<PyGenericAlias>(type_object)) {
 		return PythonTypeObject::COMPOSITE;
 	}
 	if (py::isinstance<py::dict>(type_object)) {
 		return PythonTypeObject::STRUCT;
-	}
-	if (py::isinstance<PyUnionType>(type_object)) {
-		return PythonTypeObject::UNION;
 	}
 	return PythonTypeObject::INVALID;
 }

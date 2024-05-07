@@ -34,7 +34,6 @@ public:
 	PolarsCacheItem polars;
 	DuckdbCacheItem duckdb;
 	PytzCacheItem pytz;
-	TypesCacheItem types;
 	TypingCacheItem typing;
 	UuidCacheItem uuid;
 
