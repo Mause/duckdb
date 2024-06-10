@@ -198,6 +198,7 @@ jobs:
       PYTEST_TIMEOUT: '600'
       DUCKDB_BUILD_UNITY: 1
       CIBW_ENVIRONMENT: 'OVERRIDE_GIT_DESCRIBE=${{ inputs.override_git_describe }}'
+      CIBW_PRERELEASE_PYTHONS: true
 
     steps:
     - uses: actions/checkout@v3
