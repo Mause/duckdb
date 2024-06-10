@@ -22,7 +22,6 @@ before-test = 'python scripts/optional_requirements.py'
 test-requires = 'pytest'
 test-command = 'DUCKDB_PYTHON_TEST_EXTENSION_PATH={project} DUCKDB_PYTHON_TEST_EXTENSION_REQUIRED=1 python -m pytest {project}/tests --verbose'
 free-threaded-support = true
-prerelease-pythons = true
 
 # For musllinux we currently don't build extensions yet
 [[tool.cibuildwheel.overrides]]
