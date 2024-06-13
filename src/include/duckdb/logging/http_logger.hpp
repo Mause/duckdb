@@ -37,7 +37,7 @@ public:
 		};
 	}
 	template <class REQUEST, class RESPONSE>
-	void SetLogger(std::function<void(const REQUEST &, const RESPONSE &)> logger) {
+	void SetLogger(std::function<void(const string&)> logger) {
 		Logger = logger;
 	}
 
