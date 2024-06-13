@@ -87,7 +87,7 @@ class TestHTTPFS(object):
         caplog.set_level(logging.DEBUG)
         connection = require('httpfs')
 
-        connection.execute('set http_logging_output = true')
+        connection.execute('set enable_http_logging = true')
 
         connection.execute("SELECT * FROM PARQUET_SCAN('https://raw.githubusercontent.com/duckdb/duckdb/main/data/parquet-testing/userdata1.parquet') LIMIT 3;")
 
