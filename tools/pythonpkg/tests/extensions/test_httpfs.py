@@ -4,6 +4,7 @@ from pytest import raises, mark
 import pytest
 from conftest import NumpyPandas, ArrowPandas
 import datetime
+import logging
 
 # We only run this test if this env var is set
 # FIXME: we can add a custom command line argument to pytest to provide an extension directory
@@ -81,3 +82,13 @@ class TestHTTPFS(object):
         gcs = fsspec.filesystem("gcs")
         connection.register_filesystem(gcs)
         assert connection.sql("select count(*) from 'gcs://ibis-examples/data/band_members.csv.gz'").fetchone() == (3,)
+
+    def test_http_logging(self, require, caplog):
+        caplog.set_level(logging.DEBUG)
+        connection = require('httpfs')
+
+        connection.execute('set http_logging_output = true')
+
+        connection.execute("SELECT * FROM PARQUET_SCAN('https://raw.githubusercontent.com/duckdb/duckdb/main/data/parquet-testing/userdata1.parquet') LIMIT 3;")
+
+        assert caplog.records
