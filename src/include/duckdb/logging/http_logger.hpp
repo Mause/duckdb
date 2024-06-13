@@ -23,19 +23,18 @@ namespace duckdb {
 //! These have essentially the same code, but we cannot convert between them
 //! We get around that by templating everything, which requires implementing everything in the header
 class HTTPLogger {
-	template <class REQUEST, class RESPONSE>
-	std::function<void(const REQUEST &, const RESPONSE &)> Logger;
+	std::function<void(const string &)> Logger;
+
 public:
 	explicit HTTPLogger(ClientContext &context_p) : context(context_p) {
-		this->Logger = [&](const REQUEST &req, const RESPONSE &res) {
-			Log(req, res);
-		};
 	}
 
 public:
 	template <class REQUEST, class RESPONSE>
 	std::function<void(const REQUEST &, const RESPONSE &)> GetLogger() {
-		return Logger;
+		return [&](const REQUEST &req, const RESPONSE &res) {
+			Log(req, res);
+		};
 	}
 	template <class REQUEST, class RESPONSE>
 	void SetLogger(std::function<void(const REQUEST &, const RESPONSE &)> logger) {
@@ -68,6 +67,9 @@ private:
 			stringstream out;
 			TemplatedWriteRequests(out, req, res);
 			Printer::Print(out.str());
+			if (this->Logger) {
+				this->Logger(out.str());
+			}
 		} else {
 			ofstream out(config.http_logging_output, ios::app);
 			TemplatedWriteRequests(out, req, res);
