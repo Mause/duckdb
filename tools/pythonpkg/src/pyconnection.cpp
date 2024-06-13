@@ -1531,6 +1531,10 @@ shared_ptr<DuckDBPyConnection> DuckDBPyConnection::Connect(const string &databas
 
 	auto res = FetchOrCreateInstance(database, config);
 	auto &client_context = *res->connection->context;
+	client_context.http_logger.SetLogger([&](request, response) {
+		Logger::getLogger("duckdb").info("HTTP Request: %s", request);
+		Logger::getLogger("duckdb").info("HTTP Response: %s", response);
+	});
 	SetDefaultConfigArguments(client_context);
 	return res;
 }

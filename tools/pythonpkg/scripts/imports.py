@@ -101,3 +101,10 @@ typing._UnionGenericAlias
 import uuid
 
 uuid.UUID
+
+import logging
+
+logging.getLogger
+logging.Logger.info
+logging.Logger.error
+logging.Logger.warning

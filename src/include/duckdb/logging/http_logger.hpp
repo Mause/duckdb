@@ -23,16 +23,23 @@ namespace duckdb {
 //! These have essentially the same code, but we cannot convert between them
 //! We get around that by templating everything, which requires implementing everything in the header
 class HTTPLogger {
+	template <class REQUEST, class RESPONSE>
+	std::function<void(const REQUEST &, const RESPONSE &)> Logger;
 public:
 	explicit HTTPLogger(ClientContext &context_p) : context(context_p) {
+		this->Logger = [&](const REQUEST &req, const RESPONSE &res) {
+			Log(req, res);
+		};
 	}
 
 public:
 	template <class REQUEST, class RESPONSE>
 	std::function<void(const REQUEST &, const RESPONSE &)> GetLogger() {
-		return [&](const REQUEST &req, const RESPONSE &res) {
-			Log(req, res);
-		};
+		return Logger;
+	}
+	template <class REQUEST, class RESPONSE>
+	void SetLogger(std::function<void(const REQUEST &, const RESPONSE &)> logger) {
+		Logger = logger;
 	}
 
 private:
