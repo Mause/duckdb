@@ -36,8 +36,7 @@ public:
 			Log(req, res);
 		};
 	}
-	template <class REQUEST, class RESPONSE>
-	void SetLogger(std::function<void(const string&)> logger) {
+	void SetLogger(std::function<void(const string &)> logger) {
 		Logger = logger;
 	}
 

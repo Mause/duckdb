@@ -1537,8 +1537,8 @@ shared_ptr<DuckDBPyConnection> DuckDBPyConnection::Connect(const string &databas
 	ClientData::Get(client_context).http_logger->SetLogger([&](const string &request) {
 		py::gil_scoped_acquire acquire;
 		auto &import_cache = *DuckDBPyConnection::ImportCache();
-		auto &logger = import_cache.logging.getLogger("duckdb");
-		logger.info("HTTP Request: %s", request);
+		auto logger = import_cache.logging().attr("getLogger")("duckdb");
+		logger.attr("info")("HTTP Request: %s", request);
 	});
 	SetDefaultConfigArguments(client_context);
 	return res;
