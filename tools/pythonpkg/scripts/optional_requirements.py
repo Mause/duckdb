@@ -5,7 +5,7 @@ import argparse
 
 def install_package(package_name, is_optional):
     try:
-        subprocess.run(['pip', 'install', '--prefer-binary', package_name], check=True)
+        subprocess.run(['pip', 'install', '--prefer-binary', '--pre', package_name], check=True)
     except subprocess.CalledProcessError:
         if is_optional:
             print(f'WARNING: Failed to install (optional) "{package_name}", might require manual review')
