@@ -17,7 +17,6 @@ local_scheme = "no-local-version"
 [tool.cibuildwheel]
 dependency-versions = "latest"
 environment = "PIP_CONSTRAINT='build-constraints.txt'"
-before-build = 'pip install oldest-supported-numpy'
 before-test = 'python scripts/optional_requirements.py'
 test-requires = 'pytest'
 test-command = 'DUCKDB_PYTHON_TEST_EXTENSION_PATH={project} DUCKDB_PYTHON_TEST_EXTENSION_REQUIRED=1 python -m pytest {project}/tests --verbose'
