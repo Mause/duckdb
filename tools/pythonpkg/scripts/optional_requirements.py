@@ -1,12 +1,15 @@
 import os
+import sys
 import subprocess
 import argparse
+
+free_threaded = 'free-threading' in sys.version
 
 
 def install_package(package_name, is_optional):
     try:
         cmd = ['pip', 'install', package_name, '--prefer-binary']
-        if package_name in ['pyarrow', 'torch', 'polars', 'numpy']
+        if package_name in ['pyarrow', 'torch', 'polars', 'numpy'] and free_threaded:
             cmd += ['-i', 'https://pypi.anaconda.org/scientific-python-nightly-wheels/simple']
         subprocess.run(cmd, check=True)
     except subprocess.CalledProcessError:
