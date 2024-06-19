@@ -18,7 +18,7 @@ def install_package(package, is_optional):
         check_call(cmd)
     except CalledProcessError:
         if is_optional:
-            print(f'WARNING: Failed to install (optional) "{package_name}", might require manual review')
+            print(f'WARNING: Failed to install (optional) "{package.name}", might require manual review', file=sys.stderr)
             return
         raise
 
