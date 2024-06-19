@@ -2,15 +2,16 @@ import os
 import sys
 import subprocess
 import argparse
+from packaging.requirements import Requirement
 
 free_threaded = 'free-threading' in sys.version
 
 
-def install_package(package_name, is_optional):
+def install_package(package, is_optional):
+    cmd = ['pip', 'install', str(package), '--prefer-binary']
+    if package.name in ['pyarrow', 'torch', 'polars', 'numpy'] and free_threaded:
+        cmd += ['-i', 'https://pypi.anaconda.org/scientific-python-nightly-wheels/simple']
     try:
-        cmd = ['pip', 'install', package_name, '--prefer-binary']
-        if package_name in ['pyarrow', 'torch', 'polars', 'numpy'] and free_threaded:
-            cmd += ['-i', 'https://pypi.anaconda.org/scientific-python-nightly-wheels/simple']
         subprocess.run(cmd, check=True)
     except subprocess.CalledProcessError:
         if is_optional:
@@ -37,13 +38,12 @@ if __name__ == "__main__":
     requirements_path = os.path.join(script_dir, '..', 'requirements-dev.txt')
 
     content = open(requirements_path).read()
-    packages = [x for x in content.split('\n') if x != '']
+    packages = [Requirement(x) for x in content.splitlines() if x]
 
     result = []
     for package in packages:
-        package_name = package.replace('=', '>').replace('<', '>').split('>')[0]
-        if package_name in args.exclude:
+        if package.name in args.exclude:
             print(f"Skipping {package_name}, as set by the --exclude option")
             continue
-        is_optional = package_name in OPTIONAL_PACKAGES
+        is_optional = package.name in OPTIONAL_PACKAGES
         install_package(package, is_optional)
