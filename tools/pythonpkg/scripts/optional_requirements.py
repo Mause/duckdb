@@ -11,7 +11,7 @@ from packaging.requirements import Requirement
 
 
 def install_package(package, is_optional):
-    cmd = [sys.executable, '-m', 'pip', 'install', str(package), '--prefer-binary']
+    cmd = [sys.executable, '-m', 'pip', 'install', str(package), '--only-binary=:all:']
     if package.name in ['pyarrow', 'torch', 'polars', 'numpy', 'pandas'] and free_threaded:
         cmd += ['-i', 'https://pypi.anaconda.org/scientific-python-nightly-wheels/simple', '--pre']
     try:
