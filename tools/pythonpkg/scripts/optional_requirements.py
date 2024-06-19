@@ -12,7 +12,7 @@ from packaging.requirements import Requirement
 
 def install_package(package, is_optional):
     cmd = [sys.executable, '-m', 'pip', 'install', str(package), '--prefer-binary']
-    if package.name in ['pyarrow', 'torch', 'polars', 'numpy'] and free_threaded:
+    if package.name in ['pyarrow', 'torch', 'polars', 'numpy', 'pandas'] and free_threaded:
         cmd += ['-i', 'https://pypi.anaconda.org/scientific-python-nightly-wheels/simple', '--pre']
     try:
         check_call(cmd)
