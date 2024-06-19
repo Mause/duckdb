@@ -1,18 +1,21 @@
 import os
 import sys
-import subprocess
+from subprocess import check_call
 import argparse
-from packaging.requirements import Requirement
 
 free_threaded = 'free-threading' in sys.version
 
+check_call([sys.executable, '-m', 'pip', 'install', '--upgrade', 'packaging'])
+
+from packaging.requirements import Requirement
+
 
 def install_package(package, is_optional):
-    cmd = ['pip', 'install', str(package), '--prefer-binary']
+    cmd = [sys.executable, '-m', 'pip', 'install', str(package), '--prefer-binary']
     if package.name in ['pyarrow', 'torch', 'polars', 'numpy'] and free_threaded:
         cmd += ['-i', 'https://pypi.anaconda.org/scientific-python-nightly-wheels/simple']
     try:
-        subprocess.run(cmd, check=True)
+        check_call(cmd)
     except subprocess.CalledProcessError:
         if is_optional:
             print(f'WARNING: Failed to install (optional) "{package_name}", might require manual review')
