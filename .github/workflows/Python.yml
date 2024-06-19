@@ -188,7 +188,7 @@ jobs:
             python_build: 'cp311-*'
           - isRelease: false
             arch: aarch64
-    needs: manylinux-extensions-x64
+    # needs: manylinux-extensions-x64
     env:
       CIBW_BUILD: ${{ matrix.python_build}}
       CIBW_SKIP: '*-musllinux_aarch64'
@@ -235,12 +235,6 @@ jobs:
       run: |
         pip install 'cibuildwheel>=2.16.2' build
         python -m pip install numpy --config-settings=setup-args="-Dallow-noblas=true"
-
-    - uses: actions/download-artifact@v3
-      if: ${{ matrix.arch == 'x86_64' }}
-      with:
-        name: manylinux-extensions-x64
-        path: tools/pythonpkg
 
     - name: List extensions to be tested
       shell: bash
