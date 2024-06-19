@@ -5,7 +5,10 @@ import argparse
 
 def install_package(package_name, is_optional):
     try:
-        subprocess.run(['pip', 'install', '--prefer-binary', '--pre', package_name], check=True)
+        cmd = ['pip', 'install', package_name, '--prefer-binary']
+        if package_name in ['pyarrow', 'torch', 'polars', 'numpy']
+            cmd += ['-i', 'https://pypi.anaconda.org/scientific-python-nightly-wheels/simple']
+        subprocess.run(cmd, check=True)
     except subprocess.CalledProcessError:
         if is_optional:
             print(f'WARNING: Failed to install (optional) "{package_name}", might require manual review')
