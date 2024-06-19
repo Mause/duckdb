@@ -1,6 +1,6 @@
 import os
 import sys
-from subprocess import check_call
+from subprocess import check_call, CalledProcessError
 import argparse
 
 free_threaded = 'free-threading' in sys.version
@@ -16,7 +16,7 @@ def install_package(package, is_optional):
         cmd += ['-i', 'https://pypi.anaconda.org/scientific-python-nightly-wheels/simple']
     try:
         check_call(cmd)
-    except subprocess.CalledProcessError:
+    except CalledProcessError:
         if is_optional:
             print(f'WARNING: Failed to install (optional) "{package_name}", might require manual review')
             return
