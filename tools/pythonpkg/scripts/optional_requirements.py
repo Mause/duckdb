@@ -3,7 +3,8 @@ import sys
 from subprocess import check_call, CalledProcessError
 import argparse
 
-free_threaded = 'free-threading' in sys.version
+three_thirteen = sys.version_info[1] == 13
+print(sys.version_info, three_thirteen)
 
 check_call([sys.executable, '-m', 'pip', 'install', '--upgrade', 'packaging'])
 
@@ -12,7 +13,7 @@ from packaging.requirements import Requirement
 
 def install_package(package, is_optional):
     cmd = [sys.executable, '-m', 'pip', 'install', str(package), '--only-binary=:all:']
-    if package.name in ['pyarrow', 'torch', 'polars', 'numpy', 'pandas'] and free_threaded:
+    if package.name in ['pyarrow', 'torch', 'polars', 'numpy', 'pandas'] and three_thirteen:
         cmd += ['-i', 'https://pypi.anaconda.org/scientific-python-nightly-wheels/simple', '--pre']
     try:
         check_call(cmd)
@@ -31,7 +32,7 @@ if __name__ == "__main__":
 
     # Failing to install this package does not constitute a build failure
     OPTIONAL_PACKAGES = ["pyarrow", "torch", "polars", "adbc_driver_manager", "tensorflow"]
-    if free_threaded:
+    if three_thirteen:
         OPTIONAL_PACKAGES.append("pandas")
 
     for package in args.exclude:
