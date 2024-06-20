@@ -33,7 +33,7 @@ if __name__ == "__main__":
     # Failing to install this package does not constitute a build failure
     OPTIONAL_PACKAGES = ["pyarrow", "torch", "polars", "adbc_driver_manager", "tensorflow"]
     if three_thirteen:
-        OPTIONAL_PACKAGES.append("pandas")
+        OPTIONAL_PACKAGES += ("pandas", "psutil")
 
     for package in args.exclude:
         if package not in OPTIONAL_PACKAGES:
