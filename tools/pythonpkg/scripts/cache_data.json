@@ -551,5 +551,48 @@
         "full_path": "uuid.UUID",
         "name": "UUID",
         "children": []
+    },
+    "logging": {
+        "type": "module",
+        "full_path": "logging",
+        "name": "logging",
+        "children": [
+            "logging.getLogger",
+            "logging.Logger"
+        ]
+    },
+    "logging.getLogger": {
+        "type": "attribute",
+        "full_path": "logging.getLogger",
+        "name": "getLogger",
+        "children": []
+    },
+    "logging.Logger": {
+        "type": "attribute",
+        "full_path": "logging.Logger",
+        "name": "Logger",
+        "children": [
+            "logging.Logger.info",
+            "logging.Logger.error",
+            "logging.Logger.warning"
+        ]
+    },
+    "logging.Logger.info": {
+        "type": "attribute",
+        "full_path": "logging.Logger.info",
+        "name": "info",
+        "children": []
+    },
+    "logging.Logger.error": {
+        "type": "attribute",
+        "full_path": "logging.Logger.error",
+        "name": "error",
+        "children": []
+    },
+    "logging.Logger.warning": {
+        "type": "attribute",
+        "full_path": "logging.Logger.warning",
+        "name": "warning",
+        "children": []
     }
 }

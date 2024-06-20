@@ -37,6 +37,7 @@ public:
 	TypesCacheItem types;
 	TypingCacheItem typing;
 	UuidCacheItem uuid;
+	LoggingCacheItem logging;
 
 public:
 	py::handle AddCache(py::object item);

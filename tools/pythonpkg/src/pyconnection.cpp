@@ -55,6 +55,9 @@
 #include "duckdb/main/materialized_query_result.hpp"
 #include "duckdb/main/stream_query_result.hpp"
 #include "duckdb/main/relation/materialized_relation.hpp"
+#include "duckdb/main/client_data.hpp"
+#include "duckdb_python/import_cache/modules/logging_module.hpp"
+#include "duckdb/logging/http_logger.hpp"
 
 #include <random>
 
@@ -1531,6 +1534,16 @@ shared_ptr<DuckDBPyConnection> DuckDBPyConnection::Connect(const string &databas
 
 	auto res = FetchOrCreateInstance(database, config);
 	auto &client_context = *res->connection->context;
+
+	auto &import_cache = *DuckDBPyConnection::ImportCache();
+	auto logger = import_cache.logging().attr("getLogger")("duckdb");
+
+	ClientData::Get(client_context).http_logger->SetLogger([&](const string &request, const string &response) {
+		py::gil_scoped_acquire acquire;
+		logger.attr("debug")("%s", request);
+		logger.attr("debug")("%s", response);
+	});
+
 	SetDefaultConfigArguments(client_context);
 	return res;
 }
