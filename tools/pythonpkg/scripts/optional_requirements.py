@@ -6,7 +6,13 @@ import argparse
 three_thirteen = sys.version_info[1] == 13
 print(sys.version_info, three_thirteen)
 
-check_call([sys.executable, '-m', 'pip', 'install', '--upgrade', 'packaging'])
+
+def pip(*args):
+    check_call([sys.executable, "-m", "pip", "install"] + args)
+
+
+pip("packaging", "--upgrade")
+pip("pip", "--upgrade", "--pre")
 
 from packaging.requirements import Requirement
 
