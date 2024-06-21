@@ -8,7 +8,7 @@ print(sys.version_info, three_thirteen)
 
 
 def pip(*args):
-    check_call([sys.executable, "-m", "pip", "install"] + args)
+    check_call([sys.executable, "-m", "pip", "install", *args])
 
 
 pip("packaging", "--upgrade")
