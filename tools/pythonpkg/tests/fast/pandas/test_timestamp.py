@@ -2,7 +2,9 @@ import duckdb
 import datetime
 import os
 import pytest
-import pandas as pd
+from pytest import importorskip
+
+pd = importorskip('pandas')
 import platform
 from conftest import pandas_2_or_higher
 

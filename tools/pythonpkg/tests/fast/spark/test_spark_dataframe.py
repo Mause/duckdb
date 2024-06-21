@@ -148,7 +148,9 @@ class TestDataFrame(object):
         assert res == []
 
     def test_df_from_pandas(self, spark):
-        import pandas as pd
+        from pytest import importorskip
+
+        pd = importorskip('pandas')
 
         df = spark.createDataFrame(pd.DataFrame({'a': [42, 21], 'b': [True, False]}))
         res = df.collect()

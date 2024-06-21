@@ -1,7 +1,9 @@
 import duckdb
 import tempfile
 import os
-import pandas as pd
+from pytest import importorskip
+
+pd = importorskip('pandas')
 
 
 class TestRelationApi(object):

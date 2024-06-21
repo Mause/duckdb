@@ -2,7 +2,7 @@
 requires = [
 	"setuptools>=60",
 	"setuptools_scm>=6.4",
-	"pybind11>=2.6.0",
+	"pybind11 @ git+https://github.com/pybind/pybind11",
 	"wheel>=0.38.0"
 ]
 build-backend = "setuptools.build_meta"
@@ -17,10 +17,10 @@ local_scheme = "no-local-version"
 [tool.cibuildwheel]
 dependency-versions = "latest"
 environment = "PIP_CONSTRAINT='build-constraints.txt'"
-before-build = 'pip install oldest-supported-numpy'
 before-test = 'python scripts/optional_requirements.py'
 test-requires = 'pytest'
 test-command = 'DUCKDB_PYTHON_TEST_EXTENSION_PATH={project} DUCKDB_PYTHON_TEST_EXTENSION_REQUIRED=1 python -m pytest {project}/tests --verbose'
+free-threaded-support = true
 
 # For musllinux we currently don't build extensions yet
 [[tool.cibuildwheel.overrides]]

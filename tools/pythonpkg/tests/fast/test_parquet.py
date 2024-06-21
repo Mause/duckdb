@@ -2,7 +2,9 @@ import duckdb
 import pytest
 import os
 import tempfile
-import pandas as pd
+from pytest import importorskip
+
+pd = importorskip('pandas')
 
 VARCHAR = duckdb.typing.VARCHAR
 BIGINT = duckdb.typing.BIGINT

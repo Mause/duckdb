@@ -1,6 +1,8 @@
 import numpy
 import datetime
-import pandas
+from pytest import importorskip
+
+pd = importorskip('pandas')
 import pytest
 import duckdb
 import re
