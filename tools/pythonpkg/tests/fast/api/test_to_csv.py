@@ -1,7 +1,9 @@
 import duckdb
 import tempfile
 import os
-import pandas._testing as tm
+from pytest import importorskip
+
+tm = importorskip("pandas._testing")
 import datetime
 import csv
 import pytest

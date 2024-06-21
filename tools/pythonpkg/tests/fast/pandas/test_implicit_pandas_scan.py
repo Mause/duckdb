@@ -1,7 +1,9 @@
 # simple DB API testcase
 
 import duckdb
-import pandas as pd
+from pytest import importorskip
+
+pd = importorskip('pandas')
 import pytest
 from conftest import NumpyPandas, ArrowPandas
 from packaging.version import Version

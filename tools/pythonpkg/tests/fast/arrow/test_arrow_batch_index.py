@@ -1,6 +1,8 @@
 import duckdb
 import pytest
-import pandas as pd
+from pytest import importorskip
+
+pd = importorskip('pandas')
 import duckdb
 
 try:

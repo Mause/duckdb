@@ -1,5 +1,7 @@
 import duckdb
-import pandas as pd
+from pytest import importorskip
+
+pd = importorskip('pandas')
 import numpy as np
 import datetime
 import math

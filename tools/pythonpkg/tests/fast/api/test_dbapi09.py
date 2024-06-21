@@ -2,7 +2,9 @@
 
 import numpy
 import datetime
-import pandas
+from pytest import importorskip
+
+pd = importorskip('pandas')
 
 
 class TestNumpyDate(object):

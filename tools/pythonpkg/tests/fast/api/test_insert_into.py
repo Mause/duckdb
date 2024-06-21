@@ -1,5 +1,6 @@
 import duckdb
-from pandas import DataFrame
+from pytest import importorskip
+DataFrame = importorskip('pandas').DataFrame
 import pytest
 
 

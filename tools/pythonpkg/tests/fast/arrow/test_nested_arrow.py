@@ -4,7 +4,9 @@ try:
     import pyarrow as pa
     import pyarrow.parquet
     import numpy as np
-    import pandas as pd
+    from pytest import importorskip
+
+    pd = importorskip('pandas')
     import pytest
 
     can_run = True

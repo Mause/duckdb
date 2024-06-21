@@ -5,7 +5,9 @@ import pytest
 
 try:
     import pyarrow as pa
-    import pandas as pd
+    from pytest import importorskip
+
+    pd = importorskip('pandas')
 
     can_run = True
 except:

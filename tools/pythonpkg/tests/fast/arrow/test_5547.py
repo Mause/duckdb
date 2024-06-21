@@ -1,5 +1,7 @@
 import duckdb
-import pandas as pd
+from pytest import importorskip
+
+pd = importorskip('pandas')
 from pandas.testing import assert_frame_equal
 import pytest
 

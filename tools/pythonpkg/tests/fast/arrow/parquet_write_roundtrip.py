@@ -2,7 +2,9 @@ import duckdb
 import pytest
 import tempfile
 import numpy
-import pandas
+from pytest import importorskip
+
+pd = importorskip('pandas')
 import datetime
 
 pa = pytest.importorskip("pyarrow")
