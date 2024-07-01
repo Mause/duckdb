@@ -9,7 +9,9 @@ excluded_objects = ['utf8proc_data.cpp']
 
 
 def third_party_includes():
-    includes = []
+    includes = [
+        os.join.join('third_party', 'brotli', 'include'),
+    ]
     includes += [os.path.join('third_party', 'concurrentqueue')]
     includes += [os.path.join('third_party', 'fast_float')]
     includes += [os.path.join('third_party', 'fastpforlib')]
@@ -41,7 +43,11 @@ def third_party_includes():
 
 
 def third_party_sources():
-    sources = []
+    sources = [
+        os.path.join('third_party', 'brotli', 'dec'),
+        os.path.join('third_party', 'brotli', 'enc'),
+        os.path.join('third_party', 'brotli', 'common'),
+    ]
     sources += [os.path.join('third_party', 'fmt')]
     sources += [os.path.join('third_party', 'fsst')]
     sources += [os.path.join('third_party', 'miniz')]
