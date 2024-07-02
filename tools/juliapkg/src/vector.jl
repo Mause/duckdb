@@ -33,8 +33,16 @@ function list_child(vector::Vec)::Vec
     return Vec(duckdb_list_vector_get_child(vector.handle))
 end
 
+function array_child(vector::Vec)::Vec
+    return Vec(duckdb_array_vector_get_child(vector.handle))
+end
+
 function list_size(vector::Vec)::UInt64
     return duckdb_list_vector_get_size(vector.handle)
+end
+
+function array_size(vector::Vec)::UInt64
+    return duckdb_array_type_get_size(duckdb_array_type_child_type(duckdb_vector_get_column_type(vector.handle)))
 end
 
 function struct_child(vector::Vec, index::UInt64)::Vec

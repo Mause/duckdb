@@ -419,6 +419,12 @@ final class TypeConversionTests: XCTestCase {
     try extractTest(
       testColumnName: "map", expected: expected) { $0.cast(to: [String: String].self) }
   }
+
+  func test_extract_array() throws {
+    try extractTest(
+      testColumnName: "array", expected: [[nil, nil], ["Frank", "Duck"], nil]
+    ) { $0.cast(to: [String?].self) }
+  }
 }
 
 private extension TypeConversionTests {
@@ -430,7 +436,7 @@ private extension TypeConversionTests {
     cast: (Column<Void>) -> Column<T>
   ) throws {
     let connection = try Database(store: .inMemory).connect()
-    let result = try connection.query("SELECT \(testColumnName) FROM test_all_types(\(params));")
+    let result = try connection.query("SELECT \"\(testColumnName)\" FROM test_all_types(\(params));")
     let column = cast(result[0])
     for (index, item) in expected.enumerated() {
       XCTAssertEqual(column[DBInt(index)], item)
