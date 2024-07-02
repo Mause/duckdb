@@ -1,7 +1,9 @@
 #include "duckdb/core_functions/core_functions.hpp"
+
 #include "duckdb/core_functions/function_list.hpp"
 #include "duckdb/parser/parsed_data/create_aggregate_function_info.hpp"
 #include "duckdb/parser/parsed_data/create_scalar_function_info.hpp"
+#include "duckdb/parser/parsed_data/create_table_function_info.hpp"
 
 namespace duckdb {
 
@@ -39,6 +41,12 @@ void CoreFunctions::RegisterFunctions(Catalog &catalog, CatalogTransaction trans
 			}
 			result.name = function.name;
 			CreateAggregateFunctionInfo info(result);
+			FillExtraInfo(function, info);
+			catalog.CreateFunction(transaction, info);
+		} else if (function.get_table_function) {
+			TableFunctionSet result(function.name);
+			result.AddFunction(function.get_table_function());
+			CreateTableFunctionInfo info(result);
 			FillExtraInfo(function, info);
 			catalog.CreateFunction(transaction, info);
 		} else {

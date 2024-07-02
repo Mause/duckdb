@@ -42,6 +42,24 @@ struct ErrorFun {
 	static ScalarFunction GetFunction();
 };
 
+struct AssertionsEnabledCheckFun {
+	static constexpr const char *Name = "assertions_enabled_check";
+	static constexpr const char *Parameters = "";
+	static constexpr const char *Description = "Returns true if assertions are enabled";
+	static constexpr const char *Example = "assertions_enabled_check()";
+
+	static ScalarFunction GetFunction();
+};
+
+struct CompileFlagsFun {
+	static constexpr const char *Name = "compile_flags";
+	static constexpr const char *Parameters = "";
+	static constexpr const char *Description = "Returns rows with the state of various compilation flags";
+	static constexpr const char *Example = "compile_flags()";
+
+	static TableFunction GetFunction();
+};
+
 struct HashFun {
 	static constexpr const char *Name = "hash";
 	static constexpr const char *Parameters = "param";
