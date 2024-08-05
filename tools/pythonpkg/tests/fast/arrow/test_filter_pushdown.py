@@ -597,7 +597,9 @@ class TestArrowFilterPushdown(object):
 
     @pytest.mark.parametrize('create_table', [create_pyarrow_pandas, create_pyarrow_table])
     def test_filter_pushdown_blob(self, duckdb_cursor, create_table):
-        import pandas
+        from pytest import importorskip
+
+        pd = importorskip('pandas')
 
         df = pandas.DataFrame(
             {
@@ -665,7 +667,9 @@ class TestArrowFilterPushdown(object):
 
     @pytest.mark.parametrize('create_table', [create_pyarrow_pandas, create_pyarrow_table])
     def test_filter_pushdown_2145(self, duckdb_cursor, tmp_path, create_table):
-        import pandas
+        from pytest import importorskip
+
+        pd = importorskip('pandas')
 
         date1 = pandas.date_range("2018-01-01", "2018-12-31", freq="B")
         df1 = pandas.DataFrame(np.random.randn(date1.shape[0], 5), columns=list("ABCDE"))

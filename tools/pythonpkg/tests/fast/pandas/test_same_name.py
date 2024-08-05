@@ -1,6 +1,8 @@
 import pytest
 import duckdb
-import pandas as pd
+from pytest import importorskip
+
+pd = importorskip('pandas')
 
 
 class TestMultipleColumnsSameName(object):

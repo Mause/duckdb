@@ -1,5 +1,7 @@
 import numpy
-import pandas
+from pytest import importorskip
+
+pd = importorskip('pandas')
 
 
 class TestHugeint(object):

@@ -16,7 +16,9 @@ class TestPyArrowUDF(object):
     def test_basic_use(self):
         def plus_one(x):
             table = pa.lib.Table.from_arrays([x], names=['c0'])
-            import pandas as pd
+            from pytest import importorskip
+
+            pd = importorskip('pandas')
 
             df = pd.DataFrame(x.to_pandas())
             df['c0'] = df['c0'] + 1
@@ -81,7 +83,9 @@ class TestPyArrowUDF(object):
 
     def test_return_multiple_columns(self):
         def returns_two_columns(col):
-            import pandas as pd
+            from pytest import importorskip
+
+            pd = importorskip('pandas')
 
             # Return a pyarrow table consisting of two columns
             return pa.lib.Table.from_pandas(pd.DataFrame({'a': [5, 4, 3], 'b': ['test', 'quack', 'duckdb']}))
@@ -180,7 +184,9 @@ class TestPyArrowUDF(object):
 
     def test_inferred(self):
         def func(x: int) -> int:
-            import pandas as pd
+            from pytest import importorskip
+
+            pd = importorskip('pandas')
 
             df = pd.DataFrame({'c0': x})
             df['c0'] = df['c0'] ** 2
@@ -193,7 +199,9 @@ class TestPyArrowUDF(object):
 
     def test_nulls(self):
         def return_five(x):
-            import pandas as pd
+            from pytest import importorskip
+
+            pd = importorskip('pandas')
 
             length = len(x)
             return pa.lib.Table.from_pandas(pd.DataFrame({'a': [5 for _ in range(length)]}))
