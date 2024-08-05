@@ -1621,6 +1621,18 @@ function duckdb_list_type_child_type(handle)
 end
 
 """
+Retrieves the child type of the given array type.
+
+The result must be freed with `duckdb_destroy_logical_type`
+
+* type: The logical type object
+* returns: The child type of the array type. Must be destroyed with `duckdb_destroy_logical_type`.
+"""
+function duckdb_array_type_child_type(handle)
+    return ccall((:duckdb_array_type_child_type, libduckdb), duckdb_logical_type, (duckdb_logical_type,), handle)
+end
+
+"""
 Returns the number of children of a struct type.
 
 * type: The logical type object
@@ -1891,6 +1903,18 @@ The resulting vector is valid as long as the parent vector is valid.
 """
 function duckdb_list_vector_get_child(vector)
     return ccall((:duckdb_list_vector_get_child, libduckdb), duckdb_vector, (duckdb_vector,), vector)
+end
+
+"""
+Retrieves the child vector of a array vector.
+
+The resulting vector is valid as long as the parent vector is valid.
+
+* vector: The vector
+* returns: The child vector
+"""
+function duckdb_array_vector_get_child(vector)
+    return ccall((:duckdb_array_vector_get_child, libduckdb), duckdb_vector, (duckdb_vector,), vector)
 end
 
 """
