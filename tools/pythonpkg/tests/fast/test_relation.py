@@ -3,7 +3,9 @@ import numpy as np
 import platform
 import tempfile
 import os
-import pandas as pd
+from pytest import importorskip
+
+pd = importorskip('pandas')
 import pytest
 from conftest import ArrowPandas, NumpyPandas
 import datetime

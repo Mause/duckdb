@@ -2,7 +2,9 @@ import duckdb
 import os
 import datetime
 import pytest
-import pandas as pd
+from pytest import importorskip
+
+pd = importorskip('pandas')
 import io
 
 

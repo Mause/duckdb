@@ -1,5 +1,7 @@
 import platform
-import pandas as pd
+from pytest import importorskip
+
+pd = importorskip('pandas')
 import duckdb
 import datetime
 import pytest
