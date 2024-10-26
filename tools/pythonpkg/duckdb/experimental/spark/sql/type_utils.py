@@ -61,6 +61,7 @@ _sqltype_to_spark_class = {
     'timestamp_s': TimestampSecondNTZType,
     'interval': DayTimeIntervalType,
     'list': ArrayType,
+    'array': ArrayType,
     'struct': StructType,
     'map': MapType,
     # union

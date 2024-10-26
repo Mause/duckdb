@@ -318,6 +318,18 @@ final class LogicalTypeTests: XCTestCase {
     )
   }
 
+  func test_array() throws {
+    try logicalTypeTest(
+      dataType: "INT[2]",
+      cast: { $0.cast(to: [Int32].self) },
+      validate: {
+        XCTAssertEqual($0.dataType, .array)
+        XCTAssertEqual($0.underlyingDataType, .array)
+        XCTAssertEqual($0.arrayChildType?.dataType, .integer)
+      }
+    )
+  }
+
   struct NumStrStruct: Equatable, Decodable {
     let num: Int32
     let str: String

@@ -97,6 +97,10 @@ function get_list_child_type(type::LogicalType)
     return LogicalType(duckdb_list_type_child_type(type.handle))
 end
 
+function get_array_child_type(type::LogicalType)
+    return LogicalType(duckdb_array_type_child_type(type.handle))
+end
+
 ##===--------------------------------------------------------------------===##
 ## Struct methods
 ##===--------------------------------------------------------------------===##
