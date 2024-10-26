@@ -19,7 +19,7 @@ struct UnionExtractFun {
 	static constexpr const char *Name = "union_extract";
 	static constexpr const char *Parameters = "union,tag";
 	static constexpr const char *Description = "Extract the value with the named tags from the union. NULL if the tag is not currently selected";
-	static constexpr const char *Example = "union_extract(s, 'k')";
+	static constexpr const char *Example = "union_extract(union_value(k := 'foo'), 'k')";
 
 	static ScalarFunction GetFunction();
 };

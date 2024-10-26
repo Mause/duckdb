@@ -3,7 +3,7 @@
         "name": "union_extract",
         "parameters": "union,tag",
         "description": "Extract the value with the named tags from the union. NULL if the tag is not currently selected",
-        "example": "union_extract(s, 'k')",
+        "example": "union_extract(union_value(k := 'foo'), 'k')",
         "type": "scalar_function"
     },
     {
